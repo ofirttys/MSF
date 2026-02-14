@@ -255,10 +255,9 @@ def calc_monthly_trends(filtered):
     
     # Group by month
     monthly = filtered.groupby('month').agg({
-        'is_new': 'sum',
-        'PID': 'count'
+        'is_new': 'sum'
     }).reset_index()
-    
+    monthly['total'] = filtered.groupby('month').size().values
     monthly.columns = ['month', 'new', 'total']
     monthly['returning'] = monthly['total'] - monthly['new']
     

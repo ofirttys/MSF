@@ -357,11 +357,46 @@ function hideLoading() {
 }
 
 function showError(msg) {
-    alert('Error: ' + msg);
+    // Show error in a banner instead of alert
+    hideLoading();
+    
+    // Create error banner if it doesn't exist
+    let errorBanner = document.getElementById('errorBanner');
+    if (!errorBanner) {
+        errorBanner = document.createElement('div');
+        errorBanner.id = 'errorBanner';
+        errorBanner.style.cssText = `
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #e74c3c;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 10000;
+            max-width: 600px;
+            font-size: 14px;
+            display: none;
+        `;
+        document.body.appendChild(errorBanner);
+    }
+    
+    // Set message and show
+    errorBanner.innerHTML = '<strong>Error:</strong> ' + msg + 
+        ' <button onclick="hideError()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 10px;margin-left:15px;cursor:pointer;border-radius:4px;">Dismiss</button>';
+    errorBanner.style.display = 'block';
+    
+    // Auto-hide after 10 seconds
+    setTimeout(hideError, 10000);
 }
 
 function hideError() {
-    // Error display handled by alert for now
+    const errorBanner = document.getElementById('errorBanner');
+    if (errorBanner) {
+        errorBanner.style.display = 'none';
+    }
 }
 
 function showTab(btn, tabId) {
