@@ -11,7 +11,13 @@ import ctypes
 
 
 # DB Folder configuration
-exe_dir = Path(__file__).parent if getattr(sys, 'frozen', False) else Path(__file__).parent
+if getattr(sys, 'frozen', False):
+    # Running as compiled exe - DB folder should be next to the exe
+    exe_dir = Path(sys.executable).parent
+else:
+    # Running as script - DB folder next to the .py file
+    exe_dir = Path(__file__).parent
+
 DB_FOLDER = str(exe_dir / 'DB')
 
 # Global dataframe
@@ -90,18 +96,25 @@ def read_csv_file(filename):
 def get_csv_files():
     """Get list of CSV files in DB folder"""
     try:
+        print(f"Looking for CSV files in: {DB_FOLDER}")
+        
         if not os.path.exists(DB_FOLDER):
             os.makedirs(DB_FOLDER, exist_ok=True)
-            return {'error': f'DB folder created at: {DB_FOLDER}. Please add CSV files there.'}
+            print(f"Created DB folder at: {DB_FOLDER}")
+            return {'error': f'No CSV files found.\n\nPlease add CSV files to:\n{DB_FOLDER}'}
         
         files = [f for f in os.listdir(DB_FOLDER) if f.lower().endswith('.csv')]
-        if not files:
-            return {'error': f'No CSV files in: {DB_FOLDER}'}
         
+        if not files:
+            print(f"DB folder exists but no CSV files found")
+            return {'error': f'No CSV files found in DB folder.\n\nPlease add CSV files to:\n{DB_FOLDER}'}
+        
+        print(f"Found {len(files)} CSV file(s): {files}")
         files.sort(reverse=True)  # Newest first
         return {'files': files}
     except Exception as e:
-        return {'error': f'Folder error: {str(e)}'}
+        print(f"Error scanning DB folder: {e}")
+        return {'error': f'Folder error: {str(e)}\n\nDB folder: {DB_FOLDER}'}
 
 @eel.expose
 def load_and_process_csv(filename):
