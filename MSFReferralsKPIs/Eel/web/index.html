@@ -740,7 +740,7 @@ function updateKPIs(kpis) {
     document.getElementById('kpiTotal').innerText = fmt(kpis.total);
     document.getElementById('kpiNew').innerText = fmt(kpis.new);
     document.getElementById('kpiReturning').innerText = fmt(kpis.returning);
-    document.getElementById('kpiComplete').innerText = fmt(kpis.complete);
+    document.getElementById('kpiCompleted').innerText = fmt(kpis.complete || 0);
     document.getElementById('kpiPending').innerText = fmt(kpis.pending);
     document.getElementById('kpiCancelled').innerText = fmt(kpis.cancelled);
     document.getElementById('kpiDeferred').innerText = fmt(kpis.deferred);
