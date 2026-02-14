@@ -444,6 +444,7 @@
                 for (var h = 0; h < hdrs.length; h++) headerMap[hdrs[h].replace(/"/g, '').trim().toLowerCase()] = h;
                 
                 var cService = findCol(['service requested', 'service']);
+                var cSubService = findCol(['sub service requested', 'sub service', 'subservice']);
                 var cNewRet = findCol(['new or returning', 'new/returning']);
                 var cRefMD = findCol(['referring md/np', 'referring md']);
                 var cReqPhy = findCol(['requested physician', 'physician']);
@@ -455,9 +456,17 @@
                 
                 console.log('[CSV DEBUG] Column indices:', {
                     cService: cService,
+                    cSubService: cSubService,
                     cDateRec: cDateRec,
                     cFirstContact: cFirstContact,
-                    cDateComplete: cDateComplete
+                    cDateComplete: cDateComplete,
+                    expected: {
+                        cService: 7,
+                        cSubService: 8,
+                        cDateRec: 12,
+                        cFirstContact: 14,
+                        cDateComplete: 25
+                    }
                 });
                 
                 rawRecords = [];
@@ -469,6 +478,7 @@
 					
 					var rec = {
 						service: gv(v, cService),
+						subService: gv(v, cSubService),
 						newOrRet: gv(v, cNewRet),
 						refMD: gv(v, cRefMD),
 						reqPhy: gv(v, cReqPhy),
