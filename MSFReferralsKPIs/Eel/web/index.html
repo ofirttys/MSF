@@ -411,20 +411,14 @@ var services = ['Infertility', 'EEF', 'ONC', 'SB', 'RPL', 'Donor', 'Gyne', 'ARA'
 // FILE LOADING (Much simpler now!)
 // ============================================================================
 
-async function loadFile() {
-    const fileInput = document.getElementById('fileInput');
-    if (!fileInput.files.length) return;
+async function loadFile(filename) {
+    if (!filename) return;
     
-    const file = fileInput.files[0];
     showLoading();
     
     try {
-        // Read file content
-        const txt = await file.text();
-        const tempPath = 'temp_' + file.name;
-        
-        // Let Python process it
-        const result = await eel.load_and_process_csv(tempPath)();
+        // Let Python load and process the CSV from DB folder
+        const result = await eel.load_and_process_csv(filename)();
         
         if (result.status === 'ok') {
             currentFile = filename;
