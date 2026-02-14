@@ -93,6 +93,52 @@ def read_csv_file(filename):
     return None
 
 @eel.expose
+def refresh_and_load():
+    """
+    One function that does EVERYTHING:
+    1. Scan DB folder
+    2. Pick newest CSV
+    3. Load it
+    4. Calculate all chart data
+    5. Return everything
+    """
+    try:
+        # Step 1 & 2: Scan and pick newest file
+        csv_result = get_csv_files()
+        if csv_result.get('error'):
+            return {'status': 'error', 'message': csv_result['error']}
+        
+        filename = csv_result['files'][0]  # Newest file
+        print(f"Loading newest file: {filename}")
+        
+        # Step 3: Load and process CSV
+        load_result = load_and_process_csv(filename)
+        if load_result.get('status') == 'error':
+            return load_result
+        
+        # Step 4: Get all chart data (no filters initially)
+        chart_data = get_all_chart_data({})
+        if chart_data.get('status') == 'error':
+            return chart_data
+        
+        # Step 5: Return everything in one response
+        return {
+            'status': 'ok',
+            'filename': filename,
+            'records': load_result['records'],
+            'dateRange': load_result['dateRange'],
+            'services': load_result.get('services', []),
+            'physicians': load_result.get('physicians', []),
+            'charts': chart_data
+        }
+    except Exception as e:
+        print(f"Error in refresh_and_load: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'status': 'error', 'message': str(e)}
+
+
+@eel.expose
 def get_csv_files():
     """Get list of CSV files in DB folder"""
     try:

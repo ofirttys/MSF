@@ -729,21 +729,30 @@ function updateKPIs(kpis) {
 async function refreshFiles() {
     showLoading();
     try {
-        // Get CSV files from Python
-        const result = await eel.get_csv_files()();
+        // ONE call - Python does EVERYTHING
+        const result = await eel.refresh_and_load()();
         
-        if (result.error) {
-            showError(result.error);
+        if (result.status === 'ok') {
+            // Update UI
+            document.getElementById('currentFile').innerText = result.filename;
+            document.getElementById('recordCount').innerText = result.records + ' records';
+            
+            // Initialize date pickers
+            if (result.dateRange) {
+                initDatePickers(result.dateRange);
+            }
+            
+            // Render all charts (data already calculated!)
+            renderAllCharts(result.charts);
+            updateKPIs(result.charts.kpis);
+            
             hideLoading();
-        } else if (result.files && result.files.length > 0) {
-            // Load the first (newest) file
-            await loadFile(result.files[0]);
         } else {
-            showError('No CSV files found');
+            showError(result.message || 'Failed to load data');
             hideLoading();
         }
     } catch (e) {
-        showError('Folder error: ' + e.message);
+        showError('Error: ' + e.message);
         hideLoading();
     }
 }
