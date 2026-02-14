@@ -344,6 +344,66 @@
 	
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script type="text/javascript">
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+function showLoading() {
+    document.getElementById('loadingOverlay').style.display = 'flex';
+}
+
+function hideLoading() {
+    document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+function showError(msg) {
+    alert('Error: ' + msg);
+}
+
+function hideError() {
+    // Error display handled by alert for now
+}
+
+function showTab(btn, tabId) {
+    var btns = document.getElementsByClassName('tab-btn');
+    var tabs = document.getElementsByClassName('tab-content');
+    for (var i = 0; i < btns.length; i++) btns[i].className = 'tab-btn';
+    for (var i = 0; i < tabs.length; i++) tabs[i].className = 'tab-content';
+    btn.className = 'tab-btn active';
+    document.getElementById(tabId).className = 'tab-content active';
+}
+
+function initDatePickers(dateRange) {
+    if (!dateRange || !dateRange.min || !dateRange.max) return;
+    
+    flatpickr('#dateFrom', {
+        dateFormat: 'Y-m-d',
+        defaultDate: dateRange.min,
+        onChange: function() { applyFilters(); }
+    });
+    
+    flatpickr('#dateTo', {
+        dateFormat: 'Y-m-d',
+        defaultDate: dateRange.max,
+        onChange: function() { applyFilters(); }
+    });
+}
+
+function resetFilters() {
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    applyFilters();
+}
+
+function fmt(n) { 
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); 
+}
+
+// ============================================================================
+// GLOBALS
+// ============================================================================
+
+
 var currentFile = '';
 var services = ['Infertility', 'EEF', 'ONC', 'SB', 'RPL', 'Donor', 'Gyne', 'ARA'];
 
@@ -670,9 +730,6 @@ function updateKPIs(kpis) {
     document.getElementById('kpiDeferred').innerText = fmt(kpis.deferred);
 }
 
-function fmt(n) { 
-    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); 
-}
 
 
 async function refreshFiles() {
@@ -697,12 +754,6 @@ async function refreshFiles() {
     }
 }
 
-function resetFilters() {
-    document.getElementById('dateFrom').value = '';
-    document.getElementById('dateTo').value = '';
-    // Reset service/physician checkboxes if they exist
-    applyFilters();
-}
 
 // ============================================================================
 // INITIALIZATION
