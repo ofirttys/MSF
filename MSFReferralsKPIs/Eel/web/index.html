@@ -531,8 +531,7 @@ function renderMonthlyTrends(data) {
         chartData.push([data.months[i], total, total.toString(), data.new[i], data.returning[i]]);
     }
     
-    google.charts.load('current', {'packages':['corechart']});
-    google.charts.setOnLoadCallback(function() {
+    const drawChart = function() {
         const chart = new google.visualization.LineChart(el);
         chart.draw(
             google.visualization.arrayToDataTable(chartData),
@@ -546,6 +545,7 @@ function renderMonthlyTrends(data) {
                 chartArea: {left: 60, right: 20, top: 20, bottom: 60},
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
+                focusTarget: 'category',
                 annotations: {
                     textStyle: {
                         fontSize: 11,
@@ -560,24 +560,28 @@ function renderMonthlyTrends(data) {
                 }
             }
         );
-    });
+    };
+    
+    // Only load if not already loaded
+    if (typeof google.visualization === 'undefined' || !google.visualization.LineChart) {
+        google.charts.load('current', {'packages':['corechart']});
+        google.charts.setOnLoadCallback(drawChart);
+    } else {
+        drawChart();
+    }
 }
 
 function renderServiceTrends(data) {
     const el = document.getElementById('chartServiceTrends');
-    if (!data.months || data.months.length === 0) {
+    if (!data.services || data.services.length === 0) {
         el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
         return;
     }
     
-    // Build chart data
-    const chartData = [['Month', ...data.services]];
-    for (let month of data.months) {
-        const row = [month];
-        for (let service of data.services) {
-            row.push(data.data[month][service] || 0);
-        }
-        chartData.push(row);
+    // Build simple bar chart: Service Type vs Count
+    const chartData = [['Service Type', 'Referrals']];
+    for (let i = 0; i < data.services.length; i++) {
+        chartData.push([data.services[i], data.counts[i]]);
     }
     
     google.charts.load('current', {'packages':['corechart']});
@@ -587,14 +591,17 @@ function renderServiceTrends(data) {
             google.visualization.arrayToDataTable(chartData),
             {
                 title: '',
-                legend: { position: 'bottom' },
-                colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#16a085', '#8e44ad', '#c0392b'],
+                legend: { position: 'none' },
+                colors: ['#9b59b6'],
                 height: 400,
                 backgroundColor: 'transparent',
-                chartArea: {left: 60, right: 20, top: 20, bottom: 60},
-                isStacked: false,
+                chartArea: {left: 60, right: 20, top: 20, bottom: 80},
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
-                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+                hAxis: { 
+                    slantedText: true,
+                    slantedTextAngle: 45,
+                    textStyle: { fontSize: 11 } 
+                }
             }
         );
     });
@@ -602,19 +609,15 @@ function renderServiceTrends(data) {
 
 function renderPhysicianTrends(data) {
     const el = document.getElementById('chartPhysicianTrends');
-    if (!data.months || data.months.length === 0) {
+    if (!data.physicians || data.physicians.length === 0) {
         el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
         return;
     }
     
-    // Build chart data
-    const chartData = [['Month', ...data.physicians]];
-    for (let month of data.months) {
-        const row = [month];
-        for (let physician of data.physicians) {
-            row.push(data.data[month][physician] || 0);
-        }
-        chartData.push(row);
+    // Build simple bar chart: Physician vs Count
+    const chartData = [['Physician', 'Referrals']];
+    for (let i = 0; i < data.physicians.length; i++) {
+        chartData.push([data.physicians[i], data.counts[i]]);
     }
     
     google.charts.load('current', {'packages':['corechart']});
@@ -624,13 +627,17 @@ function renderPhysicianTrends(data) {
             google.visualization.arrayToDataTable(chartData),
             {
                 title: '',
-                legend: { position: 'bottom' },
+                legend: { position: 'none' },
+                colors: ['#3498db'],
                 height: 400,
                 backgroundColor: 'transparent',
-                chartArea: {left: 60, right: 20, top: 20, bottom: 60},
-                isStacked: false,
+                chartArea: {left: 60, right: 20, top: 20, bottom: 100},
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
-                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+                hAxis: { 
+                    slantedText: true,
+                    slantedTextAngle: 45,
+                    textStyle: { fontSize: 10 } 
+                }
             }
         );
     });

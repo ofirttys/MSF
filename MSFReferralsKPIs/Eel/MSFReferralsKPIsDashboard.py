@@ -181,7 +181,7 @@ def load_and_process_csv(filename):
         
         for encoding in encodings:
             try:
-                df = pd.read_csv(filepath, encoding=encoding)
+                df = pd.read_csv(filepath, encoding=encoding, skip_blank_lines=True)
                 print(f"Successfully loaded with encoding: {encoding}")
                 break
             except UnicodeDecodeError as e:
@@ -192,13 +192,21 @@ def load_and_process_csv(filename):
             return {'status': 'error', 'message': f'Could not decode CSV file. Last error: {last_error}'}
         
         # DEBUG: Print raw CSV info
-        print(f"Raw CSV loaded: {len(df)} rows (including potential duplicates)")
-        print(f"Columns: {list(df.columns)}")
+        print(f"Raw CSV loaded: {len(df)} rows")
         
-        # Check for duplicate rows
+        # Drop rows where ALL columns are empty/NaN
+        df = df.dropna(how='all')
+        print(f"After dropping empty rows: {len(df)} rows")
+        
+        # Drop empty/unnamed columns
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        print(f"Columns after cleanup: {list(df.columns)}")
+        
+        # Check for duplicate rows (should be minimal now)
         duplicates = df.duplicated().sum()
         if duplicates > 0:
-            print(f"WARNING: Found {duplicates} duplicate rows - removing them")
+            print(f"WARNING: Found {duplicates} duplicate rows")
+            print(f"Sample duplicate PIDs: {df[df.duplicated()]['PID'].head(10).tolist()}")
             df = df.drop_duplicates()
             print(f"After removing duplicates: {len(df)} rows")
         
@@ -298,47 +306,29 @@ def calc_monthly_trends(filtered):
     }
 
 def calc_service_trends(filtered):
-    """Calculate service type trends"""
+    """Calculate service type totals (NOT by month)"""
     if filtered.empty:
-        return {'months': [], 'services': [], 'data': {}}
+        return {'services': [], 'counts': []}
     
-    # Group by month and service
-    service_monthly = filtered.groupby(['month', 'Service Requested']).size().unstack(fill_value=0)
-    
-    # Sort by date
-    service_monthly['sort_date'] = pd.to_datetime(service_monthly.index, format='%b/%y')
-    service_monthly = service_monthly.sort_values('sort_date')
-    service_monthly = service_monthly.drop('sort_date', axis=1)
+    # Group by service - simple count, no month breakdown
+    service_counts = filtered.groupby('Service Requested').size().sort_values(ascending=False)
     
     return {
-        'months': service_monthly.index.tolist(),
-        'services': service_monthly.columns.tolist(),
-        'data': service_monthly.to_dict('index')
+        'services': service_counts.index.tolist(),
+        'counts': service_counts.astype(int).tolist()
     }
 
 def calc_physician_trends(filtered, limit=10):
-    """Calculate top physicians trends"""
+    """Calculate top physicians totals (NOT by month)"""
     if filtered.empty:
-        return {'months': [], 'physicians': [], 'data': {}}
+        return {'physicians': [], 'counts': []}
     
-    # Get top physicians
-    top_physicians = filtered['Requested Physician'].value_counts().head(limit).index.tolist()
-    
-    # Group by month and physician
-    phys_monthly = filtered[filtered['Requested Physician'].isin(top_physicians)].groupby(
-        ['month', 'Requested Physician']
-    ).size().unstack(fill_value=0)
-    
-    # Sort by date
-    if not phys_monthly.empty:
-        phys_monthly['sort_date'] = pd.to_datetime(phys_monthly.index, format='%b/%y')
-        phys_monthly = phys_monthly.sort_values('sort_date')
-        phys_monthly = phys_monthly.drop('sort_date', axis=1)
+    # Get top physicians by total count
+    physician_counts = filtered['Requested Physician'].value_counts().head(limit)
     
     return {
-        'months': phys_monthly.index.tolist() if not phys_monthly.empty else [],
-        'physicians': phys_monthly.columns.tolist() if not phys_monthly.empty else [],
-        'data': phys_monthly.to_dict('index') if not phys_monthly.empty else {}
+        'physicians': physician_counts.index.tolist(),
+        'counts': physician_counts.astype(int).tolist()
     }
 
 def calc_completion_status(filtered):
