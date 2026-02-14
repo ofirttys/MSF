@@ -174,8 +174,22 @@ def load_and_process_csv(filename):
         if not os.path.exists(filepath):
             return {'status': 'error', 'message': f'File not found: {filename}'}
         
-        # Read CSV
-        df = pd.read_csv(filepath, encoding='utf-8-sig')
+        # Try multiple encodings (Excel often uses cp1252/Windows-1252)
+        encodings = ['utf-8-sig', 'utf-8', 'cp1252', 'latin1', 'iso-8859-1']
+        df = None
+        last_error = None
+        
+        for encoding in encodings:
+            try:
+                df = pd.read_csv(filepath, encoding=encoding)
+                print(f"Successfully loaded with encoding: {encoding}")
+                break
+            except UnicodeDecodeError as e:
+                last_error = e
+                continue
+        
+        if df is None:
+            return {'status': 'error', 'message': f'Could not decode CSV file. Last error: {last_error}'}
         
         # Parse dates with multiple formats
         date_cols = ['Date Referral Received', '1st Attempt to reach Patient/Referring MD', 
