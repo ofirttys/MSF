@@ -453,6 +453,13 @@
                 var cFirstContact = findCol(['1st attempt to reach patient/referring md', '1st attempt to reach patient', 'first contact']);
                 var cDateComplete = findCol(['date complete information received', 'date complete', 'complete date']);
                 
+                console.log('[CSV DEBUG] Column indices:', {
+                    cService: cService,
+                    cDateRec: cDateRec,
+                    cFirstContact: cFirstContact,
+                    cDateComplete: cDateComplete
+                });
+                
                 rawRecords = [];
 
 				for (var i = 1; i < lines.length; i++) {
@@ -491,6 +498,20 @@
 					rec.isCancelled = compLower === 'cancelled';
 					rec.isDeferred = compLower === 'deferred';
 					rec.isPending = compLower === 'pending' || compLower === '';
+					
+					// Debug first 3 records
+					if (rawRecords.length < 3) {
+						console.log('[CSV DEBUG] Record', rawRecords.length, ':', {
+							dateRec: rec.dateRec,
+							firstContact: rec.firstContact,
+							dateComplete: rec.dateComplete,
+							raw_values: {
+								col_K: v[11],
+								col_W: v[22]
+							}
+						});
+					}
+					
 					rawRecords.push(rec);
 				}
                 document.getElementById('currentFile').innerText = fn;
@@ -818,7 +839,7 @@
 			for (var i = 0; i < filteredRecords.length; i++) {
 				var r = filteredRecords[i];
 				var month = r.monthKey || 'Unknown';
-				var referralDate = parseDate(r.dateRef);
+				var referralDate = parseDate(r.dateRec);
 				var contactDate = parseDate(r.firstContact);
 				
 				var days = 999;
@@ -872,7 +893,7 @@
 			for (var i = 0; i < filteredRecords.length; i++) {
 				var r = filteredRecords[i];
 				var month = r.monthKey || 'Unknown';
-				var referralDate = parseDate(r.dateRef);
+				var referralDate = parseDate(r.dateRec);
 				var completeDate = parseDate(r.dateComplete);
 				
 				if (i < 3) {
