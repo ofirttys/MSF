@@ -1,0 +1,1176 @@
+#!/usr/bin/env python3
+"""
+MSF Referrals KPIs Dashboard - PyWebView Version
+"""
+
+import webview
+import os
+import csv
+import sys
+from pathlib import Path
+# HTML is now embedded directly in this file
+
+class DashboardAPI:
+    """API for communicating between Python and JavaScript"""
+    
+    def __init__(self):
+        # DB folder relative to executable location
+        if getattr(sys, 'frozen', False):
+            # Running as compiled executable
+            exe_dir = Path(sys.executable).parent
+        else:
+            # Running as script
+            exe_dir = Path(__file__).parent
+        
+        self.db_folder = str(exe_dir / 'DB')
+    
+    def get_db_folder(self):
+        """Get the current DB folder path"""
+        return self.db_folder
+    
+    def get_csv_files(self):
+        """Get list of CSV files in DB folder, sorted by name (newest first)"""
+        try:
+            if not os.path.exists(self.db_folder):
+                # Return error info as dict
+                return {'error': f'DB folder not found. Expected at: {self.db_folder}'}
+            
+            files = [f for f in os.listdir(self.db_folder) if f.lower().endswith('.csv')]
+            
+            if not files:
+                return {'error': f'No CSV files in: {self.db_folder}'}
+            
+            # Sort in reverse order (newest first, assuming date in filename)
+            files.sort(reverse=True)
+            return {'files': files}
+        except Exception as e:
+            return {'error': f'Folder error: {str(e)}'}
+    
+    def read_csv_file(self, filename):
+        """Read CSV file and return as text content"""
+        try:
+            filepath = os.path.join(self.db_folder, filename)
+            
+            if not os.path.exists(filepath):
+                return None
+            
+            # Read the entire file content as text
+            with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+            
+            return content
+        except Exception as e:
+            print(f"Error reading CSV file {filename}: {e}")
+            return None
+    
+    def check_folder_exists(self):
+        """Check if DB folder exists"""
+        return os.path.exists(self.db_folder)
+
+
+def load_html():
+    """Return embedded HTML content"""
+    return r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>MSF Referrals KPIs Dashboard</title>
+    <!-- HTA:APPLICATION
+        ID="MSFReferralsKPIs"
+        APPLICATIONNAME="MSF Referrals KPIs Dashboard"
+        BORDER="thick"
+        BORDERSTYLE="normal"
+        CAPTION="yes"
+        MAXIMIZEBUTTON="yes"
+        MINIMIZEBUTTON="yes"
+        SHOWINTASKBAR="yes"
+        SINGLEINSTANCE="yes"
+        SYSMENU="yes"
+        WINDOWSTATE="maximize"
+		SCROLL="yes"
+    -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta charset="UTF-8">
+	<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f3ebff; color: #2c3e50; line-height: 1.6; }
+        
+		.container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+		header { 
+			background: white; 
+			padding: 20px; 
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+			border-bottom: 3px solid #9b59b6; 
+			border-radius: 8px;
+			margin-bottom: 5px;
+		}
+        .header-content { margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .logo-container { width: 50px; height: 50px; flex-shrink: 0; }
+        .logo-container svg { width: 100%; height: 100%; }
+		.header-left { display: flex; align-items: center; }
+		.header-left .logo-container { margin-right: 15px; }
+		.header-left h1 { color: #2c3e50; font-size: 24px; font-weight: 600; margin: 0; }
+        
+		.filters { display: flex; align-items: center; flex-wrap: wrap; }
+		.filter-group { display: flex; align-items: center; margin-right: 15px; margin-bottom: 10px; }
+		.filter-group label { font-size: 13px; font-weight: 500; color: #2c3e50; white-space: nowrap; margin-right: 8px; }
+        .file-select, .date-input { background: white; border: 2px solid #e0e0e0; border-radius: 6px; padding: 8px 12px; font-family: inherit; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+		.file-select { min-width: 200px; }
+        .date-input { width: 110px; }
+        .file-select:hover, .file-select:focus, .date-input:hover, .date-input:focus { border-color: #3498db; outline: none; }
+        
+		.btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; margin-left: 8px; margin-bottom: 10px; }
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .btn-success { background: #27ae60; color: white; }
+        
+        .main-content { margin: 0 auto; padding: 15px; }
+        
+		.status-bar { background: white; border: 1px solid rgba(147,112,219,0.2); border-radius: 8px; padding: 10px 10px; margin-bottom: 5px; font-size: 13px; }
+		.status-bar .status-text { color: #7f8c8d; }
+		.status-bar .status-text strong { color: #2c3e50; }
+		.status-bar.error { background: #fef0f0; border-color: #f5c6cb; }
+		.status-bar.error .status-text { color: #721c24; }
+        
+		/* KPI Summary - Side by Side */
+		.kpi-summary { display: flex; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
+		.kpi-card { 
+			background: white; 
+			border-radius: 8px; 
+			padding: 15px; 
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+			border: 2px solid #e8e8e8;
+			width: 130px;
+			text-align: center;
+			margin: 5px;
+		}
+		.kpi-card:nth-child(1) { border-color: #9b59b6; } /* Purple - Total */
+		.kpi-card:nth-child(2) { border-color: #3498db; } /* Blue - New */
+		.kpi-card:nth-child(3) { border-color: #1abc9c; } /* Teal - Returning */
+		.kpi-card:nth-child(4) { border-color: #27ae60; } /* Green - Completed */
+		.kpi-card:nth-child(5) { border-color: #e74c3c; } /* Red - Pending */
+		.kpi-card:nth-child(6) { border-color: #f39c12; } /* Orange - Cancelled */
+		.kpi-card:nth-child(7) { border-color: #f39c12; } /* Orange - Deferred */
+
+		.kpi-card:nth-child(1) .kpi-label,
+		.kpi-card:nth-child(1) .kpi-value { color: #9b59b6; }
+
+		.kpi-card:nth-child(2) .kpi-label,
+		.kpi-card:nth-child(2) .kpi-value { color: #3498db; }
+
+		.kpi-card:nth-child(3) .kpi-label,
+		.kpi-card:nth-child(3) .kpi-value { color: #1abc9c; }
+
+		.kpi-card:nth-child(4) .kpi-label,
+		.kpi-card:nth-child(4) .kpi-value { color: #27ae60; }
+
+		.kpi-card:nth-child(5) .kpi-label,
+		.kpi-card:nth-child(5) .kpi-value { color: #e74c3c; }
+
+		.kpi-card:nth-child(6) .kpi-label,
+		.kpi-card:nth-child(6) .kpi-value { color: #f39c12; }
+
+		.kpi-card:nth-child(7) .kpi-label,
+		.kpi-card:nth-child(7) .kpi-value { color: #f39c12; }
+
+		.kpi-card:hover {
+			box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+			transform: translateY(-2px);
+		}
+
+		.kpi-label { 
+			font-size: 10px; 
+			font-weight: 600; 
+			text-transform: uppercase; 
+			letter-spacing: 0.5px; 
+			margin-bottom: 8px; 
+		}
+
+		.kpi-value { 
+			font-size: 28px; 
+			font-weight: 600; 
+		}
+
+        /* Tabs */
+        .tabs-container { background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid rgba(147,112,219,0.15); overflow: hidden; }
+        .tab-buttons { display: flex; background: #f8f9fa; border-bottom: 1px solid #ecf0f1; padding: 0; }
+        .tab-btn { padding: 15px 25px; border: none; background: transparent; cursor: pointer; font-size: 13px; font-weight: 500; color: #7f8c8d; transition: all 0.2s; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+        .tab-btn:hover { color: #2c3e50; background: #fff; }
+        .tab-btn.active { color: #9b59b6; background: white; border-bottom-color: #9b59b6; }
+        
+        .tab-content { display: none; padding: 25px; }
+        .tab-content.active { display: block; }
+        
+        /* Charts */
+        .charts-row { display: flex; gap: 20px; flex-wrap: wrap; }
+        .chart-box { flex: 1; min-width: 400px; background: #fafafa; border-radius: 8px; border: 1px solid #ecf0f1; overflow: hidden; }
+        .chart-box.full { flex: 100%; min-width: 100%; }
+        .chart-header { padding: 15px 20px; background: white; border-bottom: 1px solid #ecf0f1; }
+        .chart-title { font-size: 14px; font-weight: 600; color: #2c3e50; }
+        .chart-subtitle { font-size: 11px; color: #95a5a6; margin-top: 2px; }
+        .chart-body { padding: 20px; min-height: 300px; background: white; }
+        
+        /* Bar chart styles */
+        .bar-chart { width: 100%; }
+        .bar-row { display: flex; align-items: center; margin-bottom: 8px; }
+        .bar-label { width: 120px; font-size: 12px; color: #2c3e50; text-align: right; padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .bar-container { flex: 1; height: 24px; background: #f0f0f0; border-radius: 4px; overflow: hidden; position: relative; }
+        .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; }
+        .bar-value { font-size: 11px; color: white; font-weight: 500; }
+        
+        /* Pie/Donut styles */
+        .pie-container { display: flex; align-items: center; gap: 30px; justify-content: center; flex-wrap: wrap; }
+        .pie-chart { width: 200px; height: 200px; position: relative; }
+        .pie-legend { display: flex; flex-direction: column; gap: 8px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+        .legend-color { width: 14px; height: 14px; border-radius: 3px; }
+        .legend-label { color: #2c3e50; }
+        .legend-value { color: #7f8c8d; margin-left: auto; }
+        
+        /* Trend chart */
+        .trend-chart { width: 100%; overflow-x: auto; }
+        .trend-table { width: 100%; border-collapse: collapse; }
+        .trend-table th, .trend-table td { padding: 10px 8px; text-align: center; font-size: 12px; border-bottom: 1px solid #ecf0f1; }
+        .trend-table th { background: #f8f9fa; color: #7f8c8d; font-weight: 600; }
+        .trend-bar { display: inline-block; width: 100%; max-width: 60px; }
+        .trend-bar-inner { height: 20px; border-radius: 3px; }
+        .trend-val { font-size: 11px; color: #2c3e50; margin-top: 2px; }
+        
+        /* Footer */
+        .footer { text-align: center; padding: 5px; color: #95a5a6; font-size: 12px; margin-top: 2px; }
+        .footer .copyright { margin-top: 5px; font-size: 11px; color: #b0b0b0; }
+        
+        /* Loading & Error */
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .loading-overlay.hidden { display: none; }
+        .spinner { width: 48px; height: 48px; border: 4px solid #e0e0e0; border-top-color: #9b59b6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Summary table */
+        .summary-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .summary-table th, .summary-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #ecf0f1; font-size: 13px; }
+        .summary-table th { background: #f8f9fa; font-weight: 600; color: #7f8c8d; }
+        .summary-table tr:hover { background: #fafafa; }
+        
+        @media (max-width: 900px) { 
+            .chart-box { min-width: 100%; }
+            .header-content { flex-direction: column; align-items: stretch; }
+            .filters { justify-content: center; }
+            .kpi-summary { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div>Loading dashboard...</div>
+    </div>
+    
+	<div class="container">
+    <header>
+        <div class="header-content">
+            <div class="header-left">
+                <div class="logo-container">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 550 550"><path fill="#25ABE2" d="M17.1205 215.804C15.2512 213.98 3.89954 203.277 3.13166 201.696C3.96746 200.496 24.4409 195.072 28.0857 194.008L91.6641 175.791C93.3297 177.763 96.1202 183.18 97.646 185.723L98.7692 187.74L119.526 223.648C122.105 228.114 127.284 236.4 129.305 240.615C134.559 249.436 139.557 258.422 144.759 267.276C145.607 268.719 146.455 270.378 147.387 271.754C146.359 274.092 144.315 277.391 143.015 279.694C139.776 285.431 136.298 291.026 133.141 296.821C131.68 299.295 129.769 302.351 128.447 304.846C127.746 306.087 126.913 307.484 126.282 308.744C125.008 310.678 123.912 312.704 122.782 314.725L121.739 316.272C119.96 314.857 115.981 310.766 114.218 309.054L96.8382 292.254C93.9369 289.446 89.0077 284.428 85.9258 282.128L85.9517 282.04C81.9393 277.931 77.2785 273.737 73.1017 269.721L48.3392 245.87C40.9193 238.772 31.7108 229.121 24.1798 222.583C21.8072 220.223 19.5985 218.055 17.1205 215.804Z"/><path fill="#DC2C29" d="M129.305 240.615C134.559 249.436 139.557 258.422 144.759 267.276C145.607 268.719 146.455 270.378 147.387 271.754C146.359 274.092 144.315 277.391 143.015 279.694C139.776 285.431 136.298 291.026 133.141 296.821C131.68 299.295 129.769 302.351 128.447 304.846C127.746 306.087 126.913 307.484 126.282 308.744C125.008 310.678 123.912 312.704 122.782 314.725L121.739 316.272C119.96 314.857 115.981 310.766 114.218 309.054L96.8382 292.254C93.9369 289.446 89.0077 284.428 85.9258 282.128L85.9517 282.04C87.1982 281.299 95.6147 272.942 97.4191 271.243C108.068 261.219 118.524 250.489 129.305 240.615Z"/><path fill="#25ABE2" d="M369.669 96.1737C390.971 89.8571 412.76 83.9982 434.135 77.819C445.726 74.4681 458.042 70.5393 469.736 67.8083C469.149 70.0459 468.652 72.4249 468.142 74.6904L467.243 78.0757L454.223 129.716C451.905 139.071 449.754 148.715 447.126 157.969C442.855 157.616 437.793 157.734 433.433 157.734L412.978 157.735L389.211 157.747C384.728 157.751 379.386 157.63 374.971 157.902C366.34 157.809 357.741 157.887 349.117 157.897C346.991 157.9 339.185 158.057 337.608 157.752L337.369 157.48C336.802 156.067 331.935 148.209 330.86 146.301C324.59 135.178 317.963 124.248 311.753 113.078C318.472 110.484 357.689 100.939 360.524 98.6525L360.624 98.78C363.462 98.0718 366.819 97.005 369.669 96.1737Z"/><path fill="#DC2C29" d="M360.524 98.6525L360.624 98.78C360.761 101.314 362.888 108.581 363.542 111.429C366.043 122.318 369.125 133.191 371.703 144.072C372.763 148.543 374.155 153.453 374.971 157.902C366.34 157.809 357.741 157.887 349.117 157.897C346.991 157.9 339.185 158.057 337.608 157.752L337.369 157.48C336.802 156.067 331.935 148.209 330.86 146.301C324.59 135.178 317.963 124.248 311.753 113.078C318.472 110.484 357.689 100.939 360.524 98.6525Z"/><path fill="#25ABE2" d="M104.112 386.16C111.597 386.015 119.966 386.213 127.545 386.213L176.054 386.187C181.396 386.233 210.901 385.588 213.369 386.677C215.238 388.643 223.574 403.271 225.427 406.693C229.393 414.019 235.551 423.428 239.269 430.708C237.355 431.701 236.705 431.628 233.099 432.704C219.228 436.842 204.77 440.608 190.916 444.919C190.808 445.077 190.699 445.235 190.591 445.393L190.506 445.209C187.521 445.778 182.293 447.477 179.194 448.359L155.893 455.087L94.4803 472.686C90.2246 473.945 85.7043 475.096 81.4007 476.217C82.8134 470.922 83.9962 465.165 85.3475 459.788L98.104 408.939C99.2889 404.23 102.39 389.669 104.112 386.16Z"/><path fill="#DC2C29" d="M176.054 386.187C181.396 386.233 210.901 385.588 213.369 386.677C215.238 388.643 223.574 403.271 225.427 406.693C229.393 414.019 235.551 423.428 239.269 430.708C237.355 431.701 236.705 431.628 233.099 432.704C219.228 436.842 204.77 440.608 190.916 444.919C190.808 445.077 190.699 445.235 190.591 445.393L190.506 445.209C190.428 443.052 187.171 430.895 186.441 428.062L180.18 403.006C178.829 397.617 177.118 391.586 176.054 386.187Z"/><path fill="#25ABE2" d="M337.748 386.29C343.436 386.022 350.58 386.211 356.357 386.209L390.536 386.207C389.522 386.822 389.699 387.064 389.317 388.58L381.498 419.991C380.379 424.5 379.211 430.103 377.944 434.477L378.039 434.64L370.03 467.376C368.589 472.632 367.186 477.946 365.947 483.253C363.145 495.261 359.871 507.142 356.999 519.129L354.179 530.761L354.102 531.004C353.529 532.862 353.031 536.843 351.899 537.871C351.266 537.814 351.415 537.849 350.796 537.658C349.588 535.643 338.013 525.074 335.621 522.779L299.149 487.61L296.613 485.188C293.114 482.08 289.776 478.469 286.105 475.225C293.923 460.334 303.253 445.792 311.441 431.071C313.892 426.665 316.587 421.702 319.432 417.584C325.525 408.146 331.368 395.476 337.748 386.29Z"/><path fill="#DC2C29" d="M337.748 386.29C343.436 386.022 350.58 386.211 356.357 386.209L390.536 386.207C389.522 386.822 389.699 387.064 389.317 388.58L381.498 419.991C380.379 424.5 379.211 430.103 377.944 434.477C373.436 432.869 366.713 431.253 361.94 429.855L319.432 417.584C325.525 408.146 331.368 395.476 337.748 386.29Z"/><path fill="#25ABE2" d="M198.84 5.58799C204.614 10.4081 209.89 15.8699 215.324 21.098L241.962 46.7938L254.143 58.482C256.254 60.5282 262.475 66.7839 264.51 68.2112C264.663 69.1602 264.801 69.0228 264.298 69.9266C262.266 73.5786 260.092 77.2522 257.997 80.8644L245.789 101.968L236.682 117.729C235.28 120.161 233.184 124.266 231.516 126.413C228.522 125.2 219.738 122.888 216.37 121.921L186.351 113.342C183.252 112.462 175.686 110.555 172.99 109.411C176.973 92.0214 181.67 74.6125 185.906 57.2838L193.505 27.0218C195.233 20.0162 196.854 12.4681 198.84 5.58799Z"/><path fill="#FDAF19" d="M101.486 88.8467C104.016 89.7253 106.587 90.3149 109.161 91.0514L123.884 95.2716L153.812 103.814C159.099 105.305 167.755 107.541 172.725 109.411L172.99 109.411C175.686 110.555 183.252 112.462 186.351 113.342L216.37 121.921C219.738 122.888 228.522 125.2 231.516 126.413L230.859 127.854C229.261 130.316 227.469 133.615 225.978 136.213C222.403 142.358 216.688 151.61 213.616 157.749C210.296 158.037 204.526 157.874 201.024 157.87L178.606 157.847C161.554 157.832 142.951 158.342 126.084 157.854C123.926 157.895 120.533 157.757 118.581 158.138C118.16 156.994 117.376 153.144 117.061 151.778C116.101 147.618 115.155 143.529 114.107 139.381L101.486 88.8467Z"/><path fill="#DC2C29" d="M172.99 109.411C175.686 110.555 183.252 112.462 186.351 113.342L216.37 121.921C219.738 122.888 228.522 125.2 231.516 126.413L230.859 127.854C229.261 130.316 227.469 133.615 225.978 136.213C222.403 142.358 216.688 151.61 213.616 157.749C210.296 158.037 204.526 157.874 201.024 157.87L178.606 157.847C161.554 157.832 142.951 158.342 126.084 157.854C129.058 157.544 135.273 157.693 138.467 157.69L161.179 157.701C162.04 152.138 173.361 111.269 172.725 109.411L172.99 109.411Z"/><path fill="#FDAF19" d="M85.9258 282.128C89.0077 284.428 93.9369 289.446 96.8382 292.254L114.218 309.054C115.981 310.766 119.96 314.857 121.739 316.272C119.502 320.512 117.024 324.518 114.625 328.653C114.074 329.602 111.899 333.24 111.599 334.097C110.539 335.775 108.955 338.453 108.051 340.281C107.367 341.236 107.098 341.664 106.565 342.709C104.882 345.583 103.066 348.554 101.579 351.521C100.777 352.772 100.042 354.689 98.9702 355.118C97.2535 354.208 89.1585 351.975 86.9382 351.321L52.0742 341.324L48.3624 340.312C42.521 338.72 36.7055 336.957 30.9004 335.232C32.7025 333.091 35.2179 330.575 37.2664 328.618C51.3496 315.166 65.162 301.379 79.4367 288.137C81.4919 286.231 83.7705 283.805 85.9258 282.128Z"/><path fill="#FDAF19" d="M390.536 386.207L418.33 386.207C422.11 386.2 428.82 385.982 432.35 386.263C433.135 388.921 433.822 391.439 434.519 394.117L436.412 401.952C438.238 409.88 440.271 417.772 442.356 425.637C442.7 426.935 442.989 428.258 443.416 429.531C443.599 430.626 443.739 431.377 444.031 432.445C445.09 437.198 447.728 449.194 449.352 453.407L449.596 454.382L449.427 454.716C448.083 455.162 437.772 451.723 435.814 451.174L397.876 440.419C393.818 439.287 389.181 437.707 385.189 436.736C382.921 435.868 380.399 435.266 378.039 434.64L377.944 434.477C379.211 430.103 380.379 424.5 381.498 419.991L389.317 388.58C389.699 387.064 389.522 386.822 390.536 386.207Z"/><path fill="#FDAF19" d="M293.645 81.5672C298.241 76.1306 304.384 71.4223 309.44 66.4096C315.677 60.6778 321.485 53.6435 327.918 48.188C333.325 43.6033 338.534 37.6884 343.95 33.4048C345.173 36.1096 347.095 44.1829 347.945 47.4432C348.075 47.96 348.552 50.0487 348.748 50.3843C348.955 51.4388 349.154 52.5725 349.395 53.6123C351.202 61.3387 353.199 69.0207 355.209 76.6973C355.589 78.146 355.942 79.7492 356.408 81.1647C357.326 86.4982 359.215 93.2727 360.524 98.6525C357.689 100.939 318.472 110.484 311.753 113.078C308.598 108.386 304.958 101.422 301.966 96.3799C299.734 92.6201 295.381 85.3541 293.645 81.5672Z"/><path fill="#FDAF19" d="M239.269 430.708L251.532 451.853C252.541 453.594 255.965 459.808 257.046 461.148C257.174 461.927 257.392 462.136 256.9 462.644C254.487 465.134 251.695 467.75 249.206 470.143L229.338 489.284C227.751 490.811 221.269 496.808 220.147 498.213C219.197 499.097 215.312 502.681 214.766 503.471C213.474 504.616 207.762 510.415 206.84 510.59C205.616 507.49 203.56 497.663 202.619 493.859L193.885 459.067C193.577 457.622 193.287 456.451 192.893 455.026C192.582 453.586 192.4 452.615 191.863 451.223C191.612 449.548 190.978 447.102 190.591 445.393C190.699 445.235 190.808 445.077 190.916 444.919C204.77 440.608 219.228 436.842 233.099 432.704C236.705 431.628 237.355 431.701 239.269 430.708Z"/><path fill="#25ABE2" d="M403.624 272.104C406.324 266.599 411.694 258.055 414.867 252.529C419.544 244.384 424.477 235.629 429.28 227.577L453.494 251.027C456.016 253.452 462.623 260.08 465.133 261.937L465.138 262.03C468.441 265.221 474.007 270.912 477.403 273.671C487.898 284.224 499.362 294.866 510.098 305.223C521.591 316.309 533.226 327.867 544.865 338.759C545.611 339.475 547.258 341.187 548.082 341.586L548.31 342.415C547.799 343.112 546.929 343.148 545.918 343.443L542.434 344.438L504.138 355.382C502.972 355.687 501.468 356.027 500.364 356.428C499.101 356.683 497.879 357.007 496.651 357.393C486.574 360.566 476.253 363.13 466.161 366.204C464.258 366.783 461.069 367.834 459.222 368.14C454.784 360.817 450.302 352.778 446.001 345.334L421.784 303.437L403.624 272.104Z"/><path fill="#DC2C29" d="M403.624 272.104C406.324 266.599 411.694 258.055 414.867 252.529C419.544 244.384 424.477 235.629 429.28 227.577L453.494 251.027C456.016 253.452 462.623 260.08 465.133 261.937L465.138 262.03C462.097 264.164 454.938 271.664 451.919 274.492C441.848 283.922 431.941 294.133 421.784 303.437L403.624 272.104Z"/><path fill="#FDAF19" d="M451.487 189.086C455.312 190.444 462.169 192.077 466.53 193.38C484.248 198.676 502.576 203.39 520.258 208.744C518.42 210.635 516.561 212.437 514.67 214.272C511.351 217.055 506.557 222.008 503.291 225.183L465.133 261.937C462.623 260.08 456.016 253.452 453.494 251.027L429.28 227.577C435.69 216.108 442.389 204.801 448.895 193.387C449.724 191.932 450.597 190.504 451.487 189.086Z"/></svg>
+                </div>
+                <div class="header-title">
+                    <h1>MSF Referrals KPIs Dashboard</h1>
+                </div>
+            </div>
+            <div class="filters">
+                <div class="filter-group">
+                    <label>From:</label>
+                    <input type="text" class="date-input" id="dateFrom" placeholder="Start">
+                </div>
+                <div class="filter-group">
+                    <label>To:</label>
+                    <input type="text" class="date-input" id="dateTo" placeholder="End">
+                </div>
+                <button class="btn btn-primary" onclick="applyFilters()">Apply</button>
+                <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+                <button class="btn btn-success" onclick="refreshFiles()">Refresh</button>
+            </div>
+        </div>
+    </header>
+    
+    <main class="main-content">
+		<div class="status-bar" id="statusBar">
+			<div class="status-text"><strong>DB: <span id="currentFile">No file loaded</span></strong> &nbsp;|&nbsp; <span id="dateRange">-</span> &nbsp;|&nbsp; <span id="recordCount">0 records</span></div>
+		</div>
+
+		<!-- KPI Summary -->
+		<div class="kpi-summary">
+			<div class="kpi-card">
+				<div class="kpi-label">Total Referrals</div>
+				<div class="kpi-value" id="kpiTotal">-</div>
+			</div>
+			<div class="kpi-card">
+				<div class="kpi-label">New Patients</div>
+				<div class="kpi-value" id="kpiNew">-</div>
+			</div>
+			<div class="kpi-card">
+				<div class="kpi-label">Returning</div>
+				<div class="kpi-value" id="kpiReturning">-</div>
+			</div>
+			<div class="kpi-card">
+				<div class="kpi-label">Completed</div>
+				<div class="kpi-value" id="kpiCompleted">-</div>
+			</div>
+			<div class="kpi-card">
+				<div class="kpi-label">Pending</div>
+				<div class="kpi-value" id="kpiPending">-</div>
+			</div>
+			<div class="kpi-card">
+				<div class="kpi-label">Cancelled</div>
+				<div class="kpi-value" id="kpiCancelled">-</div>
+			</div>
+			<div class="kpi-card">
+				<div class="kpi-label">Deferred</div>
+				<div class="kpi-value" id="kpiDeferred">-</div>
+			</div>
+		</div>
+        
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showTab(this, 'tab1')">Monthly Trends</button>
+                <button class="tab-btn" onclick="showTab(this, 'tab2')">Service Types</button>
+                <button class="tab-btn" onclick="showTab(this, 'tab3')">Physicians</button>
+                <button class="tab-btn" onclick="showTab(this, 'tab4')">Completion Status</button>
+            </div>
+            
+            <div class="tab-content active" id="tab1">
+                <div class="chart-box full">
+                    <div class="chart-header"><div class="chart-title">Monthly Referral Trends - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">New vs Returning patients by month</span></div></div>
+                    <div class="chart-body" id="chartTrends"></div>
+                </div>
+            </div>
+            
+			<div class="tab-content" id="tab2">
+				<div class="chart-box full">
+					<div class="chart-header">
+						<div class="chart-title">Service Types Over Time - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">Monthly breakdown by service type</span></div>
+					</div>
+					<div class="chart-body" id="chartServiceTrends"></div>
+				</div>
+			</div>
+            
+			<div class="tab-content" id="tab3">
+				<div class="chart-box full">
+					<div class="chart-header">
+						<div class="chart-title">Physicians Over Time - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">Monthly breakdown by requested physician</span></div>
+					</div>
+					<div class="chart-body" id="chartPhysicianTrends"></div>
+				</div>
+			</div>
+            
+			<div class="tab-content" id="tab4">
+				<div class="chart-box full">
+					<div class="chart-header">
+						<div class="chart-title">Completion Status Over Time - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">Monthly breakdown by completion status</span></div>
+					</div>
+					<div class="chart-body" id="chartStatusTrends"></div>
+				</div>
+			</div>
+
+        </div>
+    </main>
+    
+    <footer class="footer">
+        <div>MSF Referrals KPIs Dashboard</div>
+        <div class="copyright">&copy; Dr. Jennia Michaeli | Mount Sinai Fertility</div>
+    </footer>
+    </div>
+	
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script type="text/javascript">
+        var rawRecords = [];
+        var filteredRecords = [];
+        var dbFolder = '';
+        var availableFiles = [];
+        var flatpickrFrom = null;
+        var flatpickrTo = null;
+        var headerMap = {};
+        
+        var colors = ['#9b59b6', '#3498db', '#27ae60', '#f39c12', '#e74c3c', '#e67e22', '#1abc9c', '#5c6bc0', '#ec407a', '#78909c'];
+        
+        window.addEventListener('pywebviewready', function() {
+            console.log('PyWebView is ready');
+            initializeDashboard();
+        });
+        window.onerror = function(msg, src, line) { if (line === 0) return true; return false; };
+        
+        function initializeDashboard() {
+            try {
+                var htaPath = document.location.pathname;
+                if (htaPath.charAt(0) === '/' && htaPath.charAt(2) === ':') htaPath = htaPath.substring(1);
+                htaPath = decodeURIComponent(htaPath);
+                var lastSlash = Math.max(htaPath.lastIndexOf('\\'), htaPath.lastIndexOf('/'));
+                dbFolder = htaPath.substring(0, lastSlash) + '\\DB';
+                refreshFiles();
+            } catch (e) { showError('Init error: ' + e.message); hideLoading(); }
+        }
+        
+        async function refreshFiles() {
+            try {
+                // Get CSV files from Python
+                var result = await pywebview.api.get_csv_files();
+                
+                if (result.error) {
+                    // Error from Python
+                    showError(result.error);
+                    hideLoading();
+                } else if (result.files && result.files.length > 0) {
+                    availableFiles = result.files;
+                    loadFile(availableFiles[0]);
+                } else {
+                    showError('No CSV files found');
+                    hideLoading();
+                }
+            } catch (e) { 
+                showError('Folder error: ' + e.message); 
+                hideLoading(); 
+            }
+        }
+        
+		async function loadFile(fn) {
+			if (!fn) return;
+			showLoading(); hideError();
+			try {
+				// Read CSV content from Python
+				var txt = await pywebview.api.read_csv_file(fn);
+				
+				if (!txt) {
+					showError('Not found: ' + fn); 
+					hideLoading(); 
+					return; 
+				}
+				
+				parseCSV(txt, fn);
+			} catch (e) { 
+				showError('Load error: ' + e.message); 
+				hideLoading(); 
+			}
+		}
+
+		function parseCSVLine(line, delimiter) {
+			var result = [];
+			var current = '';
+			var inQuotes = false;
+			
+			for (var i = 0; i < line.length; i++) {
+				var char = line.charAt(i);
+				
+				if (char === '"') {
+					inQuotes = !inQuotes;
+				} else if (char === delimiter && !inQuotes) {
+					result.push(current);
+					current = '';
+				} else {
+					current += char;
+				}
+			}
+			result.push(current);
+			return result;
+		}
+
+        function parseCSV(txt, fn) {
+            try {
+                var lines = txt.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+                if (lines.length < 2) { showError('Empty CSV'); hideLoading(); return; }
+                var delim = lines[0].indexOf('\t') !== -1 ? '\t' : ',';
+                var hdrs = parseCSVLine(lines[0], delim);
+                headerMap = {};
+                for (var h = 0; h < hdrs.length; h++) headerMap[hdrs[h].replace(/"/g, '').trim().toLowerCase()] = h;
+                
+                var cService = findCol(['service requested', 'service']);
+                var cNewRet = findCol(['new or returning', 'new/returning']);
+                var cRefMD = findCol(['referring md/np', 'referring md']);
+                var cReqPhy = findCol(['requested physician', 'physician']);
+                var cDateRec = findCol(['date referral received', 'referral date']);
+                var cMonth = findCol(['month of referral', 'month']);
+                var cComplete = findCol(['referral complete', 'complete', 'status']);
+                
+                rawRecords = [];
+
+				for (var i = 1; i < lines.length; i++) {
+					if (!lines[i].trim()) continue;
+					var v = parseCSVLine(lines[i], delim);
+					if (v.length < 3) continue;
+					
+					var rec = {
+						service: gv(v, cService),
+						newOrRet: gv(v, cNewRet),
+						refMD: gv(v, cRefMD),
+						reqPhy: gv(v, cReqPhy),
+						dateRec: gv(v, cDateRec),
+						monthRef: gv(v, cMonth),
+						complete: gv(v, cComplete),
+						completeStatus: gv(v, cComplete),
+					};
+
+					// Only process records with valid dates
+					if (rec.dateRec) {
+						var d = parseDate(rec.dateRec);
+						if (!d) {
+							continue;
+						}
+						var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+						rec.monthKey = monthNames[d.getMonth()] + '/' + (d.getFullYear() % 100);
+					} else {
+						continue;
+					}
+
+					rec.isNew = rec.newOrRet && rec.newOrRet.toLowerCase().indexOf('new') !== -1;
+					var compLower = (rec.completeStatus || '').toLowerCase();
+					rec.isComplete = compLower === 'complete';
+					rec.isCancelled = compLower === 'cancelled';
+					rec.isDeferred = compLower === 'deferred';
+					rec.isPending = compLower === 'pending' || compLower === '';
+					rawRecords.push(rec);
+				}
+                document.getElementById('currentFile').innerText = fn;
+                document.getElementById('recordCount').innerText = rawRecords.length + ' records';
+                initDatePickers();
+                applyFilters();
+                hideLoading();
+            } catch (e) { showError('Parse error: ' + e.message); hideLoading(); }
+			
+        }
+        
+        function findCol(names) { for (var i = 0; i < names.length; i++) if (headerMap[names[i]] !== undefined) return headerMap[names[i]]; return -1; }
+        function gv(v, idx) { return (idx >= 0 && idx < v.length) ? v[idx].replace(/"/g, '').trim() : ''; }
+
+		function parseDate(s) { 
+			if (!s) return null;
+			s = s.trim();
+			
+			// Handle DD-MMM-YY format (e.g., "17-Sep-24" or "1-Jan-25")
+			var monthMap = {
+				'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+				'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+			};
+			
+			var parts = s.split('-');
+			if (parts.length === 3) {
+				var day = parseInt(parts[0]);
+				var monthStr = parts[1].toLowerCase();
+				var year = parseInt(parts[2]);
+				
+				if (monthMap[monthStr] !== undefined) {
+					// Convert 2-digit year to 4-digit
+					if (year < 100) {
+						year += (year < 50) ? 2000 : 1900;
+					}
+					return new Date(year, monthMap[monthStr], day);
+				}
+			}
+			
+			// Fallback: Try MM/DD/YYYY or M/D/YYYY format
+			var p = s.split(/[\\/\\-]/);
+			if (p.length >= 3) {
+				var y = parseInt(p[2]);
+				if (y < 100) y += 2000;
+				return new Date(y, parseInt(p[0])-1, parseInt(p[1]));
+			}
+			
+			return null;
+		}
+
+        function initDatePickers() {
+            if (typeof flatpickr === 'undefined' || !rawRecords.length) return;
+            try {
+                var dates = [];
+                for (var i = 0; i < rawRecords.length; i++) { var d = parseDate(rawRecords[i].dateRec); if (d) dates.push(d); }
+                if (!dates.length) return;
+                dates.sort(function(a,b) { return a-b; });
+                if (flatpickrFrom) flatpickrFrom.destroy();
+                if (flatpickrTo) flatpickrTo.destroy();
+                flatpickrFrom = flatpickr(document.getElementById('dateFrom'), { dateFormat: 'm/d/Y', defaultDate: dates[0], disableMobile: true });
+                flatpickrTo = flatpickr(document.getElementById('dateTo'), { dateFormat: 'm/d/Y', defaultDate: dates[dates.length-1], disableMobile: true });
+            } catch(e) {}
+        }
+        
+		function applyFilters() {
+			if (!rawRecords.length) return;
+			var fromD = parseDate(document.getElementById('dateFrom').value);
+			var toD = parseDate(document.getElementById('dateTo').value);
+			
+			// Make toD end of day (23:59:59) to be inclusive
+			if (toD) {
+				toD = new Date(toD);
+				toD.setHours(23, 59, 59, 999);
+			}
+			
+			filteredRecords = [];
+			for (var i = 0; i < rawRecords.length; i++) {
+				var r = rawRecords[i], rd = parseDate(r.dateRec);
+				
+				// Skip records with unparseable dates
+				if (!rd) continue;
+				
+				if (fromD && rd < fromD) continue;
+				if (toD && rd > toD) continue;
+				filteredRecords.push(r);
+			}
+						
+            document.getElementById('recordCount').innerText = filteredRecords.length + ' records';
+            document.getElementById('dateRange').innerText = (fromD && toD) ? document.getElementById('dateFrom').value + ' - ' + document.getElementById('dateTo').value : 'All dates';
+            updateKPIs();
+            renderCurrentTab();
+
+        }
+        
+        function resetFilters() {
+            if (flatpickrFrom && flatpickrTo && rawRecords.length) {
+                var dates = [];
+                for (var i = 0; i < rawRecords.length; i++) { var d = parseDate(rawRecords[i].dateRec); if (d) dates.push(d); }
+                if (dates.length) { dates.sort(function(a,b){return a-b;}); flatpickrFrom.setDate(dates[0]); flatpickrTo.setDate(dates[dates.length-1]); }
+            }
+            applyFilters();
+        }
+        
+		function updateKPIs() {
+			var t = filteredRecords.length, n = 0, ret = 0, comp = 0, pend = 0, canc = 0, def = 0;
+			for (var i = 0; i < filteredRecords.length; i++) {
+				var r = filteredRecords[i];
+				if (r.isNew) n++; else ret++;
+				if (r.isComplete) comp++;
+				if (r.isPending) pend++;
+				if (r.isCancelled) canc++;
+				if (r.isDeferred) def++;
+			}
+			document.getElementById('kpiTotal').innerText = fmt(t);
+			document.getElementById('kpiNew').innerText = fmt(n);
+			document.getElementById('kpiReturning').innerText = fmt(ret);
+			document.getElementById('kpiCompleted').innerText = fmt(comp);
+			document.getElementById('kpiPending').innerText = fmt(pend);
+			document.getElementById('kpiCancelled').innerText = fmt(canc);
+			document.getElementById('kpiDeferred').innerText = fmt(def);
+		}
+        
+        function fmt(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+        
+        function showTab(btn, tabId) {
+            var btns = document.getElementsByClassName('tab-btn');
+            var tabs = document.getElementsByClassName('tab-content');
+            for (var i = 0; i < btns.length; i++) btns[i].className = 'tab-btn';
+            for (var i = 0; i < tabs.length; i++) tabs[i].className = 'tab-content';
+            btn.className = 'tab-btn active';
+            document.getElementById(tabId).className = 'tab-content active';
+            renderCurrentTab();
+        }
+        
+        function renderCurrentTab() {
+            var active = document.querySelector('.tab-content.active');
+            if (!active) return;
+            var id = active.id;
+            if (id === 'tab1') renderTrends();
+            else if (id === 'tab2') { renderServiceTrends(); }
+            else if (id === 'tab3') { renderPhysicianTrends(); }
+            else if (id === 'tab4') { renderStatusTrends(); }
+        }
+        
+        function aggByMonth() {
+            var m = {};
+            for (var i = 0; i < filteredRecords.length; i++) {
+                var r = filteredRecords[i], k = r.monthKey || 'Unknown';
+                if (!m[k]) m[k] = { total: 0, new: 0, ret: 0, comp: 0 };
+                m[k].total++; if (r.isNew) m[k].new++; else m[k].ret++; if (r.isComplete) m[k].comp++;
+            }
+            var keys = []; for (var k in m) keys.push(k);
+            keys.sort(function(a,b) { 
+				var monthMap = {'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12};
+				var pa = a.split('/'), pb = b.split('/'); 
+				var ma = monthMap[pa[0].toLowerCase()] || 0;
+				var mb = monthMap[pb[0].toLowerCase()] || 0;
+				var ya = parseInt(pa[1]) || 0;
+				var yb = parseInt(pb[1]) || 0;
+				return (ya * 12 + ma) - (yb * 12 + mb);
+			});
+            return { keys: keys, data: m };
+        }
+
+		function aggByServiceAndMonth() {
+			var services = ['Infertility', 'EEF', 'ONC', 'SB', 'RPL'];
+			var m = {};
+			
+			for (var i = 0; i < filteredRecords.length; i++) {
+				var r = filteredRecords[i];
+				var month = r.monthKey || 'Unknown';
+				var service = r.service || 'Unknown';
+				
+				// Check if service starts with any of our target services
+				var matchedService = null;
+				for (var s = 0; s < services.length; s++) {
+					if (service.indexOf(services[s]) !== -1) {
+						matchedService = services[s];
+						break;
+					}
+				}
+				
+				if (!matchedService) continue; // Skip services we're not tracking
+				
+				if (!m[month]) {
+					m[month] = { Infertility: 0, EEF: 0, ONC: 0, SB: 0, RPL: 0 };
+				}
+				m[month][matchedService]++;
+			}
+			
+			var keys = [];
+			for (var k in m) keys.push(k);
+			keys.sort(function(a,b) { 
+				var monthMap = {'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12};
+				var pa = a.split('/'), pb = b.split('/'); 
+				var ma = monthMap[pa[0].toLowerCase()] || 0;
+				var mb = monthMap[pb[0].toLowerCase()] || 0;
+				var ya = parseInt(pa[1]) || 0;
+				var yb = parseInt(pb[1]) || 0;
+				return (ya * 12 + ma) - (yb * 12 + mb);
+			});
+			
+			return { keys: keys, data: m };
+		}
+
+		function aggByPhysicianAndMonth() {
+			var m = {};
+			var physiciansSet = {};
+			
+			// First pass: collect all physicians
+			for (var i = 0; i < filteredRecords.length; i++) {
+				var r = filteredRecords[i];
+				var physician = r.reqPhy || 'Unknown';
+				if (physician && physician !== 'Unknown') {
+					physiciansSet[physician] = true;
+				}
+			}
+			
+			// Get top physicians by total count
+			var physicianCounts = {};
+			for (var i = 0; i < filteredRecords.length; i++) {
+				var physician = filteredRecords[i].reqPhy || 'Unknown';
+				physicianCounts[physician] = (physicianCounts[physician] || 0) + 1;
+			}
+			
+			var physicianArray = [];
+			for (var p in physicianCounts) {
+				physicianArray.push({ name: p, count: physicianCounts[p] });
+			}
+			physicianArray.sort(function(a,b) { return b.count - a.count; });
+			
+			// Take top 10 physicians
+			var topPhysicians = [];
+			for (var i = 0; i < Math.min(10, physicianArray.length); i++) {
+				topPhysicians.push(physicianArray[i].name);
+			}
+			
+			// Second pass: aggregate by month
+			for (var i = 0; i < filteredRecords.length; i++) {
+				var r = filteredRecords[i];
+				var month = r.monthKey || 'Unknown';
+				var physician = r.reqPhy || 'Unknown';
+				
+				// Only track top physicians
+				if (topPhysicians.indexOf(physician) === -1) continue;
+				
+				if (!m[physician]) {
+					m[physician] = {};
+				}
+				if (!m[physician][month]) {
+					m[physician][month] = 0;
+				}
+				m[physician][month]++;
+			}
+			
+			// Get sorted month keys
+			var monthsSet = {};
+			for (var i = 0; i < filteredRecords.length; i++) {
+				var month = filteredRecords[i].monthKey;
+				if (month) monthsSet[month] = true;
+			}
+			
+			var keys = [];
+			for (var k in monthsSet) keys.push(k);
+			keys.sort(function(a,b) { 
+				var monthMap = {'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12};
+				var pa = a.split('/'), pb = b.split('/'); 
+				var ma = monthMap[pa[0].toLowerCase()] || 0;
+				var mb = monthMap[pb[0].toLowerCase()] || 0;
+				var ya = parseInt(pa[1]) || 0;
+				var yb = parseInt(pb[1]) || 0;
+				return (ya * 12 + ma) - (yb * 12 + mb);
+			});
+			
+			return { keys: keys, data: m, physicians: topPhysicians };
+		}
+
+		function aggByStatusAndMonth() {
+			var m = {};
+			
+			for (var i = 0; i < filteredRecords.length; i++) {
+				var r = filteredRecords[i];
+				var month = r.monthKey || 'Unknown';
+				
+				if (!m[month]) {
+					m[month] = { Complete: 0, Pending: 0, Cancelled: 0, Deferred: 0 };
+				}
+				
+				if (r.isComplete) m[month].Complete++;
+				else if (r.isCancelled) m[month].Cancelled++;
+				else if (r.isDeferred) m[month].Deferred++;
+				else if (r.isPending) m[month].Pending++;
+			}
+			
+			var keys = [];
+			for (var k in m) keys.push(k);
+			keys.sort(function(a,b) { 
+				var monthMap = {'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12};
+				var pa = a.split('/'), pb = b.split('/'); 
+				var ma = monthMap[pa[0].toLowerCase()] || 0;
+				var mb = monthMap[pb[0].toLowerCase()] || 0;
+				var ya = parseInt(pa[1]) || 0;
+				var yb = parseInt(pb[1]) || 0;
+				return (ya * 12 + ma) - (yb * 12 + mb);
+			});
+			
+			return { keys: keys, data: m };
+		}
+
+        function aggByField(field, limit) {
+            var c = {};
+            for (var i = 0; i < filteredRecords.length; i++) { var v = filteredRecords[i][field] || 'Unknown'; c[v] = (c[v] || 0) + 1; }
+            var arr = []; for (var k in c) arr.push({ name: k, count: c[k] });
+            arr.sort(function(a,b) { return b.count - a.count; });
+            if (limit && arr.length > limit) arr = arr.slice(0, limit);
+            return arr;
+        }
+        
+		function renderTrends() {
+			var el = document.getElementById('chartTrends');
+			var agg = aggByMonth();
+			if (!agg.keys.length) { 
+				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>'; 
+				return; 
+			}
+			
+			// Check if Google Charts is loaded
+			if (typeof google === 'undefined' || !google.charts) {
+				// Fallback to table if Google Charts not available
+				renderTrendsTable();
+				return;
+			}
+			
+			// Prepare data for Google Charts with annotations
+			var chartData = [['Month', 'Total', {role: 'annotation'}, 'New', 'Returning']];
+			for (var i = 0; i < agg.keys.length; i++) {
+				var k = agg.keys[i];
+				var d = agg.data[k];
+				chartData.push([k, d.total, d.total.toString(), d.new, d.ret]);
+			}
+
+			google.charts.load('current', {'packages':['corechart']});
+			google.charts.setOnLoadCallback(function() {
+				var data = google.visualization.arrayToDataTable(chartData);
+				var options = {
+					title: '',
+					curveType: 'none',
+					legend: { position: 'bottom' },
+					colors: ['#9b59b6', '#3498db', '#1abc9c'],
+					height: 400,
+					backgroundColor: 'transparent',
+					chartArea: {width: '90%', height: '75%', left: 70, right: 20, top: 20, bottom: 80},
+					vAxis: { 
+						minValue: 0,
+						viewWindow: { min: 0 }
+					},
+					hAxis: {
+						slantedText: false,
+						textStyle: {
+							fontSize: 11
+						}
+					},
+					tooltip: {
+						trigger: 'both',
+						isHtml: false
+					},
+					focusTarget: 'category',
+					annotations: {
+						textStyle: {
+							fontSize: 11,
+							color: '#9b59b6',
+							bold: true
+						},
+						alwaysOutside: true,
+						stem: {
+							color: 'transparent',
+							length: 4
+						}
+					}
+				};
+				var chart = new google.visualization.LineChart(el);
+				chart.draw(data, options);
+			});
+		}
+
+		function renderServiceTrends() {
+			var el = document.getElementById('chartServiceTrends');
+			var agg = aggByServiceAndMonth();
+			if (!agg.keys.length) { 
+				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>'; 
+				return; 
+			}
+			
+			// Check if Google Charts is loaded
+			if (typeof google === 'undefined' || !google.charts) {
+				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">Google Charts not loaded</p>';
+				return;
+			}
+			
+			// Prepare data for Google Charts - FLIPPED: Services as rows, months as columns
+			var services = ['Infertility', 'EEF', 'ONC', 'SB', 'RPL'];
+			
+			// Build header row with months
+			var chartData = [['Service']];
+			for (var i = 0; i < agg.keys.length; i++) {
+				chartData[0].push(agg.keys[i]);
+			}
+			
+			// Build data rows - one per service
+			for (var s = 0; s < services.length; s++) {
+				var serviceName = services[s];
+				var row = [serviceName];
+				for (var i = 0; i < agg.keys.length; i++) {
+					var month = agg.keys[i];
+					row.push(agg.data[month][serviceName]);
+				}
+				chartData.push(row);
+			}
+			
+			google.charts.load('current', {'packages':['corechart']});
+			google.charts.setOnLoadCallback(function() {
+				var data = google.visualization.arrayToDataTable(chartData);
+				var options = {
+					title: '',
+					legend: { position: 'bottom' },
+					colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c'],
+					height: 400,
+					backgroundColor: 'transparent',
+					chartArea: {width: '90%', height: '75%', left: 70, right: 20, top: 20, bottom: 80},
+					vAxis: { 
+						minValue: 0,
+						viewWindow: { min: 0 }
+					},
+					hAxis: {
+						slantedText: false,
+						textStyle: {
+							fontSize: 11
+						}
+					},
+					tooltip: {
+						trigger: 'both',
+						isHtml: false
+					},
+					focusTarget: 'category'
+				};
+				var chart = new google.visualization.ColumnChart(el);
+				chart.draw(data, options);
+			});
+		}
+
+		function renderPhysicianTrends() {
+			var el = document.getElementById('chartPhysicianTrends');
+			var agg = aggByPhysicianAndMonth();
+			if (!agg.keys.length || !agg.physicians.length) { 
+				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>'; 
+				return; 
+			}
+			
+			// Check if Google Charts is loaded
+			if (typeof google === 'undefined' || !google.charts) {
+				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">Google Charts not loaded</p>';
+				return;
+			}
+			
+			// Prepare data - Physicians as rows, months as columns
+			var chartData = [['Physician']];
+			for (var i = 0; i < agg.keys.length; i++) {
+				chartData[0].push(agg.keys[i]);
+			}
+			
+			// Build data rows - one per physician
+			for (var p = 0; p < agg.physicians.length; p++) {
+				var physician = agg.physicians[p];
+				var row = [physician];
+				for (var i = 0; i < agg.keys.length; i++) {
+					var month = agg.keys[i];
+					var count = (agg.data[physician] && agg.data[physician][month]) ? agg.data[physician][month] : 0;
+					row.push(count);
+				}
+				chartData.push(row);
+			}
+			
+			google.charts.load('current', {'packages':['corechart']});
+			google.charts.setOnLoadCallback(function() {
+				var data = google.visualization.arrayToDataTable(chartData);
+				var options = {
+					title: '',
+					legend: { position: 'bottom' },
+					colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#27ae60', '#e67e22', '#95a5a6', '#34495e', '#16a085'],
+					height: 400,
+					backgroundColor: 'transparent',
+					chartArea: {width: '90%', height: '75%', left: 70, right: 20, top: 20, bottom: 80},
+					vAxis: { 
+						minValue: 0,
+						viewWindow: { min: 0 }
+					},
+					hAxis: {
+						slantedText: false,
+						textStyle: {
+							fontSize: 11
+						}
+					},
+					tooltip: {
+						trigger: 'both',
+						isHtml: false
+					},
+					focusTarget: 'category'
+				};
+				var chart = new google.visualization.ColumnChart(el);
+				chart.draw(data, options);
+			});
+		}
+
+		function renderStatusTrends() {
+			var el = document.getElementById('chartStatusTrends');
+			var agg = aggByStatusAndMonth();
+			if (!agg.keys.length) { 
+				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>'; 
+				return; 
+			}
+			
+			// Check if Google Charts is loaded
+			if (typeof google === 'undefined' || !google.charts) {
+				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">Google Charts not loaded</p>';
+				return;
+			}
+			
+			// Prepare data for stacked bar chart
+			var chartData = [['Month', 'Complete', 'Pending', 'Cancelled', 'Deferred']];
+			for (var i = 0; i < agg.keys.length; i++) {
+				var k = agg.keys[i];
+				var d = agg.data[k];
+				chartData.push([k, d.Complete, d.Pending, d.Cancelled, d.Deferred]);
+			}
+			
+			google.charts.load('current', {'packages':['corechart']});
+			google.charts.setOnLoadCallback(function() {
+				var data = google.visualization.arrayToDataTable(chartData);
+				var options = {
+					title: '',
+					legend: { position: 'bottom' },
+					colors: ['#27ae60', '#f39c12', '#e74c3c', '#95a5a6'],
+					height: 400,
+					backgroundColor: 'transparent',
+					chartArea: {width: '90%', height: '75%', left: 70, right: 20, top: 20, bottom: 80},
+					isStacked: true,
+					vAxis: { 
+						minValue: 0,
+						viewWindow: { min: 0 }
+					},
+					hAxis: {
+						slantedText: false,
+						textStyle: {
+							fontSize: 11
+						}
+					},
+					tooltip: {
+						trigger: 'both',
+						isHtml: false
+					},
+					focusTarget: 'category'
+				};
+				var chart = new google.visualization.ColumnChart(el);
+				chart.draw(data, options);
+			});
+		}
+
+		function renderTrendsTable() {
+			// Your original table rendering code as fallback
+			var el = document.getElementById('chartTrends');
+			var agg = aggByMonth();
+			var max = 0;
+			for (var i = 0; i < agg.keys.length; i++) { 
+				var d = agg.data[agg.keys[i]]; 
+				if (d.total > max) max = d.total; 
+			}
+			var html = '<table class="trend-table"><tr><th>Month</th><th>New</th><th>Returning</th><th>Total</th></tr>';
+			for (var i = 0; i < agg.keys.length; i++) {
+				var k = agg.keys[i], d = agg.data[k];
+				var newW = max > 0 ? (d.new / max * 100) : 0;
+				var retW = max > 0 ? (d.ret / max * 100) : 0;
+				html += '<tr><td><strong>' + k + '</strong></td>';
+				html += '<td><div class="trend-bar"><div class="trend-bar-inner" style="width:' + newW + '%;background:#3498db;"></div></div><div class="trend-val">' + d.new + '</div></td>';
+				html += '<td><div class="trend-bar"><div class="trend-bar-inner" style="width:' + retW + '%;background:#1abc9c;"></div></div><div class="trend-val">' + d.ret + '</div></td>';
+				html += '<td><strong>' + d.total + '</strong></td></tr>';
+			}
+			html += '</table>';
+			el.innerHTML = html;
+		}
+        
+        function showLoading() { document.getElementById('loadingOverlay').className = 'loading-overlay'; }
+        function hideLoading() { document.getElementById('loadingOverlay').className = 'loading-overlay hidden'; }
+
+
+
+		function showError(msg) { 
+			var bar = document.getElementById('statusBar');
+			var text = bar.querySelector('.status-text');
+			text.innerHTML = '<strong style="color:#721c24;">ERROR: ' + msg + '</strong>';
+			bar.className = 'status-bar error';
+		}
+
+		function hideError() { 
+			var bar = document.getElementById('statusBar');
+			bar.className = 'status-bar';
+		}
+
+    </script>
+</body>
+</html>
+"""
+
+
+def main():
+    """Main entry point"""
+    api = DashboardAPI()
+    
+    # Load HTML content
+    html_content = load_html()
+    
+    # Create window (maximized like HTA)
+    window = webview.create_window(
+        'MSF Referrals KPIs Dashboard',
+        html=html_content,
+        js_api=api,
+        resizable=True,
+        fullscreen=False,
+        confirm_close=False,
+        maximized=True
+    )
+    
+    # Start the application with Edge Chromium backend
+    webview.start(gui='edgechromium', debug=False)
+
+
+if __name__ == '__main__':
+    main()
