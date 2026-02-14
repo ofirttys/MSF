@@ -9,6 +9,11 @@ from pathlib import Path
 import psutil
 import ctypes
 
+
+# DB Folder configuration
+exe_dir = Path(__file__).parent if getattr(sys, 'frozen', False) else Path(__file__).parent
+DB_FOLDER = str(exe_dir / 'DB')
+
 # Global dataframe
 df = None
 
@@ -82,11 +87,34 @@ def read_csv_file(filename):
     return None
 
 @eel.expose
-def load_and_process_csv(filepath):
-    """Load CSV and return metadata"""
+def get_csv_files():
+    """Get list of CSV files in DB folder"""
+    try:
+        if not os.path.exists(DB_FOLDER):
+            os.makedirs(DB_FOLDER, exist_ok=True)
+            return {'error': f'DB folder created at: {DB_FOLDER}. Please add CSV files there.'}
+        
+        files = [f for f in os.listdir(DB_FOLDER) if f.lower().endswith('.csv')]
+        if not files:
+            return {'error': f'No CSV files in: {DB_FOLDER}'}
+        
+        files.sort(reverse=True)  # Newest first
+        return {'files': files}
+    except Exception as e:
+        return {'error': f'Folder error: {str(e)}'}
+
+@eel.expose
+def load_and_process_csv(filename):
+    """Load CSV from DB folder and return metadata"""
     global df
     
     try:
+        # Construct full path
+        filepath = os.path.join(DB_FOLDER, filename)
+        
+        if not os.path.exists(filepath):
+            return {'status': 'error', 'message': f'File not found: {filename}'}
+        
         # Read CSV
         df = pd.read_csv(filepath, encoding='utf-8-sig')
         
@@ -389,9 +417,12 @@ def on_close(page, sockets):
         return
     _shutting_down = True
     cleanup_lock_file()
-    import gevent
-    gevent.killall()
-    sys.exit(0)
+    try:
+        import gevent
+        gevent.killall()
+    except:
+        pass
+    os._exit(0)  # Force exit
 
 def shutdown():
     """Cleanup on shutdown"""

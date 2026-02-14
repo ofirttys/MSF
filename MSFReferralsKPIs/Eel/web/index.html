@@ -367,8 +367,8 @@ async function loadFile() {
         const result = await eel.load_and_process_csv(tempPath)();
         
         if (result.status === 'ok') {
-            currentFile = file.name;
-            document.getElementById('currentFile').innerText = file.name;
+            currentFile = filename;
+            document.getElementById('currentFile').innerText = filename;
             document.getElementById('recordCount').innerText = result.records + ' records';
             
             // Initialize date pickers with range from data
@@ -674,13 +674,45 @@ function fmt(n) {
     return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); 
 }
 
+
+async function refreshFiles() {
+    showLoading();
+    try {
+        // Get CSV files from Python
+        const result = await eel.get_csv_files()();
+        
+        if (result.error) {
+            showError(result.error);
+            hideLoading();
+        } else if (result.files && result.files.length > 0) {
+            // Load the first (newest) file
+            await loadFile(result.files[0]);
+        } else {
+            showError('No CSV files found');
+            hideLoading();
+        }
+    } catch (e) {
+        showError('Folder error: ' + e.message);
+        hideLoading();
+    }
+}
+
+function resetFilters() {
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    // Reset service/physician checkboxes if they exist
+    applyFilters();
+}
+
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
 
 window.addEventListener('DOMContentLoaded', function() {
     console.log('MSFReferralsKPIsDashboard is ready');
-    document.getElementById('fileInput').addEventListener('change', loadFile);
+    
+    // Auto-load CSV files from DB folder
+    refreshFiles();
 });
 
 	</script>
