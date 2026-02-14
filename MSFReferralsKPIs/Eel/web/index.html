@@ -357,46 +357,20 @@ function hideLoading() {
 }
 
 function showError(msg) {
-    // Show error in a banner instead of alert
     hideLoading();
     
-    // Create error banner if it doesn't exist
-    let errorBanner = document.getElementById('errorBanner');
-    if (!errorBanner) {
-        errorBanner = document.createElement('div');
-        errorBanner.id = 'errorBanner';
-        errorBanner.style.cssText = `
-            position: fixed;
-            top: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #e74c3c;
-            color: white;
-            padding: 15px 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            z-index: 10000;
-            max-width: 600px;
-            font-size: 14px;
-            display: none;
-        `;
-        document.body.appendChild(errorBanner);
-    }
-    
-    // Set message and show
-    errorBanner.innerHTML = '<strong>Error:</strong> ' + msg + 
-        ' <button onclick="hideError()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 10px;margin-left:15px;cursor:pointer;border-radius:4px;">Dismiss</button>';
-    errorBanner.style.display = 'block';
-    
-    // Auto-hide after 10 seconds
-    setTimeout(hideError, 10000);
+    // Show error in status bar (subtle and professional)
+    document.getElementById('currentFile').innerText = 'Error';
+    document.getElementById('currentFile').style.color = '#e74c3c';
+    document.getElementById('dateRange').innerText = msg;
+    document.getElementById('dateRange').style.color = '#e74c3c';
+    document.getElementById('recordCount').innerText = '0 records';
 }
 
 function hideError() {
-    const errorBanner = document.getElementById('errorBanner');
-    if (errorBanner) {
-        errorBanner.style.display = 'none';
-    }
+    // Reset status bar colors
+    document.getElementById('currentFile').style.color = '';
+    document.getElementById('dateRange').style.color = '';
 }
 
 function showTab(btn, tabId) {
@@ -406,6 +380,18 @@ function showTab(btn, tabId) {
     for (var i = 0; i < tabs.length; i++) tabs[i].className = 'tab-content';
     btn.className = 'tab-btn active';
     document.getElementById(tabId).className = 'tab-content active';
+    
+    // Re-render the chart for the active tab (Google Charts needs visible containers)
+    if (chartData) {
+        setTimeout(function() {
+            if (tabId === 'tab1') renderMonthlyTrends(chartData.monthlyTrends);
+            else if (tabId === 'tab2') renderServiceTrends(chartData.serviceTrends);
+            else if (tabId === 'tab3') renderPhysicianTrends(chartData.physicianTrends);
+            else if (tabId === 'tab4') renderCompletionStatus(chartData.completionStatus);
+            else if (tabId === 'tab5') renderTimeToContact(chartData.timeToContact);
+            else if (tabId === 'tab6') renderTimeToComplete(chartData.timeToComplete);
+        }, 100);  // Small delay to ensure tab is visible
+    }
 }
 
 function initDatePickers(dateRange) {
@@ -439,6 +425,7 @@ function fmt(n) {
 // ============================================================================
 
 
+var chartData = null;  // Store chart data for re-rendering
 var currentFile = '';
 var services = ['Infertility', 'EEF', 'ONC', 'SB', 'RPL', 'Donor', 'Gyne', 'ARA'];
 
@@ -484,8 +471,8 @@ async function applyFilters() {
     
     try {
         const filters = {
-            startDate: document.getElementById('startDate').value,
-            endDate: document.getElementById('endDate').value,
+            startDate: document.getElementById('dateFrom').value,
+            endDate: document.getElementById('dateTo').value,
             services: getSelectedServices(),
             physicians: getSelectedPhysicians()
         };
@@ -777,9 +764,12 @@ async function refreshFiles() {
                 initDatePickers(result.dateRange);
             }
             
+            // Store chart data globally for tab switching
+            chartData = result.charts;
+            
             // Render all charts (data already calculated!)
-            renderAllCharts(result.charts);
-            updateKPIs(result.charts.kpis);
+            renderAllCharts(chartData);
+            updateKPIs(chartData.kpis);
             
             hideLoading();
         } else {
