@@ -1,257 +1,436 @@
-#!/usr/bin/env python3
-"""
-MSF Referrals KPIs Dashboard - Eel Version (Clean & Stable)
-"""
-
 import eel
-import os
+import pandas as pd
 import sys
-import random
-import atexit
-import threading
+import os
 import tempfile
-import ctypes
+import threading
 import time
 from pathlib import Path
+import psutil
+import ctypes
 
-# Process check import
-try:
-    import psutil
-    HAS_PSUTIL = True
-except ImportError:
-    HAS_PSUTIL = False
+# Global dataframe
+df = None
 
-# Get DB folder path
-if getattr(sys, 'frozen', False):
-    exe_dir = Path(sys.executable).parent
-else:
-    exe_dir = Path(__file__).parent
-
-DB_FOLDER = str(exe_dir / 'DB')
-
-# Lock file per user in temp folder
-try:
-    username = os.getlogin()
-except:
-    username = os.environ.get('USERNAME', 'user')
-
+# Lock file for single instance
+username = os.getenv('USERNAME', 'user')
 LOCK_FILE = Path(tempfile.gettempdir()) / f'.msf_dashboard_{username}.lock'
 LOCK_TIMEOUT = 300  # 5 minutes
 
-# Global flag to prevent double-shutdown (must be at module level)
+# Shutdown flag
 _shutting_down = False
-
 
 def is_lock_file_stale():
     """Check if lock file is older than LOCK_TIMEOUT"""
     if not LOCK_FILE.exists():
         return False
-    try:
-        file_age = time.time() - LOCK_FILE.stat().st_mtime
-        return file_age > LOCK_TIMEOUT
-    except:
-        return True
-
-
-def check_already_running():
-    """Check if another instance is already running"""
-    if LOCK_FILE.exists():
-        if is_lock_file_stale():
-            try:
-                LOCK_FILE.unlink()
-            except:
-                pass
-        else:
-            try:
-                with open(LOCK_FILE, 'r') as f:
-                    old_pid = int(f.read().strip())
-                
-                if HAS_PSUTIL:
-                    if psutil.pid_exists(old_pid):
-                        print("MSF Dashboard is already starting. Please wait...")
-                        input("Press Enter to exit.")
-                        sys.exit(0)
-                    else:
-                        LOCK_FILE.unlink()
-            except:
-                try:
-                    LOCK_FILE.unlink()
-                except:
-                    pass
-    
-    try:
-        with open(LOCK_FILE, 'w') as f:
-            f.write(str(os.getpid()))
-    except:
-        pass
-
+    age = time.time() - LOCK_FILE.stat().st_mtime
+    return age > LOCK_TIMEOUT
 
 def cleanup_lock_file():
-    """Remove lock file on exit"""
+    """Remove lock file if it exists"""
     if LOCK_FILE.exists():
         try:
             LOCK_FILE.unlink()
         except:
             pass
 
-
-@eel.expose
-def get_db_folder():
-    return DB_FOLDER
-
-
-@eel.expose
-def get_csv_files():
+def create_lock_file():
+    """Create lock file with current PID"""
     try:
-        if not os.path.exists(DB_FOLDER):
-            return {'error': f'DB folder not found. Expected at: {DB_FOLDER}'}
-        files = [f for f in os.listdir(DB_FOLDER) if f.lower().endswith('.csv')]
-        if not files:
-            return {'error': f'No CSV files in: {DB_FOLDER}'}
-        files.sort(reverse=True)
-        return {'files': files}
+        # Check for existing lock
+        if LOCK_FILE.exists():
+            if is_lock_file_stale():
+                print("Removing stale lock file")
+                LOCK_FILE.unlink()
+            else:
+                # Check if process still exists
+                try:
+                    with open(LOCK_FILE, 'r') as f:
+                        old_pid = int(f.read().strip())
+                    if not psutil.pid_exists(old_pid):
+                        print("Process no longer exists, removing lock")
+                        LOCK_FILE.unlink()
+                    else:
+                        print("Another instance is already running")
+                        sys.exit(1)
+                except:
+                    LOCK_FILE.unlink()
+        
+        # Create new lock file
+        with open(LOCK_FILE, 'w') as f:
+            f.write(str(os.getpid()))
+        
+        # Auto-remove lock after window opens (5 seconds)
+        def remove_lock():
+            time.sleep(5)
+            cleanup_lock_file()
+        threading.Thread(target=remove_lock, daemon=True).start()
+        
     except Exception as e:
-        return {'error': f'Folder error: {str(e)}'}
-
+        print(f"Lock file error: {e}")
 
 @eel.expose
 def read_csv_file(filename):
+    """Read CSV file and return content"""
     try:
-        filepath = os.path.join(DB_FOLDER, filename)
-        if not os.path.exists(filepath):
-            return None
-        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
-            content = f.read()
-        return content
+        if os.path.exists(filename):
+            with open(filename, 'r', encoding='utf-8-sig') as f:
+                return f.read()
     except Exception as e:
-        print(f"Error reading CSV file {filename}: {e}")
-        return None
-
+        print(f"Error reading file: {e}")
+    return None
 
 @eel.expose
-def check_folder_exists():
-    return os.path.exists(DB_FOLDER)
-
-
-def main():
-    """Main entry point - clean and simple"""
-    global _shutting_down
-    
-    # Reset flag at start
-    _shutting_down = False
-    
-    check_already_running()
+def load_and_process_csv(filepath):
+    """Load CSV and return metadata"""
+    global df
     
     try:
-        # Initialize Eel
-        eel.init('web')
-        port = random.randint(8000, 8999)
+        # Read CSV
+        df = pd.read_csv(filepath, encoding='utf-8-sig')
         
-        # Get screen dimensions
-        try:
-            user32 = ctypes.windll.user32
-            screen_width = user32.GetSystemMetrics(0)
-            screen_height = user32.GetSystemMetrics(1)
-        except:
-            screen_width = 1920
-            screen_height = 1080
+        # Parse dates with multiple formats
+        date_cols = ['Date Referral Received', '1st Attempt to reach Patient/Referring MD', 
+                     'Date Complete Information received']
         
-        # Shutdown handler - CRITICAL FIX: prevent double execution
-        def shutdown():
-            global _shutting_down
-            if _shutting_down:
-                return  # Already shutting down, don't run again
-            _shutting_down = True
-            
-            cleanup_lock_file()
-            
-            try:
-                import gevent
-                gevent.killall()
-            except:
-                pass
+        for col in date_cols:
+            if col in df.columns:
+                # Try DD-MMM-YY format first (e.g., "17-Sep-24")
+                df[col] = pd.to_datetime(df[col], format='%d-%b-%y', errors='coerce')
         
-        # Register shutdown for abnormal exits only
-        atexit.register(shutdown)
+        # Add computed fields
+        df['month'] = df['Date Referral Received'].dt.strftime('%b/%y')
+        df['is_new'] = df['New or Returning'].str.lower().str.contains('new', na=False)
         
-        # Close callback - DO NOT call shutdown() here to avoid double-run
-        def on_close(page, sockets):
-            global _shutting_down
-            if _shutting_down:
-                return
-            _shutting_down = True
-            cleanup_lock_file()
-            try:
-                import gevent
-                gevent.killall()
-            except:
-                pass
-            sys.exit(0)
+        # Completion status
+        df['status_lower'] = df['Referral Complete'].fillna('').str.lower()
+        df['is_complete'] = df['status_lower'] == 'complete'
+        df['is_cancelled'] = df['status_lower'] == 'cancelled'
+        df['is_deferred'] = df['status_lower'] == 'deferred'
+        df['is_pending'] = (df['status_lower'] == 'pending') | (df['status_lower'] == '')
         
-        # Remove lock file after window opens
-        def remove_lock_delayed():
-            time.sleep(5)
-            cleanup_lock_file()
+        # Get unique values for filters
+        services = df['Service Requested'].dropna().unique().tolist()
+        physicians = df['Requested Physician'].dropna().unique().tolist()
         
-        threading.Thread(target=remove_lock_delayed, daemon=True).start()
+        # Date range
+        min_date = df['Date Referral Received'].min()
+        max_date = df['Date Referral Received'].max()
         
-        # Start Eel
-        print("Starting MSF Dashboard...")
-        print("Please wait for the browser window to open...")
-        
-        try:
-            eel.start('index.html', 
-                      size=(screen_width, screen_height),
-                      position=(0, 0),
-                      mode='edge',
-                      port=port,
-                      close_callback=on_close,
-                      block=True)
-        except OSError as e:
-            if "10048" in str(e):
-                port = random.randint(9000, 9999)
-                try:
-                    eel.start('index.html', 
-                              size=(screen_width, screen_height),
-                              position=(0, 0),
-                              mode='edge',
-                              port=port,
-                              close_callback=on_close,
-                              block=True)
-                except:
-                    try:
-                        eel.start('index.html', 
-                                  size=(screen_width, screen_height),
-                                  position=(0, 0),
-                                  mode='chrome',
-                                  port=port,
-                                  close_callback=on_close,
-                                  block=True)
-                    except Exception as ex:
-                        print(f"Could not start: {ex}")
-                        shutdown()
-            else:
-                print(f"Error: {e}")
-                shutdown()
-        except Exception as e:
-            print(f"Error starting browser: {e}")
-            try:
-                eel.start('index.html', 
-                          size=(screen_width, screen_height),
-                          position=(0, 0),
-                          mode='chrome',
-                          port=port,
-                          close_callback=on_close,
-                          block=True)
-            except Exception as ex:
-                print(f"Could not start: {ex}")
-                shutdown()
+        return {
+            'status': 'ok',
+            'records': len(df),
+            'dateRange': {
+                'min': min_date.strftime('%Y-%m-%d') if pd.notna(min_date) else None,
+                'max': max_date.strftime('%Y-%m-%d') if pd.notna(max_date) else None
+            },
+            'services': sorted([s for s in services if s]),
+            'physicians': sorted([p for p in physicians if p])
+        }
         
     except Exception as e:
-        print(f"Fatal error: {e}")
-        cleanup_lock_file()
-        sys.exit(1)
+        print(f"Error loading CSV: {e}")
+        return {'status': 'error', 'message': str(e)}
 
+def apply_filters(filters):
+    """Apply filters to dataframe"""
+    global df
+    
+    if df is None:
+        return pd.DataFrame()
+    
+    filtered = df.copy()
+    
+    # Date range filter
+    if filters.get('startDate'):
+        start = pd.to_datetime(filters['startDate'])
+        filtered = filtered[filtered['Date Referral Received'] >= start]
+    
+    if filters.get('endDate'):
+        end = pd.to_datetime(filters['endDate'])
+        filtered = filtered[filtered['Date Referral Received'] <= end]
+    
+    # Service filter
+    if filters.get('services') and len(filters['services']) > 0:
+        filtered = filtered[filtered['Service Requested'].isin(filters['services'])]
+    
+    # Physician filter
+    if filters.get('physicians') and len(filters['physicians']) > 0:
+        filtered = filtered[filtered['Requested Physician'].isin(filters['physicians'])]
+    
+    return filtered
+
+def calc_monthly_trends(filtered):
+    """Calculate monthly trends data"""
+    if filtered.empty:
+        return {'months': [], 'new': [], 'returning': [], 'total': []}
+    
+    # Group by month
+    monthly = filtered.groupby('month').agg({
+        'is_new': 'sum',
+        'PID': 'count'
+    }).reset_index()
+    
+    monthly.columns = ['month', 'new', 'total']
+    monthly['returning'] = monthly['total'] - monthly['new']
+    
+    # Sort by date
+    monthly['sort_date'] = pd.to_datetime(monthly['month'], format='%b/%y')
+    monthly = monthly.sort_values('sort_date')
+    
+    return {
+        'months': monthly['month'].tolist(),
+        'new': monthly['new'].astype(int).tolist(),
+        'returning': monthly['returning'].astype(int).tolist(),
+        'total': monthly['total'].astype(int).tolist()
+    }
+
+def calc_service_trends(filtered):
+    """Calculate service type trends"""
+    if filtered.empty:
+        return {'months': [], 'services': [], 'data': {}}
+    
+    # Group by month and service
+    service_monthly = filtered.groupby(['month', 'Service Requested']).size().unstack(fill_value=0)
+    
+    # Sort by date
+    service_monthly['sort_date'] = pd.to_datetime(service_monthly.index, format='%b/%y')
+    service_monthly = service_monthly.sort_values('sort_date')
+    service_monthly = service_monthly.drop('sort_date', axis=1)
+    
+    return {
+        'months': service_monthly.index.tolist(),
+        'services': service_monthly.columns.tolist(),
+        'data': service_monthly.to_dict('index')
+    }
+
+def calc_physician_trends(filtered, limit=10):
+    """Calculate top physicians trends"""
+    if filtered.empty:
+        return {'months': [], 'physicians': [], 'data': {}}
+    
+    # Get top physicians
+    top_physicians = filtered['Requested Physician'].value_counts().head(limit).index.tolist()
+    
+    # Group by month and physician
+    phys_monthly = filtered[filtered['Requested Physician'].isin(top_physicians)].groupby(
+        ['month', 'Requested Physician']
+    ).size().unstack(fill_value=0)
+    
+    # Sort by date
+    if not phys_monthly.empty:
+        phys_monthly['sort_date'] = pd.to_datetime(phys_monthly.index, format='%b/%y')
+        phys_monthly = phys_monthly.sort_values('sort_date')
+        phys_monthly = phys_monthly.drop('sort_date', axis=1)
+    
+    return {
+        'months': phys_monthly.index.tolist() if not phys_monthly.empty else [],
+        'physicians': phys_monthly.columns.tolist() if not phys_monthly.empty else [],
+        'data': phys_monthly.to_dict('index') if not phys_monthly.empty else {}
+    }
+
+def calc_completion_status(filtered):
+    """Calculate completion status trends"""
+    if filtered.empty:
+        return {'months': [], 'data': {}}
+    
+    # Group by month and status
+    status_monthly = filtered.groupby('month').agg({
+        'is_complete': 'sum',
+        'is_pending': 'sum',
+        'is_cancelled': 'sum',
+        'is_deferred': 'sum'
+    })
+    
+    # Sort by date
+    status_monthly['sort_date'] = pd.to_datetime(status_monthly.index, format='%b/%y')
+    status_monthly = status_monthly.sort_values('sort_date')
+    status_monthly = status_monthly.drop('sort_date', axis=1)
+    
+    # Convert booleans to integers
+    status_monthly = status_monthly.astype(int)
+    
+    return {
+        'months': status_monthly.index.tolist(),
+        'data': {
+            'Complete': status_monthly['is_complete'].tolist(),
+            'Pending': status_monthly['is_pending'].tolist(),
+            'Cancelled': status_monthly['is_cancelled'].tolist(),
+            'Deferred': status_monthly['is_deferred'].tolist()
+        }
+    }
+
+def calc_time_to_contact(filtered):
+    """Calculate time to first contact"""
+    if filtered.empty:
+        return {'months': [], 'bins': [], 'data': {}}
+    
+    temp = filtered.copy()
+    
+    # Calculate days difference
+    temp['days'] = (temp['1st Attempt to reach Patient/Referring MD'] - 
+                    temp['Date Referral Received']).dt.days
+    
+    # Fill NaN with 999 (no contact)
+    temp['days'] = temp['days'].fillna(999)
+    
+    # Bin the days
+    temp['bin'] = pd.cut(
+        temp['days'],
+        bins=[-1, 3, 7, 14, 999],
+        labels=['<= 3 days', '3 days - 1 week', '1 week - 2 weeks', '> 2 weeks']
+    )
+    
+    # Group by month and bin
+    result = temp.groupby(['month', 'bin']).size().unstack(fill_value=0)
+    
+    # Sort by date
+    if not result.empty:
+        result['sort_date'] = pd.to_datetime(result.index, format='%b/%y')
+        result = result.sort_values('sort_date')
+        result = result.drop('sort_date', axis=1)
+    
+    return {
+        'months': result.index.tolist() if not result.empty else [],
+        'bins': result.columns.tolist() if not result.empty else [],
+        'data': result.to_dict('index') if not result.empty else {}
+    }
+
+def calc_time_to_complete(filtered):
+    """Calculate time to complete information"""
+    if filtered.empty:
+        return {'months': [], 'bins': [], 'data': {}}
+    
+    temp = filtered.copy()
+    
+    # Calculate days difference
+    temp['days'] = (temp['Date Complete Information received'] - 
+                    temp['Date Referral Received']).dt.days
+    
+    # Create bins (including None for missing dates)
+    temp['bin'] = 'None'  # Default
+    
+    mask_has_date = temp['days'].notna()
+    temp.loc[mask_has_date & (temp['days'] <= 3), 'bin'] = '<= 3 days'
+    temp.loc[mask_has_date & (temp['days'] > 3) & (temp['days'] <= 7), 'bin'] = '3 days - 1 week'
+    temp.loc[mask_has_date & (temp['days'] > 7) & (temp['days'] <= 14), 'bin'] = '1 week - 2 weeks'
+    temp.loc[mask_has_date & (temp['days'] > 14) & (temp['days'] <= 28), 'bin'] = '2 weeks - 4 weeks'
+    temp.loc[mask_has_date & (temp['days'] > 28) & (temp['days'] <= 56), 'bin'] = '4 weeks - 8 weeks'
+    temp.loc[mask_has_date & (temp['days'] > 56), 'bin'] = '> 8 weeks'
+    
+    # Group by month and bin
+    result = temp.groupby(['month', 'bin']).size().unstack(fill_value=0)
+    
+    # Ensure all bins are present
+    all_bins = ['<= 3 days', '3 days - 1 week', '1 week - 2 weeks', '2 weeks - 4 weeks', 
+                '4 weeks - 8 weeks', '> 8 weeks', 'None']
+    for bin_name in all_bins:
+        if bin_name not in result.columns:
+            result[bin_name] = 0
+    
+    # Reorder columns
+    result = result[all_bins]
+    
+    # Sort by date
+    if not result.empty:
+        result['sort_date'] = pd.to_datetime(result.index, format='%b/%y')
+        result = result.sort_values('sort_date')
+        result = result.drop('sort_date', axis=1)
+    
+    return {
+        'months': result.index.tolist() if not result.empty else [],
+        'bins': result.columns.tolist() if not result.empty else [],
+        'data': result.to_dict('index') if not result.empty else {}
+    }
+
+def calc_kpis(filtered):
+    """Calculate KPI numbers"""
+    if filtered.empty:
+        return {'total': 0, 'new': 0, 'returning': 0, 'complete': 0, 'pending': 0, 
+                'cancelled': 0, 'deferred': 0}
+    
+    return {
+        'total': int(len(filtered)),
+        'new': int(filtered['is_new'].sum()),
+        'returning': int((~filtered['is_new']).sum()),
+        'complete': int(filtered['is_complete'].sum()),
+        'pending': int(filtered['is_pending'].sum()),
+        'cancelled': int(filtered['is_cancelled'].sum()),
+        'deferred': int(filtered['is_deferred'].sum())
+    }
+
+@eel.expose
+def get_all_chart_data(filters):
+    """Get all chart data in one call"""
+    try:
+        filtered = apply_filters(filters)
+        
+        return {
+            'status': 'ok',
+            'monthlyTrends': calc_monthly_trends(filtered),
+            'serviceTrends': calc_service_trends(filtered),
+            'physicianTrends': calc_physician_trends(filtered),
+            'completionStatus': calc_completion_status(filtered),
+            'timeToContact': calc_time_to_contact(filtered),
+            'timeToComplete': calc_time_to_complete(filtered),
+            'kpis': calc_kpis(filtered)
+        }
+    except Exception as e:
+        print(f"Error calculating chart data: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'status': 'error', 'message': str(e)}
+
+def on_close(page, sockets):
+    """Handle window close"""
+    global _shutting_down
+    if _shutting_down:
+        return
+    _shutting_down = True
+    cleanup_lock_file()
+    import gevent
+    gevent.killall()
+    sys.exit(0)
+
+def shutdown():
+    """Cleanup on shutdown"""
+    global _shutting_down
+    if _shutting_down:
+        return
+    _shutting_down = True
+    cleanup_lock_file()
 
 if __name__ == '__main__':
-    main()
+    # Create lock file
+    create_lock_file()
+    
+    # Register cleanup
+    import atexit
+    atexit.register(shutdown)
+    
+    # Initialize Eel
+    eel.init('web')
+    
+    # Get screen dimensions for maximized window
+    try:
+        user32 = ctypes.windll.user32
+        screen_width = user32.GetSystemMetrics(0)
+        screen_height = user32.GetSystemMetrics(1)
+    except:
+        screen_width = 1920
+        screen_height = 1080
+    
+    # Start Eel
+    try:
+        eel.start(
+            'index.html',
+            mode='edge',
+            size=(screen_width, screen_height),
+            position=(0, 0),
+            close_callback=on_close
+        )
+    except Exception as e:
+        print(f"Error starting dashboard: {e}")
+        cleanup_lock_file()
+        sys.exit(1)

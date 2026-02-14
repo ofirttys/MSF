@@ -344,999 +344,351 @@
 	
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script type="text/javascript">
-        var rawRecords = [];
-        var filteredRecords = [];
-        var dbFolder = '';
-        var availableFiles = [];
-        var flatpickrFrom = null;
-        var flatpickrTo = null;
-        var headerMap = {};
-        
-        var colors = ['#9b59b6', '#3498db', '#27ae60', '#f39c12', '#e74c3c', '#e67e22', '#1abc9c', '#5c6bc0', '#ec407a', '#78909c'];
-        
-        window.addEventListener('DOMContentLoaded', function() {
-            console.log('MSFReferralsKPIsDashboard is ready');
-            initializeDashboard();
-        });
-        window.onerror = function(msg, src, line) { if (line === 0) return true; return false; };
-        
-        function initializeDashboard() {
-            try {
-                var htaPath = document.location.pathname;
-                if (htaPath.charAt(0) === '/' && htaPath.charAt(2) === ':') htaPath = htaPath.substring(1);
-                htaPath = decodeURIComponent(htaPath);
-                var lastSlash = Math.max(htaPath.lastIndexOf('\\'), htaPath.lastIndexOf('/'));
-                dbFolder = htaPath.substring(0, lastSlash) + '\\DB';
-                refreshFiles();
-            } catch (e) { showError('Init error: ' + e.message); hideLoading(); }
-        }
-        
-        async function refreshFiles() {
-            try {
-                // Get CSV files from Python
-                var result = await eel.get_csv_files()();
-                
-                if (result.error) {
-                    // Error from Python
-                    showError(result.error);
-                    hideLoading();
-                } else if (result.files && result.files.length > 0) {
-                    availableFiles = result.files;
-                    loadFile(availableFiles[0]);
-                } else {
-                    showError('No CSV files found');
-                    hideLoading();
-                }
-            } catch (e) { 
-                showError('Folder error: ' + e.message); 
-                hideLoading(); 
-            }
-        }
-        
-		async function loadFile(fn) {
-			if (!fn) return;
-			showLoading(); hideError();
-			try {
-				// Read CSV content from Python
-				var txt = await eel.read_csv_file(fn)();
-				
-				if (!txt) {
-					showError('Not found: ' + fn); 
-					hideLoading(); 
-					return; 
-				}
-				
-				parseCSV(txt, fn);
-			} catch (e) { 
-				showError('Load error: ' + e.message); 
-				hideLoading(); 
-			}
-		}
+	<script type="text/javascript">
+// ============================================================================
+// SIMPLIFIED JAVASCRIPT - Replace the existing JavaScript in index.html
+// This goes in the <script> section
+// ============================================================================
 
-		function parseCSVLine(line, delimiter) {
-			var result = [];
-			var current = '';
-			var inQuotes = false;
-			
-			for (var i = 0; i < line.length; i++) {
-				var char = line.charAt(i);
-				
-				if (char === '"') {
-					inQuotes = !inQuotes;
-				} else if (char === delimiter && !inQuotes) {
-					result.push(current);
-					current = '';
-				} else {
-					current += char;
-				}
-			}
-			result.push(current);
-			return result;
-		}
+var currentFile = '';
+var services = ['Infertility', 'EEF', 'ONC', 'SB', 'RPL', 'Donor', 'Gyne', 'ARA'];
 
-        function parseCSV(txt, fn) {
-            try {
-                var lines = txt.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-                if (lines.length < 2) { showError('Empty CSV'); hideLoading(); return; }
-                var delim = lines[0].indexOf('\t') !== -1 ? '\t' : ',';
-                var hdrs = parseCSVLine(lines[0], delim);
-                headerMap = {};
-                for (var h = 0; h < hdrs.length; h++) headerMap[hdrs[h].replace(/"/g, '').trim().toLowerCase()] = h;
-                
-                var cService = findCol(['service requested', 'service']);
-                var cSubService = findCol(['sub service requested', 'sub service', 'subservice']);
-                var cNewRet = findCol(['new or returning', 'new/returning']);
-                var cRefMD = findCol(['referring md/np', 'referring md']);
-                var cReqPhy = findCol(['requested physician', 'physician']);
-                var cDateRec = findCol(['date referral received', 'referral date']);
-                var cMonth = findCol(['month of referral', 'month']);
-                var cComplete = findCol(['referral complete', 'complete', 'status']);
-                var cFirstContact = findCol(['1st attempt to reach patient/referring md', '1st attempt to reach patient', 'first contact']);
-                var cDateComplete = findCol(['date complete information received', 'date complete', 'complete date']);
-                
-                console.log('[CSV DEBUG] Column indices:', {
-                    cService: cService,
-                    cSubService: cSubService,
-                    cDateRec: cDateRec,
-                    cFirstContact: cFirstContact,
-                    cDateComplete: cDateComplete,
-                    expected: {
-                        cService: 7,
-                        cSubService: 8,
-                        cDateRec: 12,
-                        cFirstContact: 14,
-                        cDateComplete: 25
-                    }
-                });
-                
-                rawRecords = [];
+// ============================================================================
+// FILE LOADING (Much simpler now!)
+// ============================================================================
 
-				for (var i = 1; i < lines.length; i++) {
-					if (!lines[i].trim()) continue;
-					var v = parseCSVLine(lines[i], delim);
-					if (v.length < 3) continue;
-					
-					var rec = {
-						service: gv(v, cService),
-						subService: gv(v, cSubService),
-						newOrRet: gv(v, cNewRet),
-						refMD: gv(v, cRefMD),
-						reqPhy: gv(v, cReqPhy),
-						dateRec: gv(v, cDateRec),
-						monthRef: gv(v, cMonth),
-						complete: gv(v, cComplete),
-						completeStatus: gv(v, cComplete),
-						firstContact: gv(v, cFirstContact),
-						dateComplete: gv(v, cDateComplete),
-					};
-
-					// Only process records with valid dates
-					if (rec.dateRec) {
-						var d = parseDate(rec.dateRec);
-						if (!d) {
-							continue;
-						}
-						var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-						rec.monthKey = monthNames[d.getMonth()] + '/' + (d.getFullYear() % 100);
-					} else {
-						continue;
-					}
-
-					rec.isNew = rec.newOrRet && rec.newOrRet.toLowerCase().indexOf('new') !== -1;
-					var compLower = (rec.completeStatus || '').toLowerCase();
-					rec.isComplete = compLower === 'complete';
-					rec.isCancelled = compLower === 'cancelled';
-					rec.isDeferred = compLower === 'deferred';
-					rec.isPending = compLower === 'pending' || compLower === '';
-					
-					// Debug first 3 records
-					if (rawRecords.length < 3) {
-						console.log('[CSV DEBUG] Record', rawRecords.length, ':', {
-							dateRec: rec.dateRec,
-							firstContact: rec.firstContact,
-							dateComplete: rec.dateComplete,
-							raw_values: {
-								col_K: v[11],
-								col_W: v[22]
-							}
-						});
-					}
-					
-					rawRecords.push(rec);
-				}
-                document.getElementById('currentFile').innerText = fn;
-                document.getElementById('recordCount').innerText = rawRecords.length + ' records';
-                initDatePickers();
-                applyFilters();
-                hideLoading();
-            } catch (e) { showError('Parse error: ' + e.message); hideLoading(); }
-			
-        }
-        
-        function findCol(names) { for (var i = 0; i < names.length; i++) if (headerMap[names[i]] !== undefined) return headerMap[names[i]]; return -1; }
-        function gv(v, idx) { return (idx >= 0 && idx < v.length) ? v[idx].replace(/"/g, '').trim() : ''; }
-
-		function parseDate(s) { 
-			if (!s) return null;
-			s = s.trim();
-			
-			// Handle DD-MMM-YY format (e.g., "17-Sep-24" or "1-Jan-25")
-			var monthMap = {
-				'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
-				'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
-			};
-			
-			var parts = s.split('-');
-			if (parts.length === 3) {
-				var day = parseInt(parts[0]);
-				var monthStr = parts[1].toLowerCase();
-				var year = parseInt(parts[2]);
-				
-				if (monthMap[monthStr] !== undefined) {
-					// Convert 2-digit year to 4-digit
-					if (year < 100) {
-						year += (year < 50) ? 2000 : 1900;
-					}
-					return new Date(year, monthMap[monthStr], day);
-				}
-			}
-			
-			// Fallback: Try MM/DD/YYYY or M/D/YYYY format
-			var p = s.split(/[\\/\\-]/);
-			if (p.length >= 3) {
-				var y = parseInt(p[2]);
-				if (y < 100) y += 2000;
-				return new Date(y, parseInt(p[0])-1, parseInt(p[1]));
-			}
-			
-			return null;
-		}
-
-        function initDatePickers() {
-            if (typeof flatpickr === 'undefined' || !rawRecords.length) return;
-            try {
-                var dates = [];
-                for (var i = 0; i < rawRecords.length; i++) { var d = parseDate(rawRecords[i].dateRec); if (d) dates.push(d); }
-                if (!dates.length) return;
-                dates.sort(function(a,b) { return a-b; });
-                if (flatpickrFrom) flatpickrFrom.destroy();
-                if (flatpickrTo) flatpickrTo.destroy();
-                flatpickrFrom = flatpickr(document.getElementById('dateFrom'), { dateFormat: 'm/d/Y', defaultDate: dates[0], disableMobile: true });
-                flatpickrTo = flatpickr(document.getElementById('dateTo'), { dateFormat: 'm/d/Y', defaultDate: dates[dates.length-1], disableMobile: true });
-            } catch(e) {}
-        }
-        
-		function applyFilters() {
-			if (!rawRecords.length) return;
-			var fromD = parseDate(document.getElementById('dateFrom').value);
-			var toD = parseDate(document.getElementById('dateTo').value);
-			
-			// Make toD end of day (23:59:59) to be inclusive
-			if (toD) {
-				toD = new Date(toD);
-				toD.setHours(23, 59, 59, 999);
-			}
-			
-			filteredRecords = [];
-			for (var i = 0; i < rawRecords.length; i++) {
-				var r = rawRecords[i], rd = parseDate(r.dateRec);
-				
-				// Skip records with unparseable dates
-				if (!rd) continue;
-				
-				if (fromD && rd < fromD) continue;
-				if (toD && rd > toD) continue;
-				filteredRecords.push(r);
-			}
-						
-            document.getElementById('recordCount').innerText = filteredRecords.length + ' records';
-            document.getElementById('dateRange').innerText = (fromD && toD) ? document.getElementById('dateFrom').value + ' - ' + document.getElementById('dateTo').value : 'All dates';
-            updateKPIs();
-            renderCurrentTab();
-
-        }
-        
-        function resetFilters() {
-            if (flatpickrFrom && flatpickrTo && rawRecords.length) {
-                var dates = [];
-                for (var i = 0; i < rawRecords.length; i++) { var d = parseDate(rawRecords[i].dateRec); if (d) dates.push(d); }
-                if (dates.length) { dates.sort(function(a,b){return a-b;}); flatpickrFrom.setDate(dates[0]); flatpickrTo.setDate(dates[dates.length-1]); }
-            }
-            applyFilters();
-        }
-        
-		function updateKPIs() {
-			var t = filteredRecords.length, n = 0, ret = 0, comp = 0, pend = 0, canc = 0, def = 0;
-			for (var i = 0; i < filteredRecords.length; i++) {
-				var r = filteredRecords[i];
-				if (r.isNew) n++; else ret++;
-				if (r.isComplete) comp++;
-				if (r.isPending) pend++;
-				if (r.isCancelled) canc++;
-				if (r.isDeferred) def++;
-			}
-			document.getElementById('kpiTotal').innerText = fmt(t);
-			document.getElementById('kpiNew').innerText = fmt(n);
-			document.getElementById('kpiReturning').innerText = fmt(ret);
-			document.getElementById('kpiCompleted').innerText = fmt(comp);
-			document.getElementById('kpiPending').innerText = fmt(pend);
-			document.getElementById('kpiCancelled').innerText = fmt(canc);
-			document.getElementById('kpiDeferred').innerText = fmt(def);
-		}
-        
-        function fmt(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
-        
-        function showTab(btn, tabId) {
-            var btns = document.getElementsByClassName('tab-btn');
-            var tabs = document.getElementsByClassName('tab-content');
-            for (var i = 0; i < btns.length; i++) btns[i].className = 'tab-btn';
-            for (var i = 0; i < tabs.length; i++) tabs[i].className = 'tab-content';
-            btn.className = 'tab-btn active';
-            document.getElementById(tabId).className = 'tab-content active';
-            renderCurrentTab();
-        }
-        
-        function renderCurrentTab() {
-            var active = document.querySelector('.tab-content.active');
-            if (!active) return;
-            var id = active.id;
-            if (id === 'tab1') renderTrends();
-            else if (id === 'tab2') { renderServiceTrends(); }
-            else if (id === 'tab3') { renderPhysicianTrends(); }
-            else if (id === 'tab4') { renderStatusTrends(); }
-            else if (id === 'tab5') { renderTimeToContact(); }
-            else if (id === 'tab6') { renderTimeToComplete(); }
-        }
-        
-        function aggByMonth() {
-            var m = {};
-            for (var i = 0; i < filteredRecords.length; i++) {
-                var r = filteredRecords[i], k = r.monthKey || 'Unknown';
-                if (!m[k]) m[k] = { total: 0, new: 0, ret: 0, comp: 0 };
-                m[k].total++; if (r.isNew) m[k].new++; else m[k].ret++; if (r.isComplete) m[k].comp++;
-            }
-            var keys = []; for (var k in m) keys.push(k);
-            keys.sort(function(a,b) { 
-				var monthMap = {'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12};
-				var pa = a.split('/'), pb = b.split('/'); 
-				var ma = monthMap[pa[0].toLowerCase()] || 0;
-				var mb = monthMap[pb[0].toLowerCase()] || 0;
-				var ya = parseInt(pa[1]) || 0;
-				var yb = parseInt(pb[1]) || 0;
-				return (ya * 12 + ma) - (yb * 12 + mb);
-			});
-            return { keys: keys, data: m };
-        }
-
-		function aggByServiceAndMonth() {
-			var services = ['Infertility', 'EEF', 'ONC', 'SB', 'RPL', 'Donor', 'Gyne', 'ARA'];
-			var m = {};
-			
-			for (var i = 0; i < filteredRecords.length; i++) {
-				var r = filteredRecords[i];
-				var month = r.monthKey || 'Unknown';
-				var service = r.service || 'Unknown';
-				
-				// Check if service starts with any of our target services
-				var matchedService = null;
-				for (var s = 0; s < services.length; s++) {
-					if (service.indexOf(services[s]) !== -1) {
-						matchedService = services[s];
-						break;
-					}
-				}
-				
-				if (!matchedService) continue; // Skip services we're not tracking
-				
-				if (!m[month]) {
-					m[month] = { Infertility: 0, EEF: 0, ONC: 0, SB: 0, RPL: 0, Donor: 0, Gyne: 0, ARA: 0 };
-				}
-				m[month][matchedService]++;
-			}
-			
-			var keys = [];
-			for (var k in m) keys.push(k);
-			keys.sort(function(a,b) { 
-				var monthMap = {'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12};
-				var pa = a.split('/'), pb = b.split('/'); 
-				var ma = monthMap[pa[0].toLowerCase()] || 0;
-				var mb = monthMap[pb[0].toLowerCase()] || 0;
-				var ya = parseInt(pa[1]) || 0;
-				var yb = parseInt(pb[1]) || 0;
-				return (ya * 12 + ma) - (yb * 12 + mb);
-			});
-			
-			return { keys: keys, data: m };
-		}
-
-		function aggByPhysicianAndMonth() {
-			var m = {};
-			var physiciansSet = {};
-			
-			// First pass: collect all physicians
-			for (var i = 0; i < filteredRecords.length; i++) {
-				var r = filteredRecords[i];
-				var physician = r.reqPhy || 'Unknown';
-				if (physician && physician !== 'Unknown') {
-					physiciansSet[physician] = true;
-				}
-			}
-			
-			// Get top physicians by total count
-			var physicianCounts = {};
-			for (var i = 0; i < filteredRecords.length; i++) {
-				var physician = filteredRecords[i].reqPhy || 'Unknown';
-				physicianCounts[physician] = (physicianCounts[physician] || 0) + 1;
-			}
-			
-			var physicianArray = [];
-			for (var p in physicianCounts) {
-				physicianArray.push({ name: p, count: physicianCounts[p] });
-			}
-			physicianArray.sort(function(a,b) { return b.count - a.count; });
-			
-			// Take top 10 physicians
-			var topPhysicians = [];
-			for (var i = 0; i < Math.min(10, physicianArray.length); i++) {
-				topPhysicians.push(physicianArray[i].name);
-			}
-			
-			// Second pass: aggregate by month
-			for (var i = 0; i < filteredRecords.length; i++) {
-				var r = filteredRecords[i];
-				var month = r.monthKey || 'Unknown';
-				var physician = r.reqPhy || 'Unknown';
-				
-				// Only track top physicians
-				if (topPhysicians.indexOf(physician) === -1) continue;
-				
-				if (!m[physician]) {
-					m[physician] = {};
-				}
-				if (!m[physician][month]) {
-					m[physician][month] = 0;
-				}
-				m[physician][month]++;
-			}
-			
-			// Get sorted month keys
-			var monthsSet = {};
-			for (var i = 0; i < filteredRecords.length; i++) {
-				var month = filteredRecords[i].monthKey;
-				if (month) monthsSet[month] = true;
-			}
-			
-			var keys = [];
-			for (var k in monthsSet) keys.push(k);
-			keys.sort(function(a,b) { 
-				var monthMap = {'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12};
-				var pa = a.split('/'), pb = b.split('/'); 
-				var ma = monthMap[pa[0].toLowerCase()] || 0;
-				var mb = monthMap[pb[0].toLowerCase()] || 0;
-				var ya = parseInt(pa[1]) || 0;
-				var yb = parseInt(pb[1]) || 0;
-				return (ya * 12 + ma) - (yb * 12 + mb);
-			});
-			
-			return { keys: keys, data: m, physicians: topPhysicians };
-		}
-
-		function aggByStatusAndMonth() {
-			var m = {};
-			
-			for (var i = 0; i < filteredRecords.length; i++) {
-				var r = filteredRecords[i];
-				var month = r.monthKey || 'Unknown';
-				
-				if (!m[month]) {
-					m[month] = { Complete: 0, Pending: 0, Cancelled: 0, Deferred: 0 };
-				}
-				
-				if (r.isComplete) m[month].Complete++;
-				else if (r.isCancelled) m[month].Cancelled++;
-				else if (r.isDeferred) m[month].Deferred++;
-				else if (r.isPending) m[month].Pending++;
-			}
-			
-			var keys = [];
-			for (var k in m) keys.push(k);
-			keys.sort(function(a,b) { 
-				var monthMap = {'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12};
-				var pa = a.split('/'), pb = b.split('/'); 
-				var ma = monthMap[pa[0].toLowerCase()] || 0;
-				var mb = monthMap[pb[0].toLowerCase()] || 0;
-				var ya = parseInt(pa[1]) || 0;
-				var yb = parseInt(pb[1]) || 0;
-				return (ya * 12 + ma) - (yb * 12 + mb);
-			});
-			
-			return { keys: keys, data: m };
-		}
-
-        function aggByField(field, limit) {
-            var c = {};
-            for (var i = 0; i < filteredRecords.length; i++) { var v = filteredRecords[i][field] || 'Unknown'; c[v] = (c[v] || 0) + 1; }
-            var arr = []; for (var k in c) arr.push({ name: k, count: c[k] });
-            arr.sort(function(a,b) { return b.count - a.count; });
-            if (limit && arr.length > limit) arr = arr.slice(0, limit);
-            return arr;
-        }
-        
-
-		function aggTimeToContact() {			var bins = ['<= 3 days', '3 days - 1 week', '1 week - 2 weeks', '> 2 weeks'];
-			var m = {};
-			
-			for (var i = 0; i < filteredRecords.length; i++) {
-				var r = filteredRecords[i];
-				var month = r.monthKey || 'Unknown';
-				var referralDate = parseDate(r.dateRec);
-				var contactDate = parseDate(r.firstContact);
-				
-				var days = 999;
-				if (contactDate && referralDate) {
-					days = Math.floor((contactDate - referralDate) / (1000 * 60 * 60 * 24));
-				}
-				
-				if (i < 3) {
-					console.log('[DEBUG] Sample record', i, ':', {
-						dateRef: r.dateRef,
-						firstContact: r.firstContact,
-						referralDate: referralDate,
-						contactDate: contactDate,
-						days: days
-					});
-				}
-				
-				var bin;
-				if (days <= 3) {
-					bin = '<= 3 days';
-				} else if (days <= 7) {
-					bin = '3 days - 1 week';
-				} else if (days <= 14) {
-					bin = '1 week - 2 weeks';
-				} else {
-					bin = '> 2 weeks';
-				}
-				
-				if (!m[month]) {
-					m[month] = { '<= 3 days': 0, '3 days - 1 week': 0, '1 week - 2 weeks': 0, '> 2 weeks': 0 };
-				}
-				m[month][bin]++;
-			}
-			
-			var keys = [];
-			for (var k in m) keys.push(k);
-			keys.sort(function(a,b) { 
-				var monthMap = {'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12};
-				var pa = a.split('/'), pb = b.split('/'); 
-				var ma = monthMap[pa[0].toLowerCase()] || 0;
-				var mb = monthMap[pb[0].toLowerCase()] || 0;
-				var ya = parseInt(pa[1]) || 0;
-				var yb = parseInt(pb[1]) || 0;
-				return (ya * 12 + ma) - (yb * 12 + mb);
-			});			return { keys: keys, data: m, bins: bins };
-		}
-
-		function aggTimeToComplete() {			var bins = ['<= 3 days', '3 days - 1 week', '1 week - 2 weeks', '2 weeks - 4 weeks', '4 weeks - 8 weeks', '> 8 weeks', 'None'];
-			var m = {};
-			
-			for (var i = 0; i < filteredRecords.length; i++) {
-				var r = filteredRecords[i];
-				var month = r.monthKey || 'Unknown';
-				var referralDate = parseDate(r.dateRec);
-				var completeDate = parseDate(r.dateComplete);
-				
-				if (i < 3) {
-					console.log('[DEBUG] Sample record', i, ':', {
-						dateRef: r.dateRef,
-						dateComplete: r.dateComplete,
-						referralDate: referralDate,
-						completeDate: completeDate
-					});
-				}
-				
-				var bin;
-				if (!completeDate || !referralDate) {
-					bin = 'None';
-				} else {
-					var days = Math.floor((completeDate - referralDate) / (1000 * 60 * 60 * 24));
-					
-					if (days <= 3) {
-						bin = '<= 3 days';
-					} else if (days <= 7) {
-						bin = '3 days - 1 week';
-					} else if (days <= 14) {
-						bin = '1 week - 2 weeks';
-					} else if (days <= 28) {
-						bin = '2 weeks - 4 weeks';
-					} else if (days <= 56) {
-						bin = '4 weeks - 8 weeks';
-					} else {
-						bin = '> 8 weeks';
-					}
-				}
-				
-				if (!m[month]) {
-					m[month] = { '<= 3 days': 0, '3 days - 1 week': 0, '1 week - 2 weeks': 0, '2 weeks - 4 weeks': 0, '4 weeks - 8 weeks': 0, '> 8 weeks': 0, 'None': 0 };
-				}
-				m[month][bin]++;
-			}
-			
-			var keys = [];
-			for (var k in m) keys.push(k);
-			keys.sort(function(a,b) { 
-				var monthMap = {'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12};
-				var pa = a.split('/'), pb = b.split('/'); 
-				var ma = monthMap[pa[0].toLowerCase()] || 0;
-				var mb = monthMap[pb[0].toLowerCase()] || 0;
-				var ya = parseInt(pa[1]) || 0;
-				var yb = parseInt(pb[1]) || 0;
-				return (ya * 12 + ma) - (yb * 12 + mb);
-			});			return { keys: keys, data: m, bins: bins };
-		}
-
-		function renderTrends() {
-			var el = document.getElementById('chartTrends');
-			var agg = aggByMonth();
-			if (!agg.keys.length) { 
-				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>'; 
-				return; 
-			}
-			
-			// Check if Google Charts is loaded
-			if (typeof google === 'undefined' || !google.charts) {
-				// Fallback to table if Google Charts not available
-				renderTrendsTable();
-				return;
-			}
-			
-			// Prepare data for Google Charts with annotations
-			var chartData = [['Month', 'Total', {role: 'annotation'}, 'New', 'Returning']];
-			for (var i = 0; i < agg.keys.length; i++) {
-				var k = agg.keys[i];
-				var d = agg.data[k];
-				chartData.push([k, d.total, d.total.toString(), d.new, d.ret]);
-			}
-
-			google.charts.load('current', {'packages':['corechart']});
-			google.charts.setOnLoadCallback(function() {
-				var data = google.visualization.arrayToDataTable(chartData);
-				var options = {
-					title: '',
-					curveType: 'none',
-					legend: { position: 'bottom' },
-					colors: ['#9b59b6', '#3498db', '#1abc9c'],
-					height: 400,
-					backgroundColor: 'transparent',
-					chartArea: {width: '85%', height: '70%'},
-					vAxis: { 
-						minValue: 0,
-						viewWindow: { min: 0 }
-					},
-					hAxis: {
-						slantedText: false,
-						textStyle: {
-							fontSize: 11
-						}
-					},
-					tooltip: {
-						trigger: 'both',
-						isHtml: false
-					},
-					focusTarget: 'category',
-					annotations: {
-						textStyle: {
-							fontSize: 11,
-							color: '#9b59b6',
-							bold: true
-						},
-						alwaysOutside: true,
-						stem: {
-							color: 'transparent',
-							length: 4
-						}
-					}
-				};
-				var chart = new google.visualization.LineChart(el);
-				chart.draw(data, options);
-			});
-		}
-
-		function renderServiceTrends() {
-			var el = document.getElementById('chartServiceTrends');
-			var agg = aggByServiceAndMonth();
-			if (!agg.keys.length) { 
-				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>'; 
-				return; 
-			}
-			
-			// Check if Google Charts is loaded
-			if (typeof google === 'undefined' || !google.charts) {
-				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">Google Charts not loaded</p>';
-				return;
-			}
-			
-			// Prepare data for Google Charts - FLIPPED: Services as rows, months as columns
-			var services = ['Infertility', 'EEF', 'ONC', 'SB', 'RPL', 'Donor', 'Gyne', 'ARA'];
-			
-			// Build header row with months
-			var chartData = [['Service']];
-			for (var i = 0; i < agg.keys.length; i++) {
-				chartData[0].push(agg.keys[i]);
-			}
-			
-			// Build data rows - one per service
-			for (var s = 0; s < services.length; s++) {
-				var serviceName = services[s];
-				var row = [serviceName];
-				for (var i = 0; i < agg.keys.length; i++) {
-					var month = agg.keys[i];
-					row.push(agg.data[month][serviceName]);
-				}
-				chartData.push(row);
-			}
-			
-			google.charts.load('current', {'packages':['corechart']});
-			google.charts.setOnLoadCallback(function() {
-				var data = google.visualization.arrayToDataTable(chartData);
-				var options = {
-					title: '',
-					legend: { position: 'bottom' },
-					colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#16a085', '#8e44ad', '#c0392b'],
-					height: 400,
-					backgroundColor: 'transparent',
-					chartArea: {width: '85%', height: '70%'},
-					vAxis: { 
-						minValue: 0,
-						viewWindow: { min: 0 }
-					},
-					hAxis: {
-						slantedText: false,
-						textStyle: {
-							fontSize: 11
-						}
-					},
-					tooltip: {
-						trigger: 'both',
-						isHtml: false
-					},
-					focusTarget: 'category'
-				};
-				var chart = new google.visualization.ColumnChart(el);
-				chart.draw(data, options);
-			});
-		}
-
-		function renderPhysicianTrends() {
-			var el = document.getElementById('chartPhysicianTrends');
-			var agg = aggByPhysicianAndMonth();
-			if (!agg.keys.length || !agg.physicians.length) { 
-				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>'; 
-				return; 
-			}
-			
-			// Check if Google Charts is loaded
-			if (typeof google === 'undefined' || !google.charts) {
-				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">Google Charts not loaded</p>';
-				return;
-			}
-			
-			// Prepare data - Physicians as rows, months as columns
-			var chartData = [['Physician']];
-			for (var i = 0; i < agg.keys.length; i++) {
-				chartData[0].push(agg.keys[i]);
-			}
-			
-			// Build data rows - one per physician
-			for (var p = 0; p < agg.physicians.length; p++) {
-				var physician = agg.physicians[p];
-				var row = [physician];
-				for (var i = 0; i < agg.keys.length; i++) {
-					var month = agg.keys[i];
-					var count = (agg.data[physician] && agg.data[physician][month]) ? agg.data[physician][month] : 0;
-					row.push(count);
-				}
-				chartData.push(row);
-			}
-			
-			google.charts.load('current', {'packages':['corechart']});
-			google.charts.setOnLoadCallback(function() {
-				var data = google.visualization.arrayToDataTable(chartData);
-				var options = {
-					title: '',
-					legend: { position: 'bottom' },
-					colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#27ae60', '#e67e22', '#95a5a6', '#34495e', '#16a085'],
-					height: 400,
-					backgroundColor: 'transparent',
-					chartArea: {width: '85%', height: '70%'},
-					vAxis: { 
-						minValue: 0,
-						viewWindow: { min: 0 }
-					},
-					hAxis: {
-						slantedText: false,
-						textStyle: {
-							fontSize: 11
-						}
-					},
-					tooltip: {
-						trigger: 'both',
-						isHtml: false
-					},
-					focusTarget: 'category'
-				};
-				var chart = new google.visualization.ColumnChart(el);
-				chart.draw(data, options);
-			});
-		}
-
-		function renderStatusTrends() {
-			var el = document.getElementById('chartStatusTrends');
-			var agg = aggByStatusAndMonth();
-			if (!agg.keys.length) { 
-				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>'; 
-				return; 
-			}
-			
-			// Check if Google Charts is loaded
-			if (typeof google === 'undefined' || !google.charts) {
-				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">Google Charts not loaded</p>';
-				return;
-			}
-			
-			// Prepare data for stacked bar chart
-			var chartData = [['Month', 'Complete', 'Pending', 'Cancelled', 'Deferred']];
-			for (var i = 0; i < agg.keys.length; i++) {
-				var k = agg.keys[i];
-				var d = agg.data[k];
-				chartData.push([k, d.Complete, d.Pending, d.Cancelled, d.Deferred]);
-			}
-			
-			google.charts.load('current', {'packages':['corechart']});
-			google.charts.setOnLoadCallback(function() {
-				var data = google.visualization.arrayToDataTable(chartData);
-				var options = {
-					title: '',
-					legend: { position: 'bottom' },
-					colors: ['#27ae60', '#f39c12', '#e74c3c', '#95a5a6'],
-					height: 400,
-					backgroundColor: 'transparent',
-					chartArea: {width: '85%', height: '70%'},
-					isStacked: true,
-					vAxis: { 
-						minValue: 0,
-						viewWindow: { min: 0 }
-					},
-					hAxis: {
-						slantedText: false,
-						textStyle: {
-							fontSize: 11
-						}
-					},
-					tooltip: {
-						trigger: 'both',
-						isHtml: false
-					},
-					focusTarget: 'category'
-				};
-				var chart = new google.visualization.ColumnChart(el);
-				chart.draw(data, options);
-			});
-		}
-
-		function renderTrendsTable() {
-			// Your original table rendering code as fallback
-			var el = document.getElementById('chartTrends');
-			var agg = aggByMonth();
-			var max = 0;
-			for (var i = 0; i < agg.keys.length; i++) { 
-				var d = agg.data[agg.keys[i]]; 
-				if (d.total > max) max = d.total; 
-			}
-			var html = '<table class="trend-table"><tr><th>Month</th><th>New</th><th>Returning</th><th>Total</th></tr>';
-			for (var i = 0; i < agg.keys.length; i++) {
-				var k = agg.keys[i], d = agg.data[k];
-				var newW = max > 0 ? (d.new / max * 100) : 0;
-				var retW = max > 0 ? (d.ret / max * 100) : 0;
-				html += '<tr><td><strong>' + k + '</strong></td>';
-				html += '<td><div class="trend-bar"><div class="trend-bar-inner" style="width:' + newW + '%;background:#3498db;"></div></div><div class="trend-val">' + d.new + '</div></td>';
-				html += '<td><div class="trend-bar"><div class="trend-bar-inner" style="width:' + retW + '%;background:#1abc9c;"></div></div><div class="trend-val">' + d.ret + '</div></td>';
-				html += '<td><strong>' + d.total + '</strong></td></tr>';
-			}
-			html += '</table>';
-			el.innerHTML = html;
-		}
-        
-        function showLoading() { document.getElementById('loadingOverlay').className = 'loading-overlay'; }
-        function hideLoading() { document.getElementById('loadingOverlay').className = 'loading-overlay hidden'; }
-
-
-
-		function showError(msg) { 
-			var bar = document.getElementById('statusBar');
-			var text = bar.querySelector('.status-text');
-			text.innerHTML = '<strong style="color:#721c24;">ERROR: ' + msg + '</strong>';
-			bar.className = 'status-bar error';
-		}
-
-		function hideError() { 
-			var bar = document.getElementById('statusBar');
-			bar.className = 'status-bar';
-		}
-
+async function loadFile() {
+    const fileInput = document.getElementById('fileInput');
+    if (!fileInput.files.length) return;
     
-		function renderTimeToContact() {			var el = document.getElementById('chartTimeToContact');
-			var agg = aggTimeToContact();
-			
-			if (!agg.keys.length) { 
-				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data. Check console for details.</p>'; 
-				return; 
-			}
-			
-			if (typeof google === 'undefined' || !google.charts) {
-				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">Google Charts not loaded</p>';
-				return;
-			}
-			
-			// Build data like Completion Status: rows = months, columns = bins
-			var chartData = [['Month']];
-			for (var b = 0; b < agg.bins.length; b++) {
-				chartData[0].push(agg.bins[b]);
-			}
-			
-			for (var i = 0; i < agg.keys.length; i++) {
-				var month = agg.keys[i];
-				var row = [month];
-				for (var b = 0; b < agg.bins.length; b++) {
-					var binName = agg.bins[b];
-					row.push(agg.data[month][binName]);
-				}
-				chartData.push(row);
-			}			
-			google.charts.load('current', {'packages':['corechart']});
-			google.charts.setOnLoadCallback(function() {
-				var data = google.visualization.arrayToDataTable(chartData);
-				var options = {
-					title: '',
-					legend: { position: 'bottom' },
-					colors: ['#27ae60', '#f39c12', '#e67e22', '#e74c3c'],
-					height: 400,
-					backgroundColor: 'transparent',
-					chartArea: {width: '85%', height: '70%'},
-					isStacked: true,
-					vAxis: { minValue: 0, viewWindow: { min: 0 } },
-					hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
-				};
-				var chart = new google.visualization.ColumnChart(el);
-				chart.draw(data, options);			});
-		}
+    const file = fileInput.files[0];
+    showLoading();
+    
+    try {
+        // Read file content
+        const txt = await file.text();
+        const tempPath = 'temp_' + file.name;
+        
+        // Let Python process it
+        const result = await eel.load_and_process_csv(tempPath)();
+        
+        if (result.status === 'ok') {
+            currentFile = file.name;
+            document.getElementById('currentFile').innerText = file.name;
+            document.getElementById('recordCount').innerText = result.records + ' records';
+            
+            // Initialize date pickers with range from data
+            initDatePickers(result.dateRange);
+            
+            // Load and render all charts
+            await applyFilters();
+        } else {
+            showError(result.message || 'Failed to load CSV');
+        }
+    } catch (e) {
+        showError('Load error: ' + e.message);
+    } finally {
+        hideLoading();
+    }
+}
 
-		function renderTimeToComplete() {			var el = document.getElementById('chartTimeToComplete');
-			var agg = aggTimeToComplete();
-			
-			if (!agg.keys.length) { 
-				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data. Check console for details.</p>'; 
-				return; 
-			}
-			
-			if (typeof google === 'undefined' || !google.charts) {
-				el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">Google Charts not loaded</p>';
-				return;
-			}
-			
-			// Build data like Completion Status: rows = months, columns = bins
-			var chartData = [['Month']];
-			for (var b = 0; b < agg.bins.length; b++) {
-				chartData[0].push(agg.bins[b]);
-			}
-			
-			for (var i = 0; i < agg.keys.length; i++) {
-				var month = agg.keys[i];
-				var row = [month];
-				for (var b = 0; b < agg.bins.length; b++) {
-					var binName = agg.bins[b];
-					row.push(agg.data[month][binName]);
-				}
-				chartData.push(row);
-			}			
-			google.charts.load('current', {'packages':['corechart']});
-			google.charts.setOnLoadCallback(function() {
-				var data = google.visualization.arrayToDataTable(chartData);
-				var options = {
-					title: '',
-					legend: { position: 'bottom' },
-					colors: ['#27ae60', '#f39c12', '#e67e22', '#e74c3c', '#c0392b', '#8e44ad', '#95a5a6'],
-					height: 400,
-					backgroundColor: 'transparent',
-					chartArea: {width: '85%', height: '70%'},
-					isStacked: true,
-					vAxis: { minValue: 0, viewWindow: { min: 0 } },
-					hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
-				};
-				var chart = new google.visualization.ColumnChart(el);
-				chart.draw(data, options);			});
-		}
+// ============================================================================
+// FILTERING (Calls Python, no local processing!)
+// ============================================================================
 
-		</script>
+async function applyFilters() {
+    showLoading();
+    
+    try {
+        const filters = {
+            startDate: document.getElementById('startDate').value,
+            endDate: document.getElementById('endDate').value,
+            services: getSelectedServices(),
+            physicians: getSelectedPhysicians()
+        };
+        
+        // ONE call to Python gets ALL chart data
+        const data = await eel.get_all_chart_data(filters)();
+        
+        if (data.status === 'ok') {
+            // Just render - no calculations!
+            renderAllCharts(data);
+            updateKPIs(data.kpis);
+        } else {
+            showError(data.message || 'Error loading data');
+        }
+    } catch (e) {
+        showError('Filter error: ' + e.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function getSelectedServices() {
+    const checkboxes = document.querySelectorAll('input[name="service"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function getSelectedPhysicians() {
+    const checkboxes = document.querySelectorAll('input[name="physician"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// ============================================================================
+// RENDERING (Just display - no processing!)
+// ============================================================================
+
+function renderAllCharts(data) {
+    renderMonthlyTrends(data.monthlyTrends);
+    renderServiceTrends(data.serviceTrends);
+    renderPhysicianTrends(data.physicianTrends);
+    renderCompletionStatus(data.completionStatus);
+    renderTimeToContact(data.timeToContact);
+    renderTimeToComplete(data.timeToComplete);
+}
+
+function renderMonthlyTrends(data) {
+    const el = document.getElementById('chartTrends');
+    if (!data.months || data.months.length === 0) {
+        el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
+        return;
+    }
+    
+    // Build chart data from Python's clean output
+    const chartData = [['Month', 'New', 'Returning']];
+    for (let i = 0; i < data.months.length; i++) {
+        chartData.push([data.months[i], data.new[i], data.returning[i]]);
+    }
+    
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(function() {
+        const chart = new google.visualization.ColumnChart(el);
+        chart.draw(
+            google.visualization.arrayToDataTable(chartData),
+            {
+                title: '',
+                legend: { position: 'bottom' },
+                colors: ['#3498db', '#1abc9c'],
+                height: 400,
+                backgroundColor: 'transparent',
+                chartArea: {left: 60, right: 20, top: 20, bottom: 60},
+                isStacked: false,
+                vAxis: { minValue: 0, viewWindow: { min: 0 } },
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+            }
+        );
+    });
+}
+
+function renderServiceTrends(data) {
+    const el = document.getElementById('chartServiceTrends');
+    if (!data.months || data.months.length === 0) {
+        el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
+        return;
+    }
+    
+    // Build chart data
+    const chartData = [['Month', ...data.services]];
+    for (let month of data.months) {
+        const row = [month];
+        for (let service of data.services) {
+            row.push(data.data[month][service] || 0);
+        }
+        chartData.push(row);
+    }
+    
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(function() {
+        const chart = new google.visualization.ColumnChart(el);
+        chart.draw(
+            google.visualization.arrayToDataTable(chartData),
+            {
+                title: '',
+                legend: { position: 'bottom' },
+                colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#16a085', '#8e44ad', '#c0392b'],
+                height: 400,
+                backgroundColor: 'transparent',
+                chartArea: {left: 60, right: 20, top: 20, bottom: 60},
+                isStacked: true,
+                vAxis: { minValue: 0, viewWindow: { min: 0 } },
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+            }
+        );
+    });
+}
+
+function renderPhysicianTrends(data) {
+    const el = document.getElementById('chartPhysicianTrends');
+    if (!data.months || data.months.length === 0) {
+        el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
+        return;
+    }
+    
+    // Build chart data
+    const chartData = [['Month', ...data.physicians]];
+    for (let month of data.months) {
+        const row = [month];
+        for (let physician of data.physicians) {
+            row.push(data.data[month][physician] || 0);
+        }
+        chartData.push(row);
+    }
+    
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(function() {
+        const chart = new google.visualization.ColumnChart(el);
+        chart.draw(
+            google.visualization.arrayToDataTable(chartData),
+            {
+                title: '',
+                legend: { position: 'bottom' },
+                height: 400,
+                backgroundColor: 'transparent',
+                chartArea: {left: 60, right: 20, top: 20, bottom: 60},
+                isStacked: true,
+                vAxis: { minValue: 0, viewWindow: { min: 0 } },
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+            }
+        );
+    });
+}
+
+function renderCompletionStatus(data) {
+    const el = document.getElementById('chartStatusTrends');
+    if (!data.months || data.months.length === 0) {
+        el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
+        return;
+    }
+    
+    // Build chart data
+    const chartData = [['Month', 'Complete', 'Pending', 'Cancelled', 'Deferred']];
+    for (let i = 0; i < data.months.length; i++) {
+        chartData.push([
+            data.months[i],
+            data.data.Complete[i],
+            data.data.Pending[i],
+            data.data.Cancelled[i],
+            data.data.Deferred[i]
+        ]);
+    }
+    
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(function() {
+        const chart = new google.visualization.ColumnChart(el);
+        chart.draw(
+            google.visualization.arrayToDataTable(chartData),
+            {
+                title: '',
+                legend: { position: 'bottom' },
+                colors: ['#27ae60', '#f39c12', '#e74c3c', '#95a5a6'],
+                height: 400,
+                backgroundColor: 'transparent',
+                chartArea: {left: 60, right: 20, top: 20, bottom: 60},
+                isStacked: true,
+                vAxis: { minValue: 0, viewWindow: { min: 0 } },
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+            }
+        );
+    });
+}
+
+function renderTimeToContact(data) {
+    const el = document.getElementById('chartTimeToContact');
+    if (!data.months || data.months.length === 0) {
+        el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
+        return;
+    }
+    
+    // Build chart data
+    const chartData = [['Month', ...data.bins]];
+    for (let month of data.months) {
+        const row = [month];
+        for (let bin of data.bins) {
+            row.push(data.data[month][bin] || 0);
+        }
+        chartData.push(row);
+    }
+    
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(function() {
+        const chart = new google.visualization.ColumnChart(el);
+        chart.draw(
+            google.visualization.arrayToDataTable(chartData),
+            {
+                title: '',
+                legend: { position: 'bottom' },
+                colors: ['#27ae60', '#f39c12', '#e67e22', '#e74c3c'],
+                height: 450,
+                backgroundColor: 'transparent',
+                chartArea: {left: 60, right: 20, top: 20, bottom: 60},
+                isStacked: true,
+                vAxis: { minValue: 0, viewWindow: { min: 0 } },
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+            }
+        );
+    });
+}
+
+function renderTimeToComplete(data) {
+    const el = document.getElementById('chartTimeToComplete');
+    if (!data.months || data.months.length === 0) {
+        el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
+        return;
+    }
+    
+    // Build chart data
+    const chartData = [['Month', ...data.bins]];
+    for (let month of data.months) {
+        const row = [month];
+        for (let bin of data.bins) {
+            row.push(data.data[month][bin] || 0);
+        }
+        chartData.push(row);
+    }
+    
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(function() {
+        const chart = new google.visualization.ColumnChart(el);
+        chart.draw(
+            google.visualization.arrayToDataTable(chartData),
+            {
+                title: '',
+                legend: { position: 'bottom' },
+                colors: ['#27ae60', '#f39c12', '#e67e22', '#e74c3c', '#c0392b', '#8e44ad', '#95a5a6'],
+                height: 450,
+                backgroundColor: 'transparent',
+                chartArea: {left: 60, right: 20, top: 20, bottom: 60},
+                isStacked: true,
+                vAxis: { minValue: 0, viewWindow: { min: 0 } },
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+            }
+        );
+    });
+}
+
+function updateKPIs(kpis) {
+    document.getElementById('kpiTotal').innerText = fmt(kpis.total);
+    document.getElementById('kpiNew').innerText = fmt(kpis.new);
+    document.getElementById('kpiReturning').innerText = fmt(kpis.returning);
+    document.getElementById('kpiComplete').innerText = fmt(kpis.complete);
+    document.getElementById('kpiPending').innerText = fmt(kpis.pending);
+    document.getElementById('kpiCancelled').innerText = fmt(kpis.cancelled);
+    document.getElementById('kpiDeferred').innerText = fmt(kpis.deferred);
+}
+
+function fmt(n) { 
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); 
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+window.addEventListener('DOMContentLoaded', function() {
+    console.log('MSFReferralsKPIsDashboard is ready');
+    document.getElementById('fileInput').addEventListener('change', loadFile);
+});
+
+	</script>
 </body>
 </html>

@@ -12,8 +12,6 @@ a = Analysis(
     ],
     hiddenimports=[
         'bottle_websocket',
-        'tkinter',
-        'psutil',
     ],
     hookspath=[],
     hooksconfig={},
