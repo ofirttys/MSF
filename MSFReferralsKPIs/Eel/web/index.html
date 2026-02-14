@@ -344,55 +344,6 @@
 	
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script type="text/javascript">
-	<script type="text/javascript">
-// ============================================================================
-// SIMPLIFIED JAVASCRIPT - Replace the existing JavaScript in index.html
-// This goes in the <script> section
-// ============================================================================
-
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-function showLoading() {
-    document.getElementById('loadingOverlay').style.display = 'flex';
-}
-
-function hideLoading() {
-    document.getElementById('loadingOverlay').style.display = 'none';
-}
-
-function showError(msg) {
-    alert('Error: ' + msg);
-}
-
-function showTab(btn, tabId) {
-    var btns = document.getElementsByClassName('tab-btn');
-    var tabs = document.getElementsByClassName('tab-content');
-    for (var i = 0; i < btns.length; i++) btns[i].className = 'tab-btn';
-    for (var i = 0; i < tabs.length; i++) tabs[i].className = 'tab-content';
-    btn.className = 'tab-btn active';
-    document.getElementById(tabId).className = 'tab-content active';
-}
-
-function initDatePickers(dateRange) {
-    if (!dateRange) return;
-    
-    flatpickr('#startDate', {
-        dateFormat: 'Y-m-d',
-        defaultDate: dateRange.min,
-        onChange: function() { applyFilters(); }
-    });
-    
-    flatpickr('#endDate', {
-        dateFormat: 'Y-m-d',
-        defaultDate: dateRange.max,
-        onChange: function() { applyFilters(); }
-    });
-}
-
-
 var currentFile = '';
 var services = ['Infertility', 'EEF', 'ONC', 'SB', 'RPL', 'Donor', 'Gyne', 'ARA'];
 
@@ -729,7 +680,6 @@ function fmt(n) {
 
 window.addEventListener('DOMContentLoaded', function() {
     console.log('MSFReferralsKPIsDashboard is ready');
-    hideLoading();  // Hide initial loading screen
     document.getElementById('fileInput').addEventListener('change', loadFile);
 });
 
