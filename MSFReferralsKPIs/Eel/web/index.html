@@ -525,26 +525,39 @@ function renderMonthlyTrends(data) {
     }
     
     // Build chart data from Python's clean output
-    const chartData = [['Month', 'New', 'Returning']];
+    const chartData = [['Month', 'Total', {role: 'annotation'}, 'New', 'Returning']];
     for (let i = 0; i < data.months.length; i++) {
-        chartData.push([data.months[i], data.new[i], data.returning[i]]);
+        const total = data.new[i] + data.returning[i];
+        chartData.push([data.months[i], total, total.toString(), data.new[i], data.returning[i]]);
     }
     
     google.charts.load('current', {'packages':['corechart']});
     google.charts.setOnLoadCallback(function() {
-        const chart = new google.visualization.ColumnChart(el);
+        const chart = new google.visualization.LineChart(el);
         chart.draw(
             google.visualization.arrayToDataTable(chartData),
             {
                 title: '',
+                curveType: 'none',
                 legend: { position: 'bottom' },
-                colors: ['#3498db', '#1abc9c'],
+                colors: ['#9b59b6', '#3498db', '#1abc9c'],
                 height: 400,
                 backgroundColor: 'transparent',
                 chartArea: {left: 60, right: 20, top: 20, bottom: 60},
-                isStacked: false,
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
-                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
+                annotations: {
+                    textStyle: {
+                        fontSize: 11,
+                        color: '#9b59b6',
+                        bold: true
+                    },
+                    alwaysOutside: true,
+                    stem: {
+                        color: 'transparent',
+                        length: 4
+                    }
+                }
             }
         );
     });
@@ -579,7 +592,7 @@ function renderServiceTrends(data) {
                 height: 400,
                 backgroundColor: 'transparent',
                 chartArea: {left: 60, right: 20, top: 20, bottom: 60},
-                isStacked: true,
+                isStacked: false,
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
             }
@@ -615,7 +628,7 @@ function renderPhysicianTrends(data) {
                 height: 400,
                 backgroundColor: 'transparent',
                 chartArea: {left: 60, right: 20, top: 20, bottom: 60},
-                isStacked: true,
+                isStacked: false,
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
             }

@@ -191,6 +191,17 @@ def load_and_process_csv(filename):
         if df is None:
             return {'status': 'error', 'message': f'Could not decode CSV file. Last error: {last_error}'}
         
+        # DEBUG: Print raw CSV info
+        print(f"Raw CSV loaded: {len(df)} rows (including potential duplicates)")
+        print(f"Columns: {list(df.columns)}")
+        
+        # Check for duplicate rows
+        duplicates = df.duplicated().sum()
+        if duplicates > 0:
+            print(f"WARNING: Found {duplicates} duplicate rows - removing them")
+            df = df.drop_duplicates()
+            print(f"After removing duplicates: {len(df)} rows")
+        
         # Parse dates with multiple formats
         date_cols = ['Date Referral Received', '1st Attempt to reach Patient/Referring MD', 
                      'Date Complete Information received']
