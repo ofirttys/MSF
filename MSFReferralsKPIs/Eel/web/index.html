@@ -479,7 +479,9 @@ async function applyFilters() {
         const data = await eel.get_all_chart_data(filters)();
         
         if (data.status === 'ok') {
-            // Just render - no calculations!
+            // Update global chartData so tab switching works correctly
+            chartData = data;
+			// Just render - no calculations!
             renderAllCharts(data);
             updateKPIs(data.kpis);
         } else {
@@ -538,11 +540,12 @@ function renderMonthlyTrends(data) {
                 curveType: 'none',
                 legend: { position: 'bottom' },
                 colors: ['#9b59b6', '#3498db', '#1abc9c'],
-                height: 400,
+                height: 425,
                 backgroundColor: 'transparent',
                 chartArea: {left: 60, right: 20, top: 20, bottom: 60},
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
+				tooltip: { trigger: 'both', isHtml: false },
                 focusTarget: 'category',
                 annotations: {
                     textStyle: {
@@ -594,12 +597,14 @@ function renderServiceTrends(data) {
                 title: '',
                 legend: { position: 'bottom' },
                 colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#16a085', '#8e44ad', '#c0392b', '#2ecc71', '#e67e22', '#95a5a6', '#34495e'],
-                height: 400,
+                height: 425,
                 backgroundColor: 'transparent',
                 chartArea: {left: 60, right: 20, top: 20, bottom: 60},
-                isStacked: false,
+                bar: { groupWidth: '90%' },
+				isStacked: false,
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
+				tooltip: { trigger: 'both', isHtml: false },
                 focusTarget: 'category'
             }
         );
@@ -638,16 +643,16 @@ function renderPhysicianTrends(data) {
                 title: '',
                 legend: { position: 'bottom' },
                 colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#27ae60', '#e67e22', '#95a5a6', '#34495e', '#16a085', '#2ecc71', '#d35400'],
-                height: 400,
+                height: 425,
                 backgroundColor: 'transparent',
                 chartArea: {left: 60, right: 20, top: 20, bottom: 100},
+                bar: { groupWidth: '90%' },
                 isStacked: false,
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { 
-                    slantedText: true,
-                    slantedTextAngle: 45,
                     textStyle: { fontSize: 10 } 
                 },
+				tooltip: { trigger: 'both', isHtml: false },
                 focusTarget: 'category'
             }
         );
@@ -689,12 +694,14 @@ function renderCompletionStatus(data) {
                 title: '',
                 legend: { position: 'bottom' },
                 colors: ['#27ae60', '#f39c12', '#e74c3c', '#95a5a6'],
-                height: 400,
+                height: 425,
                 backgroundColor: 'transparent',
                 chartArea: {left: 60, right: 20, top: 20, bottom: 60},
                 isStacked: true,
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
-                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
+				tooltip: { trigger: 'both', isHtml: false },
+				focusTarget: 'category'
             }
         );
     });
@@ -726,12 +733,14 @@ function renderTimeToContact(data) {
                 title: '',
                 legend: { position: 'bottom' },
                 colors: ['#27ae60', '#f39c12', '#e67e22', '#e74c3c'],
-                height: 450,
+                height: 425,
                 backgroundColor: 'transparent',
                 chartArea: {left: 60, right: 20, top: 20, bottom: 60},
                 isStacked: true,
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
-                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
+				tooltip: { trigger: 'both', isHtml: false },
+				focusTarget: 'category'
             }
         );
     });
@@ -763,12 +772,14 @@ function renderTimeToComplete(data) {
                 title: '',
                 legend: { position: 'bottom' },
                 colors: ['#27ae60', '#f39c12', '#e67e22', '#e74c3c', '#c0392b', '#8e44ad', '#95a5a6'],
-                height: 450,
+                height: 425,
                 backgroundColor: 'transparent',
                 chartArea: {left: 60, right: 20, top: 20, bottom: 60},
                 isStacked: true,
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
-                hAxis: { slantedText: false, textStyle: { fontSize: 11 } }
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
+				tooltip: { trigger: 'both', isHtml: false },
+				focusTarget: 'category'
             }
         );
     });
