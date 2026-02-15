@@ -53,15 +53,11 @@
 		.filters { display: flex; align-items: center; flex-wrap: wrap; }
 		.filter-group { display: flex; align-items: center; margin-right: 15px; margin-bottom: 10px; }
 		.filter-group label { font-size: 13px; font-weight: 500; color: #2c3e50; white-space: nowrap; margin-right: 8px; }
-        .file-select, .date-input { background: white; border: 2px solid #e0e0e0; border-radius: 6px; padding: 8px 12px; font-family: inherit; font-size: 13px; cursor: pointer; transition: all 0.2s; }
-		.file-select { min-width: 200px; }
-        .date-input { width: 110px; }
-        .file-select:hover, .file-select:focus, .date-input:hover, .date-input:focus { border-color: #3498db; outline: none; }
+        .date-input { background: white; border: 2px solid #e0e0e0; border-radius: 6px; padding: 8px 12px; font-family: inherit; font-size: 13px; cursor: pointer; transition: all 0.2s; width: 110px; }
+        .date-input:hover, .date-input:focus { border-color: #3498db; outline: none; }
         
 		.btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; margin-left: 8px; margin-bottom: 10px; }
         .btn:hover { opacity: 0.9; }
-        .btn-primary { background: #3498db; color: white; }
-        .btn-secondary { background: #95a5a6; color: white; }
         .btn-success { background: #27ae60; color: white; }
         
         .main-content { margin: 0 auto; padding: 15px; }
@@ -142,39 +138,15 @@
         .tab-content.active { display: block; }
         
         /* Charts */
-        .charts-row { display: flex; gap: 20px; flex-wrap: wrap; }
         .chart-box { flex: 1; min-width: 400px; background: #fafafa; border-radius: 8px; border: 1px solid #ecf0f1; overflow: hidden; }
         .chart-box.full { flex: 100%; min-width: 100%; }
         .chart-header { padding: 15px 20px; background: white; border-bottom: 1px solid #ecf0f1; }
         .chart-title { font-size: 14px; font-weight: 600; color: #2c3e50; }
-        .chart-subtitle { font-size: 11px; color: #95a5a6; margin-top: 2px; }
         .chart-body { padding: 20px; min-height: 300px; background: white; }
         
         /* Bar chart styles */
-        .bar-chart { width: 100%; }
-        .bar-row { display: flex; align-items: center; margin-bottom: 8px; }
-        .bar-label { width: 120px; font-size: 12px; color: #2c3e50; text-align: right; padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .bar-container { flex: 1; height: 24px; background: #f0f0f0; border-radius: 4px; overflow: hidden; position: relative; }
-        .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; }
-        .bar-value { font-size: 11px; color: white; font-weight: 500; }
         
-        /* Pie/Donut styles */
-        .pie-container { display: flex; align-items: center; gap: 30px; justify-content: center; flex-wrap: wrap; }
-        .pie-chart { width: 200px; height: 200px; position: relative; }
-        .pie-legend { display: flex; flex-direction: column; gap: 8px; }
-        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-        .legend-color { width: 14px; height: 14px; border-radius: 3px; }
-        .legend-label { color: #2c3e50; }
-        .legend-value { color: #7f8c8d; margin-left: auto; }
         
-        /* Trend chart */
-        .trend-chart { width: 100%; overflow-x: auto; }
-        .trend-table { width: 100%; border-collapse: collapse; }
-        .trend-table th, .trend-table td { padding: 10px 8px; text-align: center; font-size: 12px; border-bottom: 1px solid #ecf0f1; }
-        .trend-table th { background: #f8f9fa; color: #7f8c8d; font-weight: 600; }
-        .trend-bar { display: inline-block; width: 100%; max-width: 60px; }
-        .trend-bar-inner { height: 20px; border-radius: 3px; }
-        .trend-val { font-size: 11px; color: #2c3e50; margin-top: 2px; }
         
         /* Footer */
         .footer { text-align: center; padding: 5px; color: #95a5a6; font-size: 12px; margin-top: 2px; }
@@ -187,10 +159,6 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         
         /* Summary table */
-        .summary-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .summary-table th, .summary-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #ecf0f1; font-size: 13px; }
-        .summary-table th { background: #f8f9fa; font-weight: 600; color: #7f8c8d; }
-        .summary-table tr:hover { background: #fafafa; }
         
 		.google-visualization-tooltip {
 			pointer-events: none !important;
@@ -412,12 +380,6 @@ function initDatePickers(dateRange) {
     });
 }
 
-function resetFilters() {
-    document.getElementById('dateFrom').value = '';
-    document.getElementById('dateTo').value = '';
-    applyFilters();
-}
-
 function fmt(n) { 
     return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); 
 }
@@ -428,41 +390,10 @@ function fmt(n) {
 
 
 var chartData = null;  // Store chart data for re-rendering
-var currentFile = '';
-var services = ['Infertility', 'EEF', 'ONC', 'SB', 'RPL', 'Donor', 'Gyne', 'ARA'];
 
 // ============================================================================
 // FILE LOADING (Much simpler now!)
 // ============================================================================
-
-async function loadFile(filename) {
-    if (!filename) return;
-    
-    showLoading();
-    
-    try {
-        // Let Python load and process the CSV from DB folder
-        const result = await eel.load_and_process_csv(filename)();
-        
-        if (result.status === 'ok') {
-            currentFile = filename;
-            document.getElementById('currentFile').innerText = filename;
-            document.getElementById('recordCount').innerText = result.records + ' records';
-            
-            // Initialize date pickers with range from data
-            initDatePickers(result.dateRange);
-            
-            // Load and render all charts
-            await applyFilters();
-        } else {
-            showError(result.message || 'Failed to load CSV');
-        }
-    } catch (e) {
-        showError('Load error: ' + e.message);
-    } finally {
-        hideLoading();
-    }
-}
 
 // ============================================================================
 // FILTERING (Calls Python, no local processing!)
@@ -474,9 +405,7 @@ async function applyFilters() {
     try {
         const filters = {
             startDate: document.getElementById('dateFrom').value,
-            endDate: document.getElementById('dateTo').value,
-            services: getSelectedServices(),
-            physicians: getSelectedPhysicians()
+            endDate: document.getElementById('dateTo').value
         };
         
         // ONE call to Python gets ALL chart data
@@ -496,16 +425,6 @@ async function applyFilters() {
     } finally {
         hideLoading();
     }
-}
-
-function getSelectedServices() {
-    const checkboxes = document.querySelectorAll('input[name="service"]:checked');
-    return Array.from(checkboxes).map(cb => cb.value);
-}
-
-function getSelectedPhysicians() {
-    const checkboxes = document.querySelectorAll('input[name="physician"]:checked');
-    return Array.from(checkboxes).map(cb => cb.value);
 }
 
 // ============================================================================

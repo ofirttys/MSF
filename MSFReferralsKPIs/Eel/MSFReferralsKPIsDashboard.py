@@ -82,17 +82,6 @@ def create_lock_file():
         print(f"Lock file error: {e}")
 
 @eel.expose
-def read_csv_file(filename):
-    """Read CSV file and return content"""
-    try:
-        if os.path.exists(filename):
-            with open(filename, 'r', encoding='utf-8-sig') as f:
-                return f.read()
-    except Exception as e:
-        print(f"Error reading file: {e}")
-    return None
-
-@eel.expose
 def refresh_and_load():
     """
     One function that does EVERYTHING:
