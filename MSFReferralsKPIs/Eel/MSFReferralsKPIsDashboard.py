@@ -306,29 +306,98 @@ def calc_monthly_trends(filtered):
     }
 
 def calc_service_trends(filtered):
-    """Calculate service type totals (NOT by month)"""
+    """Calculate service type trends by month - for grouped bar chart"""
     if filtered.empty:
-        return {'services': [], 'counts': []}
+        return {'months': [], 'services': [], 'data': {}}
     
-    # Group by service - simple count, no month breakdown
-    service_counts = filtered.groupby('Service Requested').size().sort_values(ascending=False)
+    # Clean up service names - standardize capitalization
+    service_map = {
+        'infertility': 'Infertility',
+        'eef': 'EEF',
+        'sb': 'SB',
+        'onc': 'ONC',
+        'ara': 'ARA',
+        'rpl': 'RPL',
+        'pgd': 'PGD',
+        'gyne': 'Gyne',
+        'donor': 'Donor'
+    }
+    
+    # Normalize service names
+    def normalize_service(s):
+        if pd.isna(s):
+            return 'Other'
+        s_lower = str(s).lower().strip()
+        for key, value in service_map.items():
+            if s_lower.startswith(key):
+                return value
+        return 'Other'
+    
+    filtered = filtered.copy()
+    filtered['Service_Clean'] = filtered['Service Requested'].apply(normalize_service)
+    
+    # Group by month and service
+    service_monthly = filtered.groupby(['month', 'Service_Clean']).size().unstack(fill_value=0)
+    
+    # Only keep the main service types we want
+    wanted_services = ['Infertility', 'EEF', 'ONC', 'SB', 'RPL', 'Donor', 'Gyne', 'ARA']
+    available_services = [s for s in wanted_services if s in service_monthly.columns]
+    service_monthly = service_monthly[available_services]
+    
+    # Sort by date
+    service_monthly['sort_date'] = pd.to_datetime(service_monthly.index, format='%b/%y')
+    service_monthly = service_monthly.sort_values('sort_date')
+    service_monthly = service_monthly.drop('sort_date', axis=1)
     
     return {
-        'services': service_counts.index.tolist(),
-        'counts': service_counts.astype(int).tolist()
+        'months': service_monthly.index.tolist(),
+        'services': service_monthly.columns.tolist(),
+        'data': service_monthly.to_dict('index')
     }
 
 def calc_physician_trends(filtered, limit=10):
-    """Calculate top physicians totals (NOT by month)"""
+    """Calculate top physicians trends by month - First Available first, then alphabetical"""
     if filtered.empty:
-        return {'physicians': [], 'counts': []}
+        return {'months': [], 'physicians': [], 'data': {}}
+    
+    # Clean up physician names - remove duplicates
+    filtered = filtered.copy()
+    filtered['Physician_Clean'] = filtered['Requested Physician'].str.strip()
     
     # Get top physicians by total count
-    physician_counts = filtered['Requested Physician'].value_counts().head(limit)
+    physician_counts = filtered['Physician_Clean'].value_counts()
+    
+    # Separate "First Available" from others
+    first_available_in_data = 'First Available' in physician_counts.index
+    
+    # Get other physicians sorted alphabetically
+    other_physicians = [p for p in physician_counts.index if p != 'First Available']
+    other_physicians_sorted = sorted(other_physicians)
+    
+    # Take top (limit-1) if First Available exists, otherwise top limit
+    if first_available_in_data:
+        top_physicians = ['First Available'] + other_physicians_sorted[:limit-1]
+    else:
+        top_physicians = other_physicians_sorted[:limit]
+    
+    # Filter to top physicians only
+    filtered_top = filtered[filtered['Physician_Clean'].isin(top_physicians)]
+    
+    # Group by month and physician
+    physician_monthly = filtered_top.groupby(['month', 'Physician_Clean']).size().unstack(fill_value=0)
+    
+    # Reorder columns: First Available first, then alphabetical
+    physician_monthly = physician_monthly[[p for p in top_physicians if p in physician_monthly.columns]]
+    
+    # Sort by date
+    physician_monthly['sort_date'] = pd.to_datetime(physician_monthly.index, format='%b/%y')
+    physician_monthly = physician_monthly.sort_values('sort_date')
+    physician_monthly = physician_monthly.drop('sort_date', axis=1)
     
     return {
-        'physicians': physician_counts.index.tolist(),
-        'counts': physician_counts.astype(int).tolist()
+        'months': physician_monthly.index.tolist(),
+        'physicians': physician_monthly.columns.tolist(),
+        'data': physician_monthly.to_dict('index')
     }
 
 def calc_completion_status(filtered):

@@ -227,9 +227,7 @@
                     <label>To:</label>
                     <input type="text" class="date-input" id="dateTo" placeholder="End">
                 </div>
-                <button class="btn btn-primary" onclick="applyFilters()">Apply</button>
-                <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
-                <button class="btn btn-success" onclick="refreshFiles()">Refresh</button>
+                <button class="btn btn-success" onclick="refreshFiles()">Reset</button>
             </div>
         </div>
     </header>
@@ -573,74 +571,94 @@ function renderMonthlyTrends(data) {
 
 function renderServiceTrends(data) {
     const el = document.getElementById('chartServiceTrends');
-    if (!data.services || data.services.length === 0) {
+    if (!data.months || data.months.length === 0) {
         el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
         return;
     }
     
-    // Build simple bar chart: Service Type vs Count
-    const chartData = [['Service Type', 'Referrals']];
-    for (let i = 0; i < data.services.length; i++) {
-        chartData.push([data.services[i], data.counts[i]]);
+    // FLIPPED: Services on X-axis, Months as grouped bars
+    const chartData = [['Service Type', ...data.months]];
+    for (let service of data.services) {
+        const row = [service];
+        for (let month of data.months) {
+            row.push(data.data[month][service] || 0);
+        }
+        chartData.push(row);
     }
     
-    google.charts.load('current', {'packages':['corechart']});
-    google.charts.setOnLoadCallback(function() {
+    const drawChart = function() {
         const chart = new google.visualization.ColumnChart(el);
         chart.draw(
             google.visualization.arrayToDataTable(chartData),
             {
                 title: '',
-                legend: { position: 'none' },
-                colors: ['#9b59b6'],
+                legend: { position: 'bottom' },
+                colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#16a085', '#8e44ad', '#c0392b', '#2ecc71', '#e67e22', '#95a5a6', '#34495e'],
                 height: 400,
                 backgroundColor: 'transparent',
-                chartArea: {left: 60, right: 20, top: 20, bottom: 80},
+                chartArea: {left: 60, right: 20, top: 20, bottom: 60},
+                isStacked: false,
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
-                hAxis: { 
-                    slantedText: true,
-                    slantedTextAngle: 45,
-                    textStyle: { fontSize: 11 } 
-                }
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
+                focusTarget: 'category'
             }
         );
-    });
+    };
+    
+    if (typeof google.visualization === 'undefined' || !google.visualization.ColumnChart) {
+        google.charts.load('current', {'packages':['corechart']});
+        google.charts.setOnLoadCallback(drawChart);
+    } else {
+        drawChart();
+    }
 }
 
 function renderPhysicianTrends(data) {
     const el = document.getElementById('chartPhysicianTrends');
-    if (!data.physicians || data.physicians.length === 0) {
+    if (!data.months || data.months.length === 0) {
         el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
         return;
     }
     
-    // Build simple bar chart: Physician vs Count
-    const chartData = [['Physician', 'Referrals']];
-    for (let i = 0; i < data.physicians.length; i++) {
-        chartData.push([data.physicians[i], data.counts[i]]);
+    // FLIPPED: Physicians on X-axis, Months as grouped bars
+    const chartData = [['Physician', ...data.months]];
+    for (let physician of data.physicians) {
+        const row = [physician];
+        for (let month of data.months) {
+            row.push(data.data[month][physician] || 0);
+        }
+        chartData.push(row);
     }
     
-    google.charts.load('current', {'packages':['corechart']});
-    google.charts.setOnLoadCallback(function() {
+    const drawChart = function() {
         const chart = new google.visualization.ColumnChart(el);
         chart.draw(
             google.visualization.arrayToDataTable(chartData),
             {
                 title: '',
-                legend: { position: 'none' },
-                colors: ['#3498db'],
+                legend: { position: 'bottom' },
+                colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#27ae60', '#e67e22', '#95a5a6', '#34495e', '#16a085', '#2ecc71', '#d35400'],
                 height: 400,
                 backgroundColor: 'transparent',
                 chartArea: {left: 60, right: 20, top: 20, bottom: 100},
+                isStacked: false,
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { 
                     slantedText: true,
                     slantedTextAngle: 45,
                     textStyle: { fontSize: 10 } 
-                }
+                },
+                focusTarget: 'category'
             }
         );
-    });
+    };
+    
+    if (typeof google.visualization === 'undefined' || !google.visualization.ColumnChart) {
+        google.charts.load('current', {'packages':['corechart']});
+        google.charts.setOnLoadCallback(drawChart);
+    } else {
+        drawChart();
+    }
 }
 
 function renderCompletionStatus(data) {
