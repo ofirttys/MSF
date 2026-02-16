@@ -1,0 +1,2001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSF Referrals Management Dashboard</title>
+    
+    <!-- Flatpickr CSS for date pickers -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f3ebff;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        /* Login Screen Styles */
+        #loginScreen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .error-message {
+            background: #ffe6e6;
+            color: #c0392b;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        /* Main App Styles */
+        #mainApp {
+            display: none;
+            padding: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* Read-only Banner */
+        #readOnlyBanner {
+            display: none;
+            background: #f39c12;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 24px;
+        }
+
+        .user-info {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .unsaved-indicator {
+            color: #e74c3c;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+        }
+
+        /* Controls Bar */
+        .controls-bar {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* Main Content */
+        .main-content {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+            min-height: 600px;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .content-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        /* Referral List */
+        .referral-list {
+            max-height: 700px;
+            overflow-y: auto;
+        }
+
+        .referral-item {
+            padding: 12px 15px;
+            border: 1px solid #e0e0e0;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .referral-item:hover {
+            background: #f8f9fa;
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+        }
+
+        .referral-left {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .referral-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        .referral-patient-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .referral-id {
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-new {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .status-pending {
+            background: #f39c12;
+            color: white;
+        }
+
+        .status-info-received {
+            background: #3498db;
+            color: white;
+        }
+
+        .status-deferred {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .status-completed {
+            background: #27ae60;
+            color: white;
+        }
+
+        .referral-info {
+            font-size: 12px;
+            color: #7f8c8d;
+            display: flex;
+            gap: 15px;
+            margin-top: 3px;
+        }
+
+        .referral-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-content.large {
+            max-width: 1000px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #95a5a6;
+        }
+
+        .close-btn:hover {
+            color: #7f8c8d;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding-top: 15px;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        /* Form Styles */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-row.full {
+            grid-template-columns: 1fr;
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .form-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            border-bottom: 2px solid #ecf0f1;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #7f8c8d;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            color: #2c3e50;
+            background: #f8f9fa;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* History List */
+        .history-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 10px;
+            border-left: 3px solid #667eea;
+            background: #f8f9fa;
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+
+        .history-date {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+
+        .history-content {
+            font-size: 13px;
+            color: #2c3e50;
+            margin-top: 3px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #95a5a6;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+        }
+
+        /* Checkbox */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        /* Utility Classes */
+        .text-muted {
+            color: #7f8c8d;
+        }
+
+        .text-danger {
+            color: #e74c3c;
+        }
+
+        .text-success {
+            color: #27ae60;
+        }
+
+        .mt-10 {
+            margin-top: 10px;
+        }
+
+        .mb-10 {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen">
+        <div class="login-container">
+            <div class="login-header">
+                <h1>MSF Referrals Management</h1>
+                <p>Please login to continue</p>
+            </div>
+            
+            <div id="loginError" class="error-message"></div>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="loginUsername">Username</label>
+                    <input type="text" id="loginUsername" required autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required autocomplete="current-password">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp">
+        <!-- Read-Only Banner -->
+        <div id="readOnlyBanner">
+            🔒 READ-ONLY MODE - Database is being edited by <span id="lockOwnerName"></span>
+        </div>
+
+        <!-- Header -->
+        <header>
+            <div class="header-top">
+                <div class="header-title">
+                    <h1>MSF Referrals Management Dashboard</h1>
+                    <div class="user-info">
+                        Logged in as: <strong id="currentUsername"></strong>
+                    </div>
+                </div>
+                
+                <div class="header-actions">
+                    <span id="unsavedIndicator" class="unsaved-indicator">● Unsaved changes</span>
+                    <button onclick="saveDatabase()" class="btn btn-success" id="saveButton">Save</button>
+                    <button onclick="logout()" class="btn btn-secondary">Logout</button>
+                </div>
+            </div>
+            
+            <div class="controls-bar">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search referrals..." oninput="filterReferrals()">
+                </div>
+                
+                <div class="control-group">
+                    <label>Sort:</label>
+                    <select id="sortSelect" onchange="filterReferrals()">
+                        <option value="name-az">Name A→Z</option>
+                        <option value="attempt-old">Last Attempt (Old→New)</option>
+                        <option value="attempt-new">Last Attempt (New→Old)</option>
+                        <option value="received-new">Received (New→Old)</option>
+                        <option value="received-old">Received (Old→New)</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Filter:</label>
+                    <select id="filterSelect" onchange="filterReferrals()">
+                        <option value="all">All</option>
+                        <option value="new">New</option>
+                        <option value="pending">Pending</option>
+                        <option value="info-received">All Information Received</option>
+                        <option value="deferred">Deferred</option>
+                        <option value="completed">Completed</option>
+                        <option value="contact-2days">Contact > 2 days</option>
+                        <option value="contact-3days">Contact > 3 days</option>
+                        <option value="contact-7days">Contact > 7 days</option>
+                        <option value="missing-contact">Missing Contact Time</option>
+                    </select>
+                </div>
+                
+                <button onclick="openAddReferralModal()" class="btn btn-primary" id="addReferralBtn">
+                    + Add Referral
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="content-header">
+                <div class="content-title">
+                    Referrals (<span id="referralCount">0</span>)
+                </div>
+            </div>
+            
+            <div class="referral-list" id="referralList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-text">No referrals found</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Referral Modal -->
+    <div id="referralModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2 class="modal-title" id="referralModalTitle">Add New Referral</h2>
+                <button class="close-btn" onclick="closeModal('referralModal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="referralForm">
+                    <!-- Referral Information -->
+                    <div class="form-section">
+                        <div class="form-section-title">Referral Information</div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Referral Date</label>
+                                <input type="text" id="referralDate" class="datepicker">
+                            </div>
+                            <div class="form-group">
+                                <label>Received Date</label>
+                                <input type="text" id="receivedDate" class="datepicker">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>File Name</label>
+                                <input type="text" id="fileName">
+                            </div>
+                            <div class="form-group">
+                                <label>Referring Physician</label>
+                                <select id="referringPhysician" onchange="updatePhysicianInfo()">
+                                    <option value="">Select physician...</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Billing Number</label>
+                                <input type="text" id="billingNumber">
+                            </div>
+                            <div class="form-group">
+                                <label>Fax</label>
+                                <input type="text" id="physicianFax">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="text" id="physicianPhone">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="physicianEmail">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Service Information -->
+                    <div class="form-section">
+                        <div class="form-section-title">Service Information</div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Requested Location</label>
+                                <select id="requestedLocation">
+                                    <option value="">Select location...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Requested Physician</label>
+                                <select id="requestedPhysician">
+                                    <option value="">Select physician...</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" id="urgent">
+                                <label for="urgent">Urgent</label>
+                            </div>
+                            <div class="form-group">
+                                <label>New/Previous/Partner</label>
+                                <select id="newPrevPartner">
+                                    <option value="">Select...</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Service Requested</label>
+                                <select id="serviceRequested">
+                                    <option value="">Select service...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Sub Service Requested</label>
+                                <input type="text" id="subServiceRequested">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Patient Information -->
+                    <div class="form-section">
+                        <div class="form-section-title">Patient Information</div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>PID</label>
+                                <input type="text" id="patientPID">
+                            </div>
+                            <div class="form-group">
+                                <label>MRN</label>
+                                <input type="text" id="patientMRN">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" id="patientFirstName">
+                            </div>
+                            <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" id="patientMiddleName">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Last Name</label>
+                                <input type="text" id="patientLastName">
+                            </div>
+                            <div class="form-group">
+                                <label>Date of Birth</label>
+                                <input type="text" id="patientDOB" class="datepicker">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="tel" id="patientPhone">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="patientEmail">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row full">
+                            <div class="form-group">
+                                <label>Address</label>
+                                <input type="text" id="patientAddress">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Health Card</label>
+                                <input type="text" id="patientHC">
+                            </div>
+                            <div class="form-group">
+                                <label>Gender at Birth</label>
+                                <select id="patientGender">
+                                    <option value="">Select...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Partner Information -->
+                    <div class="form-section">
+                        <div class="form-section-title">Partner Information</div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>PID</label>
+                                <input type="text" id="partnerPID">
+                            </div>
+                            <div class="form-group">
+                                <label>MRN</label>
+                                <input type="text" id="partnerMRN">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>First Name</label>
+                                <input type="text" id="partnerFirstName">
+                            </div>
+                            <div class="form-group">
+                                <label>Middle Name</label>
+                                <input type="text" id="partnerMiddleName">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Last Name</label>
+                                <input type="text" id="partnerLastName">
+                            </div>
+                            <div class="form-group">
+                                <label>Date of Birth</label>
+                                <input type="text" id="partnerDOB" class="datepicker">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="tel" id="partnerPhone">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="partnerEmail">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row full">
+                            <div class="form-group">
+                                <label>Address</label>
+                                <input type="text" id="partnerAddress">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Health Card</label>
+                                <input type="text" id="partnerHC">
+                            </div>
+                            <div class="form-group">
+                                <label>Gender at Birth</label>
+                                <select id="partnerGender">
+                                    <option value="">Select...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <button onclick="closeModal('referralModal')" class="btn btn-secondary">Cancel</button>
+                <button onclick="saveReferral()" class="btn btn-success" id="saveReferralBtn">Save Referral</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View/Edit Referral Modal -->
+    <div id="viewReferralModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h2 class="modal-title">Referral Details - <span id="viewReferralTitle"></span></h2>
+                <button class="close-btn" onclick="closeModal('viewReferralModal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('details')">Details</button>
+                    <button class="tab" onclick="switchTab('history')">Contact History</button>
+                    <button class="tab" onclick="switchTab('notes')">Notes</button>
+                </div>
+                
+                <div id="tabDetails" class="tab-content active">
+                    <div id="referralDetails"></div>
+                    
+                    <div class="modal-footer" style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #ecf0f1;">
+                        <button onclick="editReferral()" class="btn btn-primary" id="editReferralBtn">Edit</button>
+                        <button onclick="openContactModal()" class="btn btn-success" id="contactBtn">Contact Attempt</button>
+                        <button onclick="emailPatient()" class="btn btn-primary" id="emailBtn">Email Patient</button>
+                        <button onclick="faxPhysician()" class="btn btn-primary" id="faxBtn">Fax Referring Physician</button>
+                        <button onclick="markInfoReceived()" class="btn btn-success" id="infoReceivedBtn">All Info Received</button>
+                        <button onclick="openAssignAdminModal()" class="btn btn-success" id="assignAdminBtn">Assign to Admin</button>
+                    </div>
+                </div>
+                
+                <div id="tabHistory" class="tab-content">
+                    <div class="history-list" id="contactHistoryList">
+                        <div class="empty-state">
+                            <div class="empty-state-text">No contact history</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="tabNotes" class="tab-content">
+                    <div class="form-group">
+                        <label>Add Note</label>
+                        <textarea id="newNote" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"></textarea>
+                        <button onclick="addNote()" class="btn btn-primary btn-small mt-10">Add Note</button>
+                    </div>
+                    
+                    <div class="history-list mt-10" id="notesHistoryList">
+                        <div class="empty-state">
+                            <div class="empty-state-text">No notes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Attempt Modal -->
+    <div id="contactModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Record Contact Attempt</h2>
+                <button class="close-btn" onclick="closeModal('contactModal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Contact Mode</label>
+                    <select id="contactMode">
+                        <option value="">Select mode...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="contactNotes" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"></textarea>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button onclick="closeModal('contactModal')" class="btn btn-secondary">Cancel</button>
+                <button onclick="saveContact()" class="btn btn-success">Save Contact</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign to Admin Modal -->
+    <div id="assignAdminModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Assign to Physician Admin</h2>
+                <button class="close-btn" onclick="closeModal('assignAdminModal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Physician Admin</label>
+                    <select id="physicianAdmin">
+                        <option value="">Select admin...</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button onclick="closeModal('assignAdminModal')" class="btn btn-secondary">Cancel</button>
+                <button onclick="saveAdminAssignment()" class="btn btn-success">Assign</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/eel.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    
+    <script>
+        // Global state
+        let database = null;
+        let currentUser = null;
+        let isReadOnly = false;
+        let unsavedChanges = 0;
+        let currentEditingReferral = null;
+        let currentViewingReferral = null;
+        let autoSaveInterval = null;
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded');
+        });
+
+        // Login handling
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('loginUsername').value.toLowerCase();
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            try {
+                const result = await eel.login(username, password)();
+                
+                if (result.status === 'success') {
+                    currentUser = username;
+                    isReadOnly = result.readOnly;
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('mainApp').style.display = 'block';
+                    document.getElementById('currentUsername').textContent = username;
+                    
+                    if (isReadOnly) {
+                        document.getElementById('readOnlyBanner').style.display = 'block';
+                        disableEditingControls();
+                    }
+                    
+                    await initializeApp();
+                } else if (result.status === 'locked') {
+                    // Ask user if they want read-only access
+                    const readOnlyChoice = confirm(
+                        `Database is currently locked by ${result.user}\n\n` +
+                        `Click OK to open in Read-Only mode (you can view but not edit).\n` +
+                        `Click Cancel to return to login.`
+                    );
+                    
+                    if (readOnlyChoice) {
+                        await eel.login_readonly(username)();
+                        currentUser = username;
+                        isReadOnly = true;
+                        document.getElementById('loginScreen').style.display = 'none';
+                        document.getElementById('mainApp').style.display = 'block';
+                        document.getElementById('currentUsername').textContent = username;
+                        document.getElementById('readOnlyBanner').style.display = 'block';
+                        document.getElementById('lockOwnerName').textContent = result.user;
+                        disableEditingControls();
+                        await initializeApp();
+                    }
+                } else {
+                    errorDiv.textContent = result.message || 'Login failed';
+                    errorDiv.style.display = 'block';
+                    document.getElementById('loginPassword').value = '';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorDiv.textContent = 'An error occurred during login';
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        // Logout
+        async function logout() {
+            if (unsavedChanges > 0) {
+                const choice = confirm(`You have ${unsavedChanges} unsaved change(s)!\n\nClick OK to save and logout, or Cancel to logout without saving.`);
+                if (choice) {
+                    await saveDatabase();
+                }
+            }
+            
+            if (autoSaveInterval) {
+                clearInterval(autoSaveInterval);
+                autoSaveInterval = null;
+            }
+            
+            await eel.logout()();
+            
+            currentUser = null;
+            isReadOnly = false;
+            unsavedChanges = 0;
+            
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('loginUsername').value = '';
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').style.display = 'none';
+            document.getElementById('readOnlyBanner').style.display = 'none';
+        }
+
+        // Initialize app
+        async function initializeApp() {
+            // Load database
+            const result = await eel.load_database()();
+            if (result.status === 'success') {
+                database = result.data;
+                populateSelectOptions();
+                renderReferralList();
+                
+                // Start auto-save (every 5 minutes)
+                if (!isReadOnly) {
+                    autoSaveInterval = setInterval(async () => {
+                        if (unsavedChanges > 0) {
+                            await saveDatabase(true); // silent save
+                        }
+                    }, 5 * 60 * 1000);
+                }
+            } else {
+                alert('Error loading database: ' + result.message);
+            }
+        }
+
+        // Populate select options
+        function populateSelectOptions() {
+            const options = database.selectOptions;
+            
+            // Referring physicians
+            const refPhysSelect = document.getElementById('referringPhysician');
+            refPhysSelect.innerHTML = '<option value="">Select physician...</option>';
+            options.referringPhysicians.forEach(phys => {
+                const opt = document.createElement('option');
+                opt.value = phys.name;
+                opt.textContent = phys.name;
+                opt.dataset.billing = phys.billing;
+                opt.dataset.fax = phys.fax;
+                opt.dataset.phone = phys.phone;
+                opt.dataset.email = phys.email;
+                refPhysSelect.appendChild(opt);
+            });
+            
+            // Requested locations
+            populateSelect('requestedLocation', options.requestedLocations);
+            
+            // Requested physicians
+            populateSelect('requestedPhysician', options.requestedPhysicians);
+            
+            // Services
+            populateSelect('serviceRequested', options.servicesRequested);
+            
+            // New/Prev/Partner
+            populateSelect('newPrevPartner', options.newPrevPartner);
+            
+            // Contact modes
+            populateSelect('contactMode', options.lastAttemptModes);
+            
+            // Physician admins
+            populateSelect('physicianAdmin', options.physicianAdmins);
+            
+            // Gender
+            populateSelect('patientGender', options.genderAtBirth);
+            populateSelect('partnerGender', options.genderAtBirth);
+        }
+
+        function populateSelect(id, values) {
+            const select = document.getElementById(id);
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">Select...</option>';
+            values.forEach(val => {
+                const opt = document.createElement('option');
+                opt.value = val;
+                opt.textContent = val;
+                select.appendChild(opt);
+            });
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        }
+
+        // Update physician info when selected
+        function updatePhysicianInfo() {
+            const select = document.getElementById('referringPhysician');
+            const option = select.options[select.selectedIndex];
+            
+            if (option.value) {
+                document.getElementById('billingNumber').value = option.dataset.billing || '';
+                document.getElementById('physicianFax').value = option.dataset.fax || '';
+                document.getElementById('physicianPhone').value = option.dataset.phone || '';
+                document.getElementById('physicianEmail').value = option.dataset.email || '';
+            }
+        }
+
+        // Disable editing controls in read-only mode
+        function disableEditingControls() {
+            document.getElementById('saveButton').disabled = true;
+            document.getElementById('saveButton').style.opacity = '0.5';
+            document.getElementById('addReferralBtn').disabled = true;
+            document.getElementById('addReferralBtn').style.opacity = '0.5';
+        }
+
+        // Save database
+        async function saveDatabase(silent = false) {
+            if (isReadOnly) {
+                if (!silent) alert('Cannot save in read-only mode');
+                return;
+            }
+            
+            const result = await eel.save_database(database)();
+            
+            if (result.status === 'success') {
+                unsavedChanges = 0;
+                updateUnsavedIndicator();
+                if (!silent) alert('Database saved successfully');
+            } else {
+                alert('Error saving database: ' + result.message);
+            }
+        }
+
+        // Update unsaved indicator
+        function updateUnsavedIndicator() {
+            const indicator = document.getElementById('unsavedIndicator');
+            if (unsavedChanges > 0) {
+                indicator.style.display = 'inline';
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+
+        // Open add referral modal
+        function openAddReferralModal() {
+            if (isReadOnly) {
+                alert('Cannot add referrals in read-only mode');
+                return;
+            }
+            
+            currentEditingReferral = null;
+            document.getElementById('referralModalTitle').textContent = 'Add New Referral';
+            document.getElementById('referralForm').reset();
+            initializeDatePickers();
+            openModal('referralModal');
+        }
+
+        // Initialize date pickers
+        function initializeDatePickers() {
+            const datepickers = document.querySelectorAll('.datepicker');
+            datepickers.forEach(input => {
+                flatpickr(input, {
+                    dateFormat: 'Y-m-d',
+                    allowInput: true
+                });
+            });
+        }
+
+        // Save referral
+        async function saveReferral() {
+            if (isReadOnly) {
+                alert('Cannot save referrals in read-only mode');
+                return;
+            }
+            
+            const referralData = {
+                // Referral info
+                referralDate: document.getElementById('referralDate').value,
+                receivedDate: document.getElementById('receivedDate').value,
+                fileName: document.getElementById('fileName').value,
+                referringPhysicianName: document.getElementById('referringPhysician').value,
+                referringPhysicianBilling: document.getElementById('billingNumber').value,
+                referringPhysicianFax: document.getElementById('physicianFax').value,
+                referringPhysicianPhone: document.getElementById('physicianPhone').value,
+                referringPhysicianEmail: document.getElementById('physicianEmail').value,
+                
+                // Service info
+                requestedLocation: document.getElementById('requestedLocation').value,
+                requestedPhysician: document.getElementById('requestedPhysician').value,
+                urgent: document.getElementById('urgent').checked,
+                serviceRequested: document.getElementById('serviceRequested').value,
+                subServiceRequested: document.getElementById('subServiceRequested').value,
+                newPrevPartner: document.getElementById('newPrevPartner').value,
+                
+                // Patient info
+                patientPID: document.getElementById('patientPID').value,
+                patientMRN: document.getElementById('patientMRN').value,
+                patientFirstName: document.getElementById('patientFirstName').value,
+                patientMiddleName: document.getElementById('patientMiddleName').value,
+                patientLastName: document.getElementById('patientLastName').value,
+                patientDOB: document.getElementById('patientDOB').value,
+                patientPhone: document.getElementById('patientPhone').value,
+                patientEmail: document.getElementById('patientEmail').value,
+                patientAddress: document.getElementById('patientAddress').value,
+                patientHC: document.getElementById('patientHC').value,
+                patientGender: document.getElementById('patientGender').value,
+                
+                // Partner info
+                partnerPID: document.getElementById('partnerPID').value,
+                partnerMRN: document.getElementById('partnerMRN').value,
+                partnerFirstName: document.getElementById('partnerFirstName').value,
+                partnerMiddleName: document.getElementById('partnerMiddleName').value,
+                partnerLastName: document.getElementById('partnerLastName').value,
+                partnerDOB: document.getElementById('partnerDOB').value,
+                partnerPhone: document.getElementById('partnerPhone').value,
+                partnerEmail: document.getElementById('partnerEmail').value,
+                partnerAddress: document.getElementById('partnerAddress').value,
+                partnerHC: document.getElementById('partnerHC').value,
+                partnerGender: document.getElementById('partnerGender').value,
+                
+                // Referral handling (defaults)
+                referralStatus: 'New',
+                lastAttemptDate: null,
+                lastAttemptTime: null,
+                lastAttemptMode: null,
+                lastAttemptComment: null,
+                attemptHistory: [],
+                faxedBackDate: null,
+                completeInfoReceivedDate: null,
+                taskedToPhysicianAdmin: null,
+                referralCompleteDate: null,
+                notes: null,
+                notesDate: null,
+                notesHistory: []
+            };
+            
+            let result;
+            if (currentEditingReferral) {
+                // Update existing
+                referralData.id = currentEditingReferral.id;
+                referralData.addedToDBDate = currentEditingReferral.addedToDBDate;
+                result = await eel.update_referral(currentEditingReferral.id, referralData)();
+                
+                // Update in local database
+                const index = database.referrals.findIndex(r => r.id === currentEditingReferral.id);
+                if (index !== -1) {
+                    database.referrals[index] = referralData;
+                }
+            } else {
+                // Add new
+                result = await eel.add_referral(referralData)();
+                if (result.status === 'success') {
+                    database.referrals.push(result.referral);
+                }
+            }
+            
+            if (result.status === 'success') {
+                unsavedChanges = 0; // Backend already saved
+                updateUnsavedIndicator();
+                renderReferralList();
+                closeModal('referralModal');
+            } else {
+                alert('Error saving referral: ' + result.message);
+            }
+        }
+
+        // Render referral list
+        function renderReferralList() {
+            const container = document.getElementById('referralList');
+            const referrals = filterAndSortReferrals();
+            
+            document.getElementById('referralCount').textContent = referrals.length;
+            
+            if (referrals.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div class="empty-state-text">No referrals found</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = referrals.map(ref => {
+                const patientName = `${ref.patientFirstName || ''} ${ref.patientLastName || ''}`.trim() || 'Unknown Patient';
+                const receivedDate = ref.receivedDate ? new Date(ref.receivedDate).toLocaleDateString() : 'N/A';
+                const location = ref.requestedLocation || 'N/A';
+                const physician = ref.requestedPhysician || 'N/A';
+                const lastContact = ref.lastAttemptDate ? 
+                    `${new Date(ref.lastAttemptDate).toLocaleDateString()} ${ref.lastAttemptTime || ''}` : 
+                    'No contact';
+                
+                let statusClass = '';
+                switch(ref.referralStatus) {
+                    case 'New': statusClass = 'status-new'; break;
+                    case 'Pending': statusClass = 'status-pending'; break;
+                    case 'All Information Received': statusClass = 'status-info-received'; break;
+                    case 'Deferred': statusClass = 'status-deferred'; break;
+                    case 'Completed': statusClass = 'status-completed'; break;
+                }
+                
+                return `
+                    <div class="referral-item" onclick="viewReferral(${ref.id})">
+                        <div class="referral-left">
+                            <div class="referral-header">
+                                <span class="referral-patient-name">${patientName}</span>
+                                <span class="referral-id">#${ref.id}</span>
+                                <span class="status-badge ${statusClass}">${ref.referralStatus}</span>
+                            </div>
+                            <div class="referral-info">
+                                <span>📅 Received: ${receivedDate}</span>
+                                <span>📞 ${ref.patientPhone || 'No phone'}</span>
+                                <span>📧 ${ref.patientEmail || 'No email'}</span>
+                                <span>📍 ${location}</span>
+                                <span>👨‍⚕️ ${physician}</span>
+                                <span>💬 Last contact: ${lastContact}</span>
+                            </div>
+                        </div>
+                        <div class="referral-actions" onclick="event.stopPropagation()">
+                            <button class="btn btn-primary btn-small" onclick="editReferralById(${ref.id})">Edit</button>
+                            <button class="btn btn-success btn-small" onclick="quickContact(${ref.id})">Contact</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Filter and sort referrals
+        function filterAndSortReferrals() {
+            if (!database || !database.referrals) return [];
+            
+            let referrals = [...database.referrals];
+            
+            // Apply search filter
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            if (searchTerm) {
+                referrals = referrals.filter(ref => {
+                    const patientName = `${ref.patientFirstName || ''} ${ref.patientLastName || ''}`.toLowerCase();
+                    const id = ref.id.toString();
+                    const phone = (ref.patientPhone || '').toLowerCase();
+                    const email = (ref.patientEmail || '').toLowerCase();
+                    
+                    return patientName.includes(searchTerm) || 
+                           id.includes(searchTerm) || 
+                           phone.includes(searchTerm) || 
+                           email.includes(searchTerm);
+                });
+            }
+            
+            // Apply status filter
+            const filter = document.getElementById('filterSelect').value;
+            if (filter !== 'all') {
+                referrals = referrals.filter(ref => {
+                    switch(filter) {
+                        case 'new': return ref.referralStatus === 'New';
+                        case 'pending': return ref.referralStatus === 'Pending';
+                        case 'info-received': return ref.referralStatus === 'All Information Received';
+                        case 'deferred': return ref.referralStatus === 'Deferred';
+                        case 'completed': return ref.referralStatus === 'Completed';
+                        case 'missing-contact': return !ref.lastAttemptDate;
+                        case 'contact-2days':
+                        case 'contact-3days':
+                        case 'contact-7days':
+                            if (!ref.lastAttemptDate) return false;
+                            const days = filter === 'contact-2days' ? 2 : filter === 'contact-3days' ? 3 : 7;
+                            const daysSinceContact = (new Date() - new Date(ref.lastAttemptDate)) / (1000 * 60 * 60 * 24);
+                            return daysSinceContact > days;
+                    }
+                    return true;
+                });
+            }
+            
+            // Apply sort
+            const sortMode = document.getElementById('sortSelect').value;
+            referrals.sort((a, b) => {
+                switch(sortMode) {
+                    case 'name-az':
+                        const nameA = `${a.patientFirstName || ''} ${a.patientLastName || ''}`.toLowerCase();
+                        const nameB = `${b.patientFirstName || ''} ${b.patientLastName || ''}`.toLowerCase();
+                        return nameA.localeCompare(nameB);
+                    
+                    case 'attempt-old':
+                        const dateA = a.lastAttemptDate ? new Date(a.lastAttemptDate) : new Date(0);
+                        const dateB = b.lastAttemptDate ? new Date(b.lastAttemptDate) : new Date(0);
+                        return dateA - dateB;
+                    
+                    case 'attempt-new':
+                        const dateA2 = a.lastAttemptDate ? new Date(a.lastAttemptDate) : new Date(0);
+                        const dateB2 = b.lastAttemptDate ? new Date(b.lastAttemptDate) : new Date(0);
+                        return dateB2 - dateA2;
+                    
+                    case 'received-new':
+                        const recA = a.receivedDate ? new Date(a.receivedDate) : new Date(0);
+                        const recB = b.receivedDate ? new Date(b.receivedDate) : new Date(0);
+                        return recB - recA;
+                    
+                    case 'received-old':
+                        const recA2 = a.receivedDate ? new Date(a.receivedDate) : new Date(0);
+                        const recB2 = b.receivedDate ? new Date(b.receivedDate) : new Date(0);
+                        return recA2 - recB2;
+                }
+                return 0;
+            });
+            
+            return referrals;
+        }
+
+        // Filter referrals (called by controls)
+        function filterReferrals() {
+            renderReferralList();
+        }
+
+        // View referral details
+        function viewReferral(id) {
+            const referral = database.referrals.find(r => r.id === id);
+            if (!referral) return;
+            
+            currentViewingReferral = referral;
+            
+            document.getElementById('viewReferralTitle').textContent = 
+                `${referral.patientFirstName || ''} ${referral.patientLastName || ''}`.trim() || 'Unknown Patient';
+            
+            // Populate details tab
+            const detailsHtml = `
+                <div class="form-section">
+                    <div class="form-section-title">Referral Information</div>
+                    <div class="form-row">
+                        <div><strong>ID:</strong> #${referral.id}</div>
+                        <div><strong>Status:</strong> ${referral.referralStatus}</div>
+                    </div>
+                    <div class="form-row">
+                        <div><strong>Referral Date:</strong> ${referral.referralDate || 'N/A'}</div>
+                        <div><strong>Received Date:</strong> ${referral.receivedDate || 'N/A'}</div>
+                    </div>
+                    <div class="form-row">
+                        <div><strong>File Name:</strong> ${referral.fileName || 'N/A'}</div>
+                        <div><strong>Urgent:</strong> ${referral.urgent ? 'Yes' : 'No'}</div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <div class="form-section-title">Referring Physician</div>
+                    <div class="form-row">
+                        <div><strong>Name:</strong> ${referral.referringPhysicianName || 'N/A'}</div>
+                        <div><strong>Billing:</strong> ${referral.referringPhysicianBilling || 'N/A'}</div>
+                    </div>
+                    <div class="form-row">
+                        <div><strong>Phone:</strong> ${referral.referringPhysicianPhone || 'N/A'}</div>
+                        <div><strong>Fax:</strong> ${referral.referringPhysicianFax || 'N/A'}</div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <div class="form-section-title">Service Information</div>
+                    <div class="form-row">
+                        <div><strong>Location:</strong> ${referral.requestedLocation || 'N/A'}</div>
+                        <div><strong>Physician:</strong> ${referral.requestedPhysician || 'N/A'}</div>
+                    </div>
+                    <div class="form-row">
+                        <div><strong>Service:</strong> ${referral.serviceRequested || 'N/A'}</div>
+                        <div><strong>Sub Service:</strong> ${referral.subServiceRequested || 'N/A'}</div>
+                    </div>
+                    <div class="form-row">
+                        <div><strong>Patient Type:</strong> ${referral.newPrevPartner || 'N/A'}</div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <div class="form-section-title">Patient Information</div>
+                    <div class="form-row">
+                        <div><strong>Name:</strong> ${referral.patientFirstName || ''} ${referral.patientMiddleName || ''} ${referral.patientLastName || ''}</div>
+                        <div><strong>DOB:</strong> ${referral.patientDOB || 'N/A'}</div>
+                    </div>
+                    <div class="form-row">
+                        <div><strong>PID:</strong> ${referral.patientPID || 'N/A'}</div>
+                        <div><strong>MRN:</strong> ${referral.patientMRN || 'N/A'}</div>
+                    </div>
+                    <div class="form-row">
+                        <div><strong>Phone:</strong> ${referral.patientPhone || 'N/A'}</div>
+                        <div><strong>Email:</strong> ${referral.patientEmail || 'N/A'}</div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <div class="form-section-title">Partner Information</div>
+                    <div class="form-row">
+                        <div><strong>Name:</strong> ${referral.partnerFirstName || ''} ${referral.partnerMiddleName || ''} ${referral.partnerLastName || ''}</div>
+                        <div><strong>DOB:</strong> ${referral.partnerDOB || 'N/A'}</div>
+                    </div>
+                    <div class="form-row">
+                        <div><strong>Phone:</strong> ${referral.partnerPhone || 'N/A'}</div>
+                        <div><strong>Email:</strong> ${referral.partnerEmail || 'N/A'}</div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('referralDetails').innerHTML = detailsHtml;
+            
+            // Populate contact history
+            renderContactHistory(referral);
+            
+            // Populate notes
+            renderNotesHistory(referral);
+            
+            // Update button visibility based on status
+            updateViewModalButtons(referral);
+            
+            openModal('viewReferralModal');
+        }
+
+        function renderContactHistory(referral) {
+            const container = document.getElementById('contactHistoryList');
+            
+            if (!referral.attemptHistory || referral.attemptHistory.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-text">No contact history</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = referral.attemptHistory.map(attempt => `
+                <div class="history-item">
+                    <div class="history-date">${attempt.date} ${attempt.time || ''} - ${attempt.mode}</div>
+                    <div class="history-content">${attempt.comment || 'No notes'}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderNotesHistory(referral) {
+            const container = document.getElementById('notesHistoryList');
+            
+            if (!referral.notesHistory || referral.notesHistory.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-text">No notes</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = referral.notesHistory.map(note => `
+                <div class="history-item">
+                    <div class="history-date">${note.date}</div>
+                    <div class="history-content">${note.note}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateViewModalButtons(referral) {
+            // Show/hide buttons based on status and read-only mode
+            const editBtn = document.getElementById('editReferralBtn');
+            const contactBtn = document.getElementById('contactBtn');
+            const infoReceivedBtn = document.getElementById('infoReceivedBtn');
+            const assignAdminBtn = document.getElementById('assignAdminBtn');
+            
+            if (isReadOnly) {
+                editBtn.style.display = 'none';
+                contactBtn.style.display = 'none';
+                infoReceivedBtn.style.display = 'none';
+                assignAdminBtn.style.display = 'none';
+                return;
+            }
+            
+            editBtn.style.display = 'inline-block';
+            contactBtn.style.display = 'inline-block';
+            
+            if (referral.referralStatus === 'Pending') {
+                infoReceivedBtn.style.display = 'inline-block';
+            } else {
+                infoReceivedBtn.style.display = 'none';
+            }
+            
+            if (referral.referralStatus === 'All Information Received') {
+                assignAdminBtn.style.display = 'inline-block';
+            } else {
+                assignAdminBtn.style.display = 'none';
+            }
+        }
+
+        // Edit referral
+        function editReferral() {
+            if (isReadOnly) {
+                alert('Cannot edit in read-only mode');
+                return;
+            }
+            
+            closeModal('viewReferralModal');
+            editReferralById(currentViewingReferral.id);
+        }
+
+        function editReferralById(id) {
+            if (isReadOnly) {
+                alert('Cannot edit in read-only mode');
+                return;
+            }
+            
+            const referral = database.referrals.find(r => r.id === id);
+            if (!referral) return;
+            
+            currentEditingReferral = referral;
+            document.getElementById('referralModalTitle').textContent = 'Edit Referral';
+            
+            // Populate form
+            document.getElementById('referralDate').value = referral.referralDate || '';
+            document.getElementById('receivedDate').value = referral.receivedDate || '';
+            document.getElementById('fileName').value = referral.fileName || '';
+            document.getElementById('referringPhysician').value = referral.referringPhysicianName || '';
+            document.getElementById('billingNumber').value = referral.referringPhysicianBilling || '';
+            document.getElementById('physicianFax').value = referral.referringPhysicianFax || '';
+            document.getElementById('physicianPhone').value = referral.referringPhysicianPhone || '';
+            document.getElementById('physicianEmail').value = referral.referringPhysicianEmail || '';
+            
+            document.getElementById('requestedLocation').value = referral.requestedLocation || '';
+            document.getElementById('requestedPhysician').value = referral.requestedPhysician || '';
+            document.getElementById('urgent').checked = referral.urgent || false;
+            document.getElementById('serviceRequested').value = referral.serviceRequested || '';
+            document.getElementById('subServiceRequested').value = referral.subServiceRequested || '';
+            document.getElementById('newPrevPartner').value = referral.newPrevPartner || '';
+            
+            document.getElementById('patientPID').value = referral.patientPID || '';
+            document.getElementById('patientMRN').value = referral.patientMRN || '';
+            document.getElementById('patientFirstName').value = referral.patientFirstName || '';
+            document.getElementById('patientMiddleName').value = referral.patientMiddleName || '';
+            document.getElementById('patientLastName').value = referral.patientLastName || '';
+            document.getElementById('patientDOB').value = referral.patientDOB || '';
+            document.getElementById('patientPhone').value = referral.patientPhone || '';
+            document.getElementById('patientEmail').value = referral.patientEmail || '';
+            document.getElementById('patientAddress').value = referral.patientAddress || '';
+            document.getElementById('patientHC').value = referral.patientHC || '';
+            document.getElementById('patientGender').value = referral.patientGender || '';
+            
+            document.getElementById('partnerPID').value = referral.partnerPID || '';
+            document.getElementById('partnerMRN').value = referral.partnerMRN || '';
+            document.getElementById('partnerFirstName').value = referral.partnerFirstName || '';
+            document.getElementById('partnerMiddleName').value = referral.partnerMiddleName || '';
+            document.getElementById('partnerLastName').value = referral.partnerLastName || '';
+            document.getElementById('partnerDOB').value = referral.partnerDOB || '';
+            document.getElementById('partnerPhone').value = referral.partnerPhone || '';
+            document.getElementById('partnerEmail').value = referral.partnerEmail || '';
+            document.getElementById('partnerAddress').value = referral.partnerAddress || '';
+            document.getElementById('partnerHC').value = referral.partnerHC || '';
+            document.getElementById('partnerGender').value = referral.partnerGender || '';
+            
+            initializeDatePickers();
+            openModal('referralModal');
+        }
+
+        // Quick contact from list
+        function quickContact(id) {
+            const referral = database.referrals.find(r => r.id === id);
+            if (!referral) return;
+            
+            currentViewingReferral = referral;
+            openContactModal();
+        }
+
+        // Open contact modal
+        function openContactModal() {
+            if (isReadOnly) {
+                alert('Cannot add contact attempts in read-only mode');
+                return;
+            }
+            
+            document.getElementById('contactMode').value = '';
+            document.getElementById('contactNotes').value = '';
+            openModal('contactModal');
+        }
+
+        // Save contact attempt
+        async function saveContact() {
+            const mode = document.getElementById('contactMode').value;
+            const notes = document.getElementById('contactNotes').value;
+            
+            if (!mode) {
+                alert('Please select a contact mode');
+                return;
+            }
+            
+            const now = new Date();
+            const date = now.toISOString().split('T')[0];
+            const time = now.toTimeString().split(' ')[0];
+            
+            currentViewingReferral.lastAttemptDate = date;
+            currentViewingReferral.lastAttemptTime = time;
+            currentViewingReferral.lastAttemptMode = mode;
+            currentViewingReferral.lastAttemptComment = notes;
+            
+            if (!currentViewingReferral.attemptHistory) {
+                currentViewingReferral.attemptHistory = [];
+            }
+            
+            currentViewingReferral.attemptHistory.push({
+                date: date,
+                time: time,
+                mode: mode,
+                comment: notes
+            });
+            
+            // Change status from New to Pending if it's New
+            if (currentViewingReferral.referralStatus === 'New') {
+                currentViewingReferral.referralStatus = 'Pending';
+            }
+            
+            const result = await eel.update_referral(currentViewingReferral.id, currentViewingReferral)();
+            
+            if (result.status === 'success') {
+                unsavedChanges = 0;
+                updateUnsavedIndicator();
+                renderReferralList();
+                closeModal('contactModal');
+                
+                // Refresh view modal if open
+                if (document.getElementById('viewReferralModal').classList.contains('active')) {
+                    renderContactHistory(currentViewingReferral);
+                    updateViewModalButtons(currentViewingReferral);
+                }
+            } else {
+                alert('Error saving contact: ' + result.message);
+            }
+        }
+
+        // Mark info received
+        async function markInfoReceived() {
+            if (isReadOnly) {
+                alert('Cannot update status in read-only mode');
+                return;
+            }
+            
+            currentViewingReferral.referralStatus = 'All Information Received';
+            currentViewingReferral.completeInfoReceivedDate = new Date().toISOString().split('T')[0];
+            
+            const result = await eel.update_referral(currentViewingReferral.id, currentViewingReferral)();
+            
+            if (result.status === 'success') {
+                unsavedChanges = 0;
+                updateUnsavedIndicator();
+                renderReferralList();
+                updateViewModalButtons(currentViewingReferral);
+            } else {
+                alert('Error updating status: ' + result.message);
+            }
+        }
+
+        // Open assign admin modal
+        function openAssignAdminModal() {
+            if (isReadOnly) {
+                alert('Cannot assign in read-only mode');
+                return;
+            }
+            
+            document.getElementById('physicianAdmin').value = '';
+            openModal('assignAdminModal');
+        }
+
+        // Save admin assignment
+        async function saveAdminAssignment() {
+            const admin = document.getElementById('physicianAdmin').value;
+            
+            if (!admin) {
+                alert('Please select a physician admin');
+                return;
+            }
+            
+            currentViewingReferral.taskedToPhysicianAdmin = admin;
+            currentViewingReferral.referralStatus = 'Completed';
+            currentViewingReferral.referralCompleteDate = new Date().toISOString().split('T')[0];
+            
+            const result = await eel.update_referral(currentViewingReferral.id, currentViewingReferral)();
+            
+            if (result.status === 'success') {
+                unsavedChanges = 0;
+                updateUnsavedIndicator();
+                renderReferralList();
+                closeModal('assignAdminModal');
+                updateViewModalButtons(currentViewingReferral);
+            } else {
+                alert('Error assigning admin: ' + result.message);
+            }
+        }
+
+        // Add note
+        async function addNote() {
+            const noteText = document.getElementById('newNote').value;
+            
+            if (!noteText) {
+                alert('Please enter a note');
+                return;
+            }
+            
+            if (!currentViewingReferral.notesHistory) {
+                currentViewingReferral.notesHistory = [];
+            }
+            
+            currentViewingReferral.notesHistory.push({
+                date: new Date().toISOString().split('T')[0],
+                note: noteText
+            });
+            
+            currentViewingReferral.notes = noteText;
+            currentViewingReferral.notesDate = new Date().toISOString().split('T')[0];
+            
+            const result = await eel.update_referral(currentViewingReferral.id, currentViewingReferral)();
+            
+            if (result.status === 'success') {
+                unsavedChanges = 0;
+                updateUnsavedIndicator();
+                document.getElementById('newNote').value = '';
+                renderNotesHistory(currentViewingReferral);
+            } else {
+                alert('Error adding note: ' + result.message);
+            }
+        }
+
+        // Email patient
+        function emailPatient() {
+            const email = currentViewingReferral.patientEmail;
+            if (email) {
+                window.location.href = `mailto:${email}`;
+            } else {
+                alert('No email address available for this patient');
+            }
+        }
+
+        // Fax physician
+        async function faxPhysician() {
+            if (isReadOnly) {
+                alert('Cannot update in read-only mode');
+                return;
+            }
+            
+            currentViewingReferral.faxedBackDate = new Date().toISOString().split('T')[0];
+            
+            const result = await eel.update_referral(currentViewingReferral.id, currentViewingReferral)();
+            
+            if (result.status === 'success') {
+                unsavedChanges = 0;
+                updateUnsavedIndicator();
+                alert('Faxed back date recorded. Please send fax manually.');
+            } else {
+                alert('Error recording fax: ' + result.message);
+            }
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Remove active from all tabs
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Add active to selected
+            event.target.classList.add('active');
+            document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+        }
+
+        // Modal helpers
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+    </script>
+</body>
+</html>
