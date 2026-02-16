@@ -22,10 +22,14 @@ DATABASE_FILE = str(Path(DB_FOLDER) / 'referrals.json')
 LOCK_FILE = str(Path(DB_FOLDER) / 'referrals.lock')
 LOCK_STALE_HOURS = 4
 
+# DEBUG MODE: Set to True to see password hashes for setup
+DEBUG_MODE = False
+
 # User credentials (hashed passwords)
+# To add a user: Set DEBUG_MODE=True, login with password, copy hash shown in alert
 VALID_USERS = {
-    "admin": "5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da",
-    "jennia": "5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da"
+    'admin': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da',
+    'jennia': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da'
 }
 
 # Global state
@@ -37,27 +41,37 @@ lock_owner = None
 _shutting_down = False
 
 def hash_password(password):
-    """Simple hash function for passwords"""
+    """Simple hash function for passwords - matches HTA version exactly"""
     hash_val = 0
     salt = 'michaeli_clinic_2025'
     combined = password + salt
     
     for char in combined:
         hash_val = ((hash_val << 5) - hash_val) + ord(char)
-        hash_val = hash_val & 0xFFFFFFFF  # 32-bit
+        hash_val = hash_val & hash_val  # Convert to 32-bit integer (same as HTA)
     
-    hex_hash = format(hash_val, '08x')
+    # Convert to positive hex string with padding
+    hex_hash = format(hash_val & 0xFFFFFFFF, 'x')  # Ensure positive
+    while len(hex_hash) < 8:
+        hex_hash = '0' + hex_hash
     
-    # Extend to 64 characters
+    # Extend to 64 characters using helper function
     extended = hex_hash
     for i in range(7):
-        h = 0
-        for c in (hex_hash + str(i)):
-            h = ((h << 5) - h) + ord(c)
-            h = h & 0xFFFFFFFF
-        extended += format(h, '08x')
+        extended += _simple_hash(hex_hash + str(i))
     
     return extended[:64]
+
+def _simple_hash(s):
+    """Helper function for hash extension - matches HTA version"""
+    h = 0
+    for char in s:
+        h = ((h << 5) - h) + ord(char)
+        h = h & h  # Convert to 32-bit integer
+    hex_result = format(h & 0xFFFFFFFF, 'x')  # Ensure positive
+    while len(hex_result) < 8:
+        hex_result = '0' + hex_result
+    return hex_result[:8]
 
 @eel.expose
 def login(username, password):
@@ -66,6 +80,18 @@ def login(username, password):
     
     username = username.lower()
     entered_hash = hash_password(password)
+    
+    # DEBUG MODE: Show the hash for the entered password
+    if DEBUG_MODE:
+        print(f'\n=== DEBUG MODE ===')
+        print(f'Password: {password}')
+        print(f'Hash: {entered_hash}')
+        print(f'\nTo use this hash:')
+        print(f'1. Copy the hash above')
+        print(f'2. Update VALID_USERS in the Python file')
+        print(f'3. Set DEBUG_MODE = False')
+        print(f'4. Save and restart')
+        print(f'==================\n')
     
     # Check credentials
     if username not in VALID_USERS or entered_hash != VALID_USERS[username]:
