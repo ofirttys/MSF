@@ -48,7 +48,11 @@ def hash_password(password):
     
     for char in combined:
         hash_val = ((hash_val << 5) - hash_val) + ord(char)
-        hash_val = hash_val & hash_val  # Convert to 32-bit integer (same as HTA)
+        # Force to 32-bit signed integer like JavaScript does
+        if hash_val > 0x7FFFFFFF:
+            hash_val = hash_val - 0x100000000
+        elif hash_val < -0x80000000:
+            hash_val = hash_val + 0x100000000
     
     # Convert to positive hex string with padding
     hex_hash = format(hash_val & 0xFFFFFFFF, 'x')  # Ensure positive
@@ -61,17 +65,23 @@ def hash_password(password):
         extended += _simple_hash(hex_hash + str(i))
     
     return extended[:64]
-
+    
 def _simple_hash(s):
     """Helper function for hash extension - matches HTA version"""
     h = 0
     for char in s:
         h = ((h << 5) - h) + ord(char)
-        h = h & h  # Convert to 32-bit integer
+        # Force to 32-bit signed integer
+        if h > 0x7FFFFFFF:
+            h = h - 0x100000000
+        elif h < -0x80000000:
+            h = h + 0x100000000
+    
     hex_result = format(h & 0xFFFFFFFF, 'x')  # Ensure positive
     while len(hex_result) < 8:
         hex_result = '0' + hex_result
     return hex_result[:8]
+
 
 @eel.expose
 def login(username, password):
@@ -113,7 +123,7 @@ def login(username, password):
         }
     
     # Clear stale lock if needed
-    if lock_status['stale']:
+    if lock_status.get('stale', False):
         delete_lock_file()
     
     # Create lock file
