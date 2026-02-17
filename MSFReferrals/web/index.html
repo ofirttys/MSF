@@ -62,13 +62,14 @@
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 0px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
             color: #2c3e50;
+			font-size: 12px;
             font-weight: 500;
         }
 
@@ -515,7 +516,7 @@
 
         .modal-content {
             background: white;
-            padding: 30px;
+            padding: 20px;
             border-radius: 10px;
             max-width: 800px;
             width: 100%;
@@ -532,8 +533,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
             border-bottom: 2px solid #ecf0f1;
         }
 
@@ -542,6 +543,10 @@
             font-weight: 600;
             color: #2c3e50;
         }
+
+		.modal-body {
+			margin-bottom: 15px;
+		}
 
         .close-btn {
             background: none;
@@ -572,7 +577,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 15px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
         .form-row.full {
@@ -581,16 +586,16 @@
 
         .form-section {
             background: #f8f9fa;
-            padding: 15px;
+            padding: 10px;
             border-radius: 6px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
         .form-section-title {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             color: #2c3e50;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
         .form-group label {
@@ -605,10 +610,10 @@
         .form-group select,
         .form-group textarea {
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             border: 1px solid #ddd;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .form-group input:focus,
@@ -893,7 +898,7 @@
 						<div class="form-section">
 							<div class="form-section-title">Referral Information</div>
 							
-							<div class="form-row">
+							<div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
 								<div class="form-group">
 									<label>Referral Date</label>
 									<input type="text" id="referralDate" class="datepicker">
@@ -902,20 +907,18 @@
 									<label>Received Date</label>
 									<input type="text" id="receivedDate" class="datepicker">
 								</div>
-							</div>
-							
-							<div class="form-row">
 								<div class="form-group">
 									<label>File Name</label>
-									<input type="text" id="fileName">
+									<input type="file" id="fileNamePicker" onchange="updateFileName()" accept=".pdf,.doc,.docx,.jpg,.png">
+									<input type="text" id="fileName" readonly style="margin-top: 5px; background: #f0f0f0;">
 								</div>
+							</div>
+							
+							<div class="form-row" style="grid-template-columns: 2fr 1fr 1fr;">
 								<div class="form-group">
 									<label>Referring Physician Name</label>
 									<input type="text" id="referringPhysician">
 								</div>
-							</div>
-							
-							<div class="form-row">
 								<div class="form-group">
 									<label>Billing Number</label>
 									<input type="text" id="billingNumber">
@@ -942,6 +945,13 @@
 						<div class="form-section">
 							<div class="form-section-title">Service Information</div>
 							
+							<div class="form-row full">
+								<div class="form-group checkbox-group" style="justify-content: flex-start;">
+									<input type="checkbox" id="urgent">
+									<label for="urgent" style="color: #e74c3c; font-weight: 600; font-size: 14px;">⚠️ URGENT</label>
+								</div>
+							</div>
+							
 							<div class="form-row">
 								<div class="form-group">
 									<label>Requested Location</label>
@@ -957,20 +967,13 @@
 								</div>
 							</div>
 							
-							<div class="form-row">
-								<div class="form-group checkbox-group">
-									<input type="checkbox" id="urgent">
-									<label for="urgent">Urgent</label>
-								</div>
+							<div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
 								<div class="form-group">
 									<label>Referral Type</label>
 									<select id="referralType">
 										<option value="">Select...</option>
 									</select>
 								</div>
-							</div>
-							
-							<div class="form-row">
 								<div class="form-group">
 									<label>Service Requested</label>
 									<select id="serviceRequested">
@@ -984,145 +987,162 @@
 							</div>
 						</div>
 
-						<!-- Patient Information -->
+						<!-- Patient and Partner Information -->
 						<div class="form-section">
-							<div class="form-section-title">Patient Information</div>
-							
-							<div class="form-row">
-								<div class="form-group">
-									<label>PID</label>
-									<input type="text" id="patientPID">
-								</div>
-								<div class="form-group">
-									<label>MRN</label>
-									<input type="text" id="patientMRN">
+							<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+								<div class="form-section-title" style="margin-bottom: 0;">Patient and Partner Information</div>
+								<div class="checkbox-group">
+									<input type="checkbox" id="enablePartner" onchange="togglePartnerFields()">
+									<label for="enablePartner">Include Partner</label>
 								</div>
 							</div>
 							
-							<div class="form-row">
-								<div class="form-group">
-									<label>First Name</label>
-									<input type="text" id="patientFirstName">
+							<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+								<!-- Patient Column -->
+								<div>
+									<div style="font-weight: 600; margin-bottom: 10px; color: #667eea;">Patient</div>
+									
+									<div class="form-row">
+										<div class="form-group">
+											<label>PID</label>
+											<input type="text" id="patientPID">
+										</div>
+										<div class="form-group">
+											<label>MRN</label>
+											<input type="text" id="patientMRN">
+										</div>
+									</div>
+									
+									<div class="form-row">
+										<div class="form-group">
+											<label>First Name</label>
+											<input type="text" id="patientFirstName">
+										</div>
+										<div class="form-group">
+											<label>Last Name</label>
+											<input type="text" id="patientLastName">
+										</div>
+									</div>
+									
+									<div class="form-row full">
+										<div class="form-group">
+											<label>Middle Name</label>
+											<input type="text" id="patientMiddleName">
+										</div>
+									</div>
+									
+									<div class="form-row">
+										<div class="form-group">
+											<label>Date of Birth</label>
+											<input type="text" id="patientDOB" class="datepicker">
+										</div>
+										<div class="form-group">
+											<label>Gender at Birth</label>
+											<select id="patientGenderAtBirth">
+												<option value="">Select...</option>
+											</select>
+										</div>
+									</div>
+									
+									<div class="form-row">
+										<div class="form-group">
+											<label>Phone</label>
+											<input type="tel" id="patientPhone">
+										</div>
+										<div class="form-group">
+											<label>Email</label>
+											<input type="email" id="patientEmail">
+										</div>
+									</div>
+									
+									<div class="form-row full">
+										<div class="form-group">
+											<label>Address</label>
+											<input type="text" id="patientAddress">
+										</div>
+									</div>
+									
+									<div class="form-row full">
+										<div class="form-group">
+											<label>Health Card</label>
+											<input type="text" id="patientHC">
+										</div>
+									</div>
 								</div>
-								<div class="form-group">
-									<label>Middle Name</label>
-									<input type="text" id="patientMiddleName">
-								</div>
-							</div>
-							
-							<div class="form-row">
-								<div class="form-group">
-									<label>Last Name</label>
-									<input type="text" id="patientLastName">
-								</div>
-								<div class="form-group">
-									<label>Date of Birth</label>
-									<input type="text" id="patientDOB" class="datepicker">
-								</div>
-							</div>
-							
-							<div class="form-row">
-								<div class="form-group">
-									<label>Phone</label>
-									<input type="tel" id="patientPhone">
-								</div>
-								<div class="form-group">
-									<label>Email</label>
-									<input type="email" id="patientEmail">
-								</div>
-							</div>
-							
-							<div class="form-row full">
-								<div class="form-group">
-									<label>Address</label>
-									<input type="text" id="patientAddress">
-								</div>
-							</div>
-							
-							<div class="form-row">
-								<div class="form-group">
-									<label>Health Card</label>
-									<input type="text" id="patientHC">
-								</div>
-								<div class="form-group">
-									<label>Gender at Birth</label>
-									<select id="patientGenderAtBirth">
-										<option value="">Select...</option>
-									</select>
+								
+								<!-- Partner Column -->
+								<div id="partnerSection" style="opacity: 0.4; pointer-events: none;">
+									<div style="font-weight: 600; margin-bottom: 10px; color: #95a5a6;">Partner</div>
+									
+									<div class="form-row">
+										<div class="form-group">
+											<label>PID</label>
+											<input type="text" id="partnerPID">
+										</div>
+										<div class="form-group">
+											<label>MRN</label>
+											<input type="text" id="partnerMRN">
+										</div>
+									</div>
+									
+									<div class="form-row">
+										<div class="form-group">
+											<label>First Name</label>
+											<input type="text" id="partnerFirstName">
+										</div>
+										<div class="form-group">
+											<label>Last Name</label>
+											<input type="text" id="partnerLastName">
+										</div>
+									</div>
+									
+									<div class="form-row full">
+										<div class="form-group">
+											<label>Middle Name</label>
+											<input type="text" id="partnerMiddleName">
+										</div>
+									</div>
+									
+									<div class="form-row">
+										<div class="form-group">
+											<label>Date of Birth</label>
+											<input type="text" id="partnerDOB" class="datepicker">
+										</div>
+										<div class="form-group">
+											<label>Gender at Birth</label>
+											<select id="partnerGenderAtBirth">
+												<option value="">Select...</option>
+											</select>
+										</div>
+									</div>
+									
+									<div class="form-row">
+										<div class="form-group">
+											<label>Phone</label>
+											<input type="tel" id="partnerPhone">
+										</div>
+										<div class="form-group">
+											<label>Email</label>
+											<input type="email" id="partnerEmail">
+										</div>
+									</div>
+									
+									<div class="form-row full">
+										<div class="form-group">
+											<label>Address</label>
+											<input type="text" id="partnerAddress">
+										</div>
+									</div>
+									
+									<div class="form-row full">
+										<div class="form-group">
+											<label>Health Card</label>
+											<input type="text" id="partnerHC">
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
-
-						<!-- Partner Information -->
-						<div class="form-section">
-							<div class="form-section-title">Partner Information</div>
-							
-							<div class="form-row">
-								<div class="form-group">
-									<label>PID</label>
-									<input type="text" id="partnerPID">
-								</div>
-								<div class="form-group">
-									<label>MRN</label>
-									<input type="text" id="partnerMRN">
-								</div>
-							</div>
-							
-							<div class="form-row">
-								<div class="form-group">
-									<label>First Name</label>
-									<input type="text" id="partnerFirstName">
-								</div>
-								<div class="form-group">
-									<label>Middle Name</label>
-									<input type="text" id="partnerMiddleName">
-								</div>
-							</div>
-							
-							<div class="form-row">
-								<div class="form-group">
-									<label>Last Name</label>
-									<input type="text" id="partnerLastName">
-								</div>
-								<div class="form-group">
-									<label>Date of Birth</label>
-									<input type="text" id="partnerDOB" class="datepicker">
-								</div>
-							</div>
-							
-							<div class="form-row">
-								<div class="form-group">
-									<label>Phone</label>
-									<input type="tel" id="partnerPhone">
-								</div>
-								<div class="form-group">
-									<label>Email</label>
-									<input type="email" id="partnerEmail">
-								</div>
-							</div>
-							
-							<div class="form-row full">
-								<div class="form-group">
-									<label>Address</label>
-									<input type="text" id="partnerAddress">
-								</div>
-							</div>
-							
-							<div class="form-row">
-								<div class="form-group">
-									<label>Health Card</label>
-									<input type="text" id="partnerHC">
-								</div>
-								<div class="form-group">
-									<label>Gender at Birth</label>
-									<select id="partnerGenderAtBirth">
-										<option value="">Select...</option>
-									</select>
-								</div>
-							</div>
-						</div>
-					</form>
-				</div>
 				
 				<div class="modal-footer">
 					<button onclick="closeModal('referralModal')" class="btn btn-secondary">Cancel</button>
@@ -1385,27 +1405,26 @@
                 }
                 
                 return `
-                    <div class="referral-item" onclick="viewReferral(${ref.referralID})">
-                        <div class="referral-left">
-                            <div class="referral-header">
-                                <span class="referral-patient-name">${patientName}</span>
-                                <span class="referral-id">#${ref.referralID}</span>
-                                <span class="status-badge ${statusClass}">${ref.referralStatus}</span>
-                            </div>
-                            <div class="referral-info">
-                                <span>📅 ${receivedDate}</span>
-                                <span>📞 ${ref.patientPhone || 'No phone'}</span>
-                                <span>📧 ${ref.patientEmail || 'No email'}</span>
-                                <span>📍 ${location}</span>
-                                <span>👨‍⚕️ ${physician}</span>
-                                <span>💬 ${lastContact}</span>
-                            </div>
-                        </div>
-                        <div class="referral-actions" onclick="event.stopPropagation()">
-                            <button class="btn btn-primary btn-small" onclick="editReferralById(${ref.referralID})">Edit</button>
-                            <button class="btn btn-success btn-small" onclick="quickContact(${ref.referralID})">Contact</button>
-                        </div>
-                    </div>
+					<div class="referral-item" onclick="viewReferral(${ref.referralID})">
+						<div class="referral-left">
+							<div class="referral-header">
+								<span class="referral-patient-name">${patientName}</span>
+								<span class="status-badge ${statusClass}">${ref.referralStatus}</span>
+							</div>
+							<div class="referral-info">
+								<span>📅 ${receivedDate}</span>
+								<span>📞 ${ref.patientPhone || 'No phone'}</span>
+								<span>📧 ${ref.patientEmail || 'No email'}</span>
+								<span>📍 ${location}</span>
+								<span>👨‍⚕️ ${physician}</span>
+								<span>💬 ${lastContact}</span>
+							</div>
+						</div>
+						<div class="referral-actions" onclick="event.stopPropagation()">
+							<button class="btn btn-primary btn-small" onclick="editReferralById(${ref.referralID})">Edit</button>
+							<button class="btn btn-success btn-small" onclick="quickContact(${ref.referralID})">Contact</button>
+						</div>
+					</div>
                 `;
             }).join('');
         }
@@ -1555,9 +1574,68 @@
             alert('View referral #' + id + ' - coming soon');
         }
 
-        function editReferralById(id) {
-            alert('Edit referral #' + id + ' - coming soon');
-        }
+		function editReferralById(id) {
+			if (isReadOnly) {
+				document.getElementById('currentFile').textContent = 'Error: Cannot edit in read-only mode';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				return;
+			}
+			
+			const referral = database.referrals.find(r => r.referralID === id);
+			if (!referral) return;
+			
+			currentEditingReferral = referral;
+			document.getElementById('referralModalTitle').textContent = 'Edit Referral';
+			
+			// Populate all fields
+			document.getElementById('referralDate').value = referral.referralDate || '';
+			document.getElementById('receivedDate').value = referral.receivedDate || '';
+			document.getElementById('fileName').value = referral.fileName || '';
+			document.getElementById('referringPhysician').value = referral.referringPhysicianName || '';
+			document.getElementById('billingNumber').value = referral.referringPhysicianBilling || '';
+			document.getElementById('physicianFax').value = referral.referringPhysicianFax || '';
+			document.getElementById('physicianPhone').value = referral.referringPhysicianPhone || '';
+			document.getElementById('physicianEmail').value = referral.referringPhysicianEmail || '';
+			
+			document.getElementById('requestedLocation').value = referral.requestedLocation || '';
+			document.getElementById('requestedPhysician').value = referral.requestedPhysician || '';
+			document.getElementById('urgent').checked = referral.urgent || false;
+			document.getElementById('serviceRequested').value = referral.serviceRequested || '';
+			document.getElementById('subServiceRequested').value = referral.subServiceRequested || '';
+			document.getElementById('referralType').value = referral.referralType || '';
+			
+			document.getElementById('patientPID').value = referral.patientPID || '';
+			document.getElementById('patientMRN').value = referral.patientMRN || '';
+			document.getElementById('patientFirstName').value = referral.patientFirstName || '';
+			document.getElementById('patientMiddleName').value = referral.patientMiddleName || '';
+			document.getElementById('patientLastName').value = referral.patientLastName || '';
+			document.getElementById('patientDOB').value = referral.patientDOB || '';
+			document.getElementById('patientPhone').value = referral.patientPhone || '';
+			document.getElementById('patientEmail').value = referral.patientEmail || '';
+			document.getElementById('patientAddress').value = referral.patientAddress || '';
+			document.getElementById('patientHC').value = referral.patientHC || '';
+			document.getElementById('patientGenderAtBirth').value = referral.patientGenderAtBirth || '';
+			
+			// Partner fields
+			const hasPartner = referral.partnerFirstName || referral.partnerLastName;
+			document.getElementById('enablePartner').checked = hasPartner;
+			togglePartnerFields();
+			
+			document.getElementById('partnerPID').value = referral.partnerPID || '';
+			document.getElementById('partnerMRN').value = referral.partnerMRN || '';
+			document.getElementById('partnerFirstName').value = referral.partnerFirstName || '';
+			document.getElementById('partnerMiddleName').value = referral.partnerMiddleName || '';
+			document.getElementById('partnerLastName').value = referral.partnerLastName || '';
+			document.getElementById('partnerDOB').value = referral.partnerDOB || '';
+			document.getElementById('partnerPhone').value = referral.partnerPhone || '';
+			document.getElementById('partnerEmail').value = referral.partnerEmail || '';
+			document.getElementById('partnerAddress').value = referral.partnerAddress || '';
+			document.getElementById('partnerHC').value = referral.partnerHC || '';
+			document.getElementById('partnerGenderAtBirth').value = referral.partnerGenderAtBirth || '';
+			
+			initializeDatePickers();
+			openModal('referralModal');
+		}
 
         function quickContact(id) {
             alert('Quick contact for referral #' + id + ' - coming soon');
@@ -1743,6 +1821,32 @@
 			initializeDatePickers();
 			openModal('referralModal');
 		}
+		
+		function updateFileName() {
+			const fileInput = document.getElementById('fileNamePicker');
+			const fileName = document.getElementById('fileName');
+			if (fileInput.files.length > 0) {
+				fileName.value = fileInput.files[0].name;
+			}
+		}
+
+		function togglePartnerFields() {
+			const enabled = document.getElementById('enablePartner').checked;
+			const partnerSection = document.getElementById('partnerSection');
+			
+			if (enabled) {
+				partnerSection.style.opacity = '1';
+				partnerSection.style.pointerEvents = 'auto';
+			} else {
+				partnerSection.style.opacity = '0.4';
+				partnerSection.style.pointerEvents = 'none';
+				// Clear partner fields
+				document.querySelectorAll('#partnerSection input, #partnerSection select').forEach(field => {
+					field.value = '';
+				});
+			}
+		}
+
     </script>
 </body>
 </html>
