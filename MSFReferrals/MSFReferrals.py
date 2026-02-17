@@ -339,10 +339,13 @@ def open_file_dialog():
         
         root = tk.Tk()
         root.withdraw()
-        root.winfo_toplevel().lift()
-        root.focus_force()
+        root.attributes('-topmost', True)  # Forces window to top level
+        root.update()                       # Processes pending events
+        root.winfo_toplevel().lift()        # Lifts to top of window stack
+        root.focus_force()                  # Forces focus to this window
         
         file_path = filedialog.askopenfilename(
+            parent=root,
             title='Select Referral File',
             filetypes=[
                 ('PDF Files', '*.pdf'),

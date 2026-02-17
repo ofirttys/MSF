@@ -1789,8 +1789,6 @@
 				document.getElementById('viewFileBtn').style.display = 'none';
 			}
 
-			document.getElementById('viewFileBtn').style.display = 'none';
-			
 			openModal('referralModal');
 			document.querySelector('#referralModal .modal-body').scrollTop = 0;
 		}
@@ -2038,12 +2036,6 @@
 				document.getElementById('currentFile').textContent = 'Error: Patient Date of Birth is required';
 				document.getElementById('statusBar').style.color = '#e74c3c';
 				document.getElementById('patientDOB').focus();
-				return;
-			}
-			if (!patientPhone && !patientEmail) {
-				document.getElementById('currentFile').textContent = 'Error: Patient must have Phone or Email';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				document.getElementById('patientPhone').focus();
 				return;
 			}
 			
