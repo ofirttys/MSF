@@ -45,9 +45,8 @@ a = Analysis(
         'torch',
 
         # Package management - not needed at runtime
-        'setuptools',
-        'pkg_resources',
-        'distutils',
+        # Note: setuptools/distutils cannot be excluded -
+        # PyInstaller uses them internally during analysis
         'pip',
 
         # Unused stdlib modules
