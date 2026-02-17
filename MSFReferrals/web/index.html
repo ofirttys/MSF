@@ -18,6 +18,28 @@
         html, body { height: 100%; margin: 0; padding: 0; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f3ebff; color: #2c3e50; line-height: 1.6; }
 
+		/* When both modals are open, position them side by side */
+		body.dual-modal #referralModal .modal-content {
+			position: fixed;
+			left: 2%;
+			top: 5%;
+			max-width: 48%;
+			margin: 0;
+		}
+
+		body.dual-modal #pdfViewerModal .modal-content {
+			position: fixed;
+			right: 2%;
+			top: 5%;
+			max-width: 48%;
+			margin: 0;
+		}
+
+		/* Ensure both modals are visible */
+		body.dual-modal .modal.active {
+			display: flex;
+		}
+
         .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
 
         /* Login Screen Styles */
@@ -542,9 +564,13 @@
         }
 
         .modal-header {
-			flex-shrink: 0;
+			flex-shrink: 0;  /* Don't let header shrink */
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
 			margin-bottom: 15px;
 			padding-bottom: 10px;
+			border-bottom: 2px solid #ecf0f1;
 		}
 
         .modal-title {
@@ -563,7 +589,7 @@
 		.modal-footer {
 			flex-shrink: 0;
 			display: flex;
-			justify-content: flex-end;
+			justify-content: center;
 			gap: 10px;
 			padding-top: 15px;
 			border-top: 1px solid #ecf0f1;
@@ -922,8 +948,11 @@
 								</div>
 								<div class="form-group">
 									<label>File Name</label>
-									<input type="text" id="fileName" readonly style="background: #f0f0f0; cursor: pointer;" onclick="document.getElementById('fileNamePicker').click()" placeholder="Click to select file...">
-									<input type="file" id="fileNamePicker" onchange="updateFileName()" accept=".pdf,.doc,.docx,.jpg,.png" style="display: none;">
+									<div style="display: flex; gap: 10px;">
+										<input type="text" id="fileName" readonly style="background: #f0f0f0; cursor: pointer; flex: 1;" onclick="document.getElementById('fileNamePicker').click()" placeholder="Click to select file...">
+										<button type="button" onclick="reopenPdfViewer()" class="btn btn-primary btn-small" id="viewFileBtn" style="display: none;">View</button>
+									</div>
+									<input type="file" id="fileNamePicker" onchange="updateFileName()" accept=".pdf,.doc,.docx,.jpg,.png" style="display: none !important; visibility: hidden; position: absolute; width: 0; height: 0;">
 								</div>
 							</div>
 							
@@ -1164,6 +1193,24 @@
 		</div>
     </div>
 
+	<!-- PDF Viewer Modal -->
+	<div id="pdfViewerModal" class="modal">
+		<div class="modal-content" style="max-width: 800px; height: 90vh;">
+			<div class="modal-header">
+				<h2 class="modal-title">File Preview</h2>
+				<button type="button" class="close-btn" onclick="closeModal('pdfViewerModal')">&times;</button>
+			</div>
+			
+			<div class="modal-body" style="padding: 0; overflow: hidden; flex: 1;">
+				<iframe id="pdfFrame" style="width: 100%; height: 100%; border: none;"></iframe>
+			</div>
+			
+			<div class="modal-footer">
+				<button type="button" onclick="closeModal('pdfViewerModal')" class="btn btn-secondary">Close</button>
+			</div>
+		</div>
+	</div>
+
     <!-- Modals will go here - keeping from previous version -->
     <!-- (Add/Edit Referral Modal, View Referral Modal, Contact Modal, Assign Admin Modal) -->
     
@@ -1180,7 +1227,7 @@
         let currentViewingReferral = null;
         let autoSaveInterval = null;
         let currentSortMode = 'name-az';
-        let currentFilter = 'all';
+        let currentFilter = [];
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
@@ -1444,6 +1491,30 @@
             if (!database || !database.referrals) return [];
             
             let referrals = [...database.referrals];
+
+			// Apply DATE FILTER
+			const dateFrom = document.getElementById('dateFrom').value;
+			const dateTo = document.getElementById('dateTo').value;
+			
+			if (dateFrom || dateTo) {
+				referrals = referrals.filter(ref => {
+					if (!ref.receivedDate) return false;
+					const receivedDate = new Date(ref.receivedDate);
+					
+					if (dateFrom) {
+						const fromDate = new Date(dateFrom);
+						if (receivedDate < fromDate) return false;
+					}
+					
+					if (dateTo) {
+						const toDate = new Date(dateTo);
+						toDate.setHours(23, 59, 59); // End of day
+						if (receivedDate > toDate) return false;
+					}
+					
+					return true;
+				});
+			}
             
             // Apply search filter
             const searchTerm = document.getElementById('searchBox').value.toLowerCase();
@@ -1461,28 +1532,31 @@
                 });
             }
             
-            // Apply status filter
-            if (currentFilter !== 'all') {
-                const now = new Date();
-                referrals = referrals.filter(ref => {
-                    switch(currentFilter) {
-                        case 'new': return ref.referralStatus === 'New';
-                        case 'pending': return ref.referralStatus === 'Pending';
-                        case 'info-received': return ref.referralStatus === 'Info Received';
-                        case 'deferred': return ref.referralStatus === 'Deferred';
-                        case 'completed': return ref.referralStatus === 'Completed';
-                        case 'missing-contact': return !ref.lastAttemptDate;
-                        case 'contact-2days':
-                        case 'contact-3days':
-                        case 'contact-7days':
-                            if (!ref.lastAttemptDate) return false;
-                            const days = currentFilter === 'contact-2days' ? 2 : currentFilter === 'contact-3days' ? 3 : 7;
-                            const daysSinceContact = (now - new Date(ref.lastAttemptDate)) / (1000 * 60 * 60 * 24);
-                            return daysSinceContact > days;
-                    }
-                    return true;
-                });
-            }
+			// Apply status filter
+			if (currentFilter.length > 0) {  // Changed from !== 'all'
+				const now = new Date();
+				referrals = referrals.filter(ref => {
+					// Check if referral matches ANY of the active filters
+					return currentFilter.some(filter => {
+						switch(filter) {
+							case 'new': return ref.referralStatus === 'New';
+							case 'pending': return ref.referralStatus === 'Pending';
+							case 'info-received': return ref.referralStatus === 'Info Received';
+							case 'deferred': return ref.referralStatus === 'Deferred';
+							case 'completed': return ref.referralStatus === 'Completed';
+							case 'missing-contact': return !ref.lastAttemptDate;
+							case 'contact-2days':
+							case 'contact-3days':
+							case 'contact-7days':
+								if (!ref.lastAttemptDate) return false;
+								const days = filter === 'contact-2days' ? 2 : filter === 'contact-3days' ? 3 : 7;
+								const daysSinceContact = (now - new Date(ref.lastAttemptDate)) / (1000 * 60 * 60 * 24);
+								return daysSinceContact > days;
+						}
+						return false;
+					});
+				});
+			}
             
             // Apply sort
             referrals.sort((a, b) => {
@@ -1538,14 +1612,40 @@
 
         // Filter by status
         function filterByStatus(status) {
-            currentFilter = status;
-            
-            // Update button states
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            renderReferralList();
-        }
+			// Handle "All" button
+			if (status === 'all') {
+				currentFilter = [];
+				// Update active buttons
+				document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+				event.target.classList.add('active');
+				renderReferralList();
+				return;
+			}
+			
+			// Toggle filter in array
+			const index = currentFilter.indexOf(status);
+			if (index > -1) {
+				// Filter already active, remove it
+				currentFilter.splice(index, 1);
+				event.target.classList.remove('active');
+			} else {
+				// Filter not active, add it
+				currentFilter.push(status);
+				event.target.classList.add('active');
+			}
+			
+			// Update "All" button state
+			const allButton = document.querySelector('.filter-btn');
+			if (currentFilter.length === 0) {
+				// No filters active, activate "All"
+				allButton.classList.add('active');
+			} else {
+				// Filters active, deactivate "All"
+				allButton.classList.remove('active');
+			}
+			
+			renderReferralList();
+		}
 
         // Filter referrals (called by search input)
         function filterReferrals() {
@@ -1576,8 +1676,14 @@
 				return;
 			}
 			
-			// Will implement the modal below
+			currentEditingReferral = null;
+			document.getElementById('referralModalTitle').textContent = 'Add New Referral';
+			document.getElementById('referralForm').reset();
+			initializeDatePickers();
 			openModal('referralModal');
+			
+			// Scroll to top
+			document.querySelector('#referralModal .modal-body').scrollTop = 0;
 		}
 
         function viewReferral(id) {
@@ -1645,6 +1751,7 @@
 			
 			initializeDatePickers();
 			openModal('referralModal');
+			document.querySelector('#referralModal .modal-body').scrollTop = 0;
 		}
 
         function quickContact(id) {
@@ -1654,10 +1761,36 @@
 		// Modal helpers
 		function openModal(id) {
 			document.getElementById(id).classList.add('active');
+			
+			checkDualModal();
 		}
 
 		function closeModal(id) {
 			document.getElementById(id).classList.remove('active');
+			
+			checkDualModal();
+			
+			if (id === 'pdfViewerModal') {
+				document.getElementById('pdfFrame').src = '';
+			}
+		}
+
+		function checkDualModal() {
+			const referralModalOpen = document.getElementById('referralModal').classList.contains('active');
+			const pdfModalOpen = document.getElementById('pdfViewerModal').classList.contains('active');
+			
+			if (referralModalOpen && pdfModalOpen) {
+				document.body.classList.add('dual-modal');
+			} else {
+				document.body.classList.remove('dual-modal');
+			}
+		}
+
+		function reopenPdfViewer() {
+			const iframe = document.getElementById('pdfFrame');
+			if (iframe.src) {
+				openModal('pdfViewerModal');
+			}
 		}
 
 		// Populate select options in modal
@@ -1910,10 +2043,27 @@
 		function updateFileName() {
 			const fileInput = document.getElementById('fileNamePicker');
 			const fileName = document.getElementById('fileName');
+			
 			if (fileInput.files.length > 0) {
-				// Show full path if available, otherwise just filename
-				fileName.value = fileInput.files[0].path || fileInput.files[0].name;
+				const file = fileInput.files[0];
+				const sizeKB = (file.size / 1024).toFixed(1);
+				fileName.value = `${file.name} (${sizeKB} KB)`;
+				
+				// Show PDF preview if it's a PDF or image
+				if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
+					const fileURL = URL.createObjectURL(file);
+					document.getElementById('pdfFrame').src = fileURL;
+					document.getElementById('viewFileBtn').style.display = 'inline-block';
+					openModal('pdfViewerModal');
+				} else {
+					document.getElementById('viewFileBtn').style.display = 'none';
+					alert('File selected: ' + file.name + '\n\nPreview is only available for PDF and image files.');
+				}
 			}
+		}
+		function closePdfViewer() {
+			document.getElementById('pdfViewer').style.display = 'none';
+			document.getElementById('pdfFrame').src = '';
 		}
 
 		function togglePartnerFields() {
