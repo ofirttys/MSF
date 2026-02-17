@@ -822,12 +822,12 @@
                     <div class="kpi-value" id="kpiNew">-</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">Pending</div>
-                    <div class="kpi-value" id="kpiPending">-</div>
-                </div>
-                <div class="kpi-card">
                     <div class="kpi-label">Waiting for Contact</div>
                     <div class="kpi-value" id="kpiWaitingContact">-</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Pending</div>
+                    <div class="kpi-value" id="kpiPending">-</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-label">Completed</div>
@@ -847,21 +847,21 @@
                         <button class="sort-btn active" id="sortNameAZ" onclick="setSortMode('name-az')">Name A→Z</button>
                         <button class="sort-btn" id="sortAttemptOld" onclick="setSortMode('attempt-old')">Last Attempt (Old→New)</button>
                         <button class="sort-btn" id="sortAttemptNew" onclick="setSortMode('attempt-new')">Last Attempt (New→Old)</button>
-                        <button class="sort-btn" id="sortReceivedNew" onclick="setSortMode('received-new')">Received (New→Old)</button>
                         <button class="sort-btn" id="sortReceivedOld" onclick="setSortMode('received-old')">Received (Old→New)</button>
+                        <button class="sort-btn" id="sortReceivedNew" onclick="setSortMode('received-new')">Received (New→Old)</button>
                     </div>
                 </div>
                 <div class="filter-buttons" id="filterButtons">
                     <button class="filter-btn active" onclick="filterByStatus('all')">All</button>
-                    <button class="filter-btn" onclick="filterByStatus('new')">New</button>
+                    <button class="filter-btn" onclick="filterByStatus('new')">New<br>Patient</button>
                     <button class="filter-btn" onclick="filterByStatus('pending')">Pending</button>
                     <button class="filter-btn" onclick="filterByStatus('info-received')">Info<br>Received</button>
-                    <button class="filter-btn" onclick="filterByStatus('deferred')">Deferred</button>
                     <button class="filter-btn" onclick="filterByStatus('completed')">Completed</button>
+                    <button class="filter-btn" onclick="filterByStatus('deferred')">Deferred</button>
+                    <button class="filter-btn" onclick="filterByStatus('missing-contact')">Waiting<br>Contact</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-2days')">Contact<br>> 2 days</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-3days')">Contact<br>> 3 days</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-7days')">Contact<br>> 7 days</button>
-                    <button class="filter-btn" onclick="filterByStatus('missing-contact')">Missing<br>Contact</button>
                 </div>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search referrals..." oninput="filterReferrals()">
                 <div class="referral-list" id="referralList">
@@ -993,6 +993,18 @@
                 renderReferralList();
                 updateKPIs();
                 
+				// Initialize date pickers
+				flatpickr('#dateFrom', {
+					dateFormat: 'Y-m-d',
+					allowInput: true,
+					onChange: function() { filterReferrals(); }
+				});
+				flatpickr('#dateTo', {
+					dateFormat: 'Y-m-d',
+					allowInput: true,
+					onChange: function() { filterReferrals(); }
+				});				
+				
                 if (!isReadOnly) {
                     autoSaveInterval = setInterval(async () => {
                         if (unsavedChanges > 0) {
@@ -1001,10 +1013,27 @@
                     }, 5 * 60 * 1000);
                 }
             } else {
-                alert('Error loading database: ' + result.message);
-                document.getElementById('currentFile').textContent = 'Error: ' + result.message;
-            }
+				document.getElementById('currentFile').textContent = 'Error: ' + result.message;
+				document.getElementById('statusBar').style.color = '#e74c3c';
+			}
         }
+
+		// Initialize date pickers (add after initializeApp function)
+		flatpickr('#dateFrom', {
+			dateFormat: 'Y-m-d',
+			allowInput: true,
+			onChange: function() {
+				filterReferrals();
+			}
+		});
+
+		flatpickr('#dateTo', {
+			dateFormat: 'Y-m-d',
+			allowInput: true,
+			onChange: function() {
+				filterReferrals();
+			}
+		});
 
         // Disable editing controls in read-only mode
         function disableEditingControls() {
@@ -1027,8 +1056,9 @@
                 unsavedChanges = 0;
                 if (!silent) alert('Database saved successfully');
             } else {
-                alert('Error saving database: ' + result.message);
-            }
+				document.getElementById('currentFile').textContent = 'Save Error: ' + result.message;
+				document.getElementById('statusBar').style.color = '#e74c3c';
+			}
         }
 
         // Update KPIs
