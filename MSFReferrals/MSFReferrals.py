@@ -330,6 +330,63 @@ def delete_referral(referral_id):
         print(f"Error deleting referral: {e}")
         return {'status': 'error', 'message': str(e)}
 
+@eel.expose
+def open_file_dialog():
+    """Open a native file dialog and return full path"""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+        
+        root = tk.Tk()
+        root.withdraw()
+        root.winfo_toplevel().lift()
+        root.focus_force()
+        
+        file_path = filedialog.askopenfilename(
+            title='Select Referral File',
+            filetypes=[
+                ('PDF Files', '*.pdf'),
+                ('Image Files', '*.jpg *.jpeg *.png'),
+                ('All Files', '*.*')
+            ]
+        )
+        root.destroy()
+        return file_path or ''
+    except Exception as e:
+        print(f"Error opening file dialog: {e}")
+        return ''
+
+@eel.expose
+def get_file_content(file_path):
+    """Read a file and return as base64 for display"""
+    try:
+        import base64
+        if not file_path or not os.path.exists(file_path):
+            return {'status': 'error', 'message': 'File not found: ' + str(file_path)}
+        
+        with open(file_path, 'rb') as f:
+            content = base64.b64encode(f.read()).decode('utf-8')
+        
+        ext = Path(file_path).suffix.lower()
+        mime_types = {
+            '.pdf': 'application/pdf',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif'
+        }
+        mime = mime_types.get(ext, 'application/octet-stream')
+        
+        return {
+            'status': 'success',
+            'content': content,
+            'mime': mime,
+            'filename': Path(file_path).name
+        }
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        return {'status': 'error', 'message': str(e)}
+
 def get_default_select_options():
     """Get default select options for dropdowns"""
     return {

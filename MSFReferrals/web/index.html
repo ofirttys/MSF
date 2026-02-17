@@ -950,11 +950,16 @@
 								</div>
 								<div class="form-group">
 									<label>File Name</label>
-									<div style="display: flex; gap: 10px;">
-										<input type="text" id="fileName" readonly style="background: #f0f0f0; cursor: pointer; flex: 1;" onclick="document.getElementById('fileNamePicker').click()" placeholder="Click to select file...">
-										<button type="button" onclick="reopenPdfViewer()" class="btn btn-primary btn-small" id="viewFileBtn" style="display: none;">View</button>
+									<div style="display: flex; gap: 5px;">
+										<input type="text" id="fileName" readonly 
+											   style="background: #f0f0f0; flex: 1; cursor: pointer;" 
+											   onclick="selectFile()" 
+											   placeholder="Click to select file...">
+										<button type="button" onclick="viewSelectedFile()" 
+												class="btn btn-primary btn-small" 
+												id="viewFileBtn" 
+												style="display: none;">View</button>
 									</div>
-									<input type="file" id="fileNamePicker" onchange="updateFileName()" accept=".pdf,.doc,.docx,.jpg,.png" style="display: none !important; visibility: hidden; position: absolute; width: 0; height: 0;">
 								</div>
 							</div>
 							
@@ -1770,8 +1775,20 @@
 			
 			initializeDatePickers();
 			
-			closePdfViewer();
+			currentFilePath = null;
 			currentFileObjectURL = null;
+			closePdfViewer();
+
+			if (referral.fileName) {
+				currentFilePath = referral.fileName;
+				document.getElementById('fileName').value = referral.fileName;
+				document.getElementById('viewFileBtn').style.display = 'inline-block';
+				document.getElementById('viewFileBtn').textContent = 'View';
+			} else {
+				document.getElementById('fileName').value = '';
+				document.getElementById('viewFileBtn').style.display = 'none';
+			}
+
 			document.getElementById('viewFileBtn').style.display = 'none';
 			
 			openModal('referralModal');
@@ -1824,8 +1841,80 @@
 			// Don't clear currentFileObjectURL - keep it so it can be reopened
 		}
 
-		function reopenPdfViewer() {
-			openPdfViewer();
+		// Current file path stored for reuse
+		let currentFilePath = null;
+		let currentFileObjectURL = null;
+
+		// Select file via Python dialog
+		async function selectFile() {
+			const filePath = await eel.open_file_dialog()();
+			
+			if (filePath) {
+				// Store the full path
+				currentFilePath = filePath;
+				
+				// Show just the filename in the input
+				const fileName = filePath.split('\\').pop().split('/').pop();
+				document.getElementById('fileName').value = filePath;
+				
+				// Show view button
+				document.getElementById('viewFileBtn').style.display = 'inline-block';
+				
+				// Auto-open the viewer
+				await openFileFromPath(filePath);
+			}
+		}
+
+		// Open file from a stored path (works for both new and edit)
+		async function openFileFromPath(filePath) {
+			if (!filePath) return;
+			
+			document.getElementById('viewFileBtn').textContent = 'Loading...';
+			
+			try {
+				const result = await eel.get_file_content(filePath)();
+				
+				if (result.status === 'success') {
+					// Revoke previous URL to free memory
+					if (currentFileObjectURL) {
+						URL.revokeObjectURL(currentFileObjectURL);
+						currentFileObjectURL = null;
+					}
+					
+					// Create blob URL from base64
+					const byteCharacters = atob(result.content);
+					const byteArray = new Uint8Array(byteCharacters.length);
+					for (let i = 0; i < byteCharacters.length; i++) {
+						byteArray[i] = byteCharacters.charCodeAt(i);
+					}
+					const blob = new Blob([byteArray], { type: result.mime });
+					currentFileObjectURL = URL.createObjectURL(blob);
+					
+					// Open viewer
+					openPdfViewer();
+					document.getElementById('viewFileBtn').textContent = 'View';
+					
+				} else {
+					document.getElementById('currentFile').textContent = 'Error: ' + result.message;
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('viewFileBtn').textContent = 'View';
+				}
+			} catch(e) {
+				document.getElementById('currentFile').textContent = 'Error loading file: ' + e.message;
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				document.getElementById('viewFileBtn').textContent = 'View';
+			}
+		}
+
+		// View button clicked - reopen or load
+		async function viewSelectedFile() {
+			if (currentFileObjectURL) {
+				// Already loaded - just reopen viewer
+				openPdfViewer();
+			} else if (currentFilePath) {
+				// Has path but no loaded content - load it
+				await openFileFromPath(currentFilePath);
+			}
 		}
 
 		// Populate select options in modal
@@ -2069,44 +2158,18 @@
 			}
 			
 			currentEditingReferral = null;
+			currentFilePath = null;
+			currentFileObjectURL = null;
+			
 			document.getElementById('referralModalTitle').textContent = 'Add New Referral';
 			document.getElementById('referralForm').reset();
+			document.getElementById('viewFileBtn').style.display = 'none';
+			closePdfViewer();
+			
 			initializeDatePickers();
 			openModal('referralModal');
 		}
 		
-		function updateFileName() {
-			const fileInput = document.getElementById('fileNamePicker');
-			const fileName = document.getElementById('fileName');
-			
-			if (fileInput.files.length > 0) {
-				const file = fileInput.files[0];
-				
-				// Show just filename, no size
-				fileName.value = file.name;
-				
-				// Revoke previous URL to free memory
-				if (currentFileObjectURL) {
-					URL.revokeObjectURL(currentFileObjectURL);
-					currentFileObjectURL = null;
-				}
-				
-				// Show PDF or image preview
-				if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
-					currentFileObjectURL = URL.createObjectURL(file);
-					document.getElementById('viewFileBtn').style.display = 'inline-block';
-					openPdfViewer();
-				} else {
-					currentFileObjectURL = null;
-					document.getElementById('viewFileBtn').style.display = 'none';
-					closePdfViewer();
-				}
-				
-				// Reset file input so same file can be picked again
-				fileInput.value = '';
-			}
-		}
-
 		function togglePartnerFields() {
 			const enabled = document.getElementById('enablePartner').checked;
 			const partnerSection = document.getElementById('partnerSection');
