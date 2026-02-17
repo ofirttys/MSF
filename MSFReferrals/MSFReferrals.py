@@ -48,11 +48,7 @@ def hash_password(password):
     
     for char in combined:
         hash_val = ((hash_val << 5) - hash_val) + ord(char)
-        # Force to 32-bit signed integer like JavaScript does
-        if hash_val > 0x7FFFFFFF:
-            hash_val = hash_val - 0x100000000
-        elif hash_val < -0x80000000:
-            hash_val = hash_val + 0x100000000
+        hash_val = hash_val & hash_val  # Convert to 32-bit integer (same as HTA)
     
     # Convert to positive hex string with padding
     hex_hash = format(hash_val & 0xFFFFFFFF, 'x')  # Ensure positive
@@ -65,23 +61,17 @@ def hash_password(password):
         extended += _simple_hash(hex_hash + str(i))
     
     return extended[:64]
-    
+
 def _simple_hash(s):
     """Helper function for hash extension - matches HTA version"""
     h = 0
     for char in s:
         h = ((h << 5) - h) + ord(char)
-        # Force to 32-bit signed integer
-        if h > 0x7FFFFFFF:
-            h = h - 0x100000000
-        elif h < -0x80000000:
-            h = h + 0x100000000
-    
+        h = h & h  # Convert to 32-bit integer
     hex_result = format(h & 0xFFFFFFFF, 'x')  # Ensure positive
     while len(hex_result) < 8:
         hex_result = '0' + hex_result
     return hex_result[:8]
-
 
 @eel.expose
 def login(username, password):
@@ -123,7 +113,7 @@ def login(username, password):
         }
     
     # Clear stale lock if needed
-    if lock_status.get('stale', False):
+    if lock_status['stale']:
         delete_lock_file()
     
     # Create lock file
@@ -261,8 +251,8 @@ def add_referral(referral_data):
         with open(DATABASE_FILE, 'r') as f:
             db = json.load(f)
         
-        # Add ID and timestamp
-        referral_data['id'] = db['nextId']
+        # Add referralID and timestamp
+        referral_data['referralID'] = db['nextId']
         referral_data['addedToDBDate'] = datetime.now().isoformat()
         db['nextId'] += 1
         
@@ -292,7 +282,7 @@ def update_referral(referral_id, referral_data):
         
         # Find and update referral
         for i, ref in enumerate(db['referrals']):
-            if ref['id'] == referral_id:
+            if ref['referralID'] == referral_id:
                 db['referrals'][i] = referral_data
                 break
         
@@ -318,7 +308,7 @@ def delete_referral(referral_id):
             db = json.load(f)
         
         # Remove referral
-        db['referrals'] = [r for r in db['referrals'] if r['id'] != referral_id]
+        db['referrals'] = [r for r in db['referrals'] if r['referralID'] != referral_id]
         
         # Save
         with open(DATABASE_FILE, 'w') as f:
@@ -334,52 +324,59 @@ def delete_referral(referral_id):
 def get_default_select_options():
     """Get default select options for dropdowns"""
     return {
-        'referringPhysicians': [
-            {'name': 'Dr. Smith', 'billing': '123456', 'fax': '416-555-0001', 'phone': '416-555-0002', 'email': 'smith@example.com'},
-            {'name': 'Dr. Johnson', 'billing': '234567', 'fax': '416-555-0003', 'phone': '416-555-0004', 'email': 'johnson@example.com'},
-            {'name': 'Dr. Williams', 'billing': '345678', 'fax': '416-555-0005', 'phone': '416-555-0006', 'email': 'williams@example.com'}
-        ],
         'requestedLocations': [
-            'Mount Sinai Fertility - Downtown',
-            'Mount Sinai Fertility - Vaughan',
-            'Virtual Consultation'
+            'Any',
+            'Downtown',
+            'Mississauga',
+            'Vaughan'
         ],
         'requestedPhysicians': [
-            'Dr. Ofir Michaeli',
-            'Dr. Jennia Michaeli',
-            'Dr. Other Physician',
-            'First Available'
+            'First Available',
+            'Dr. Bacal',
+            'Dr. Greenblatt',
+            'Dr. Jones',
+            'Dr. Liu',
+            'Dr. Michaeli',
+            'Dr. Pereira',
+            'Dr. Russo',
+            'Dr. Shapiro'
         ],
         'servicesRequested': [
-            'Fertility Assessment',
-            'IVF',
-            'IUI',
-            'Fertility Preservation',
-            'Egg Freezing',
-            'Male Fertility',
-            'Second Opinion',
+            'Infertility',
+            'EEF',
+            'ONC',
+            'SB',
+            'RPL',
+            'Donor',
+            'ARA',
+            'PGD',
+            'Gyne',
             'Other'
         ],
-        'newPrevPartner': [
-            'New Patient',
-            'Previous Patient',
-            'Partner of Existing Patient'
+        'referralType': [
+            'New',
+            'Previous',
+            'Partner'
         ],
         'lastAttemptModes': [
-            'Phone Call',
-            'Email',
-            'Fax',
-            'Text Message',
-            'Patient Portal'
+            'Phone',
+            'E-Mail'
         ],
         'physicianAdmins': [
-            'Admin 1',
-            'Admin 2',
-            'Admin 3'
+            'CJ Admin',
+            'EG Admin',
+            'HS Admin',
+            'JM Admin',
+            'KL Admin',
+            'MR Admin',
+            'NP Admin',
+            'VB Admin',
+            'NursePrac Admin',
+            'Fellow Admin'
         ],
         'genderAtBirth': [
-            'Male',
             'Female',
+            'Male',
             'Other'
         ]
     }
