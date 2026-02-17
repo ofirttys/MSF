@@ -878,6 +878,258 @@
                 <div class="copyright">&copy; Dr. Jennia Michaeli | Mount Sinai Fertility</div>
             </footer>
         </div>
+
+		<!-- Add/Edit Referral Modal -->
+		<div id="referralModal" class="modal">
+			<div class="modal-content large">
+				<div class="modal-header">
+					<h2 class="modal-title" id="referralModalTitle">Add New Referral</h2>
+					<button class="close-btn" onclick="closeModal('referralModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body">
+					<form id="referralForm">
+						<!-- Referral Information -->
+						<div class="form-section">
+							<div class="form-section-title">Referral Information</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>Referral Date</label>
+									<input type="text" id="referralDate" class="datepicker">
+								</div>
+								<div class="form-group">
+									<label>Received Date</label>
+									<input type="text" id="receivedDate" class="datepicker">
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>File Name</label>
+									<input type="text" id="fileName">
+								</div>
+								<div class="form-group">
+									<label>Referring Physician Name</label>
+									<input type="text" id="referringPhysician">
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>Billing Number</label>
+									<input type="text" id="billingNumber">
+								</div>
+								<div class="form-group">
+									<label>Fax</label>
+									<input type="text" id="physicianFax">
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>Phone</label>
+									<input type="text" id="physicianPhone">
+								</div>
+								<div class="form-group">
+									<label>Email</label>
+									<input type="email" id="physicianEmail">
+								</div>
+							</div>
+						</div>
+
+						<!-- Service Information -->
+						<div class="form-section">
+							<div class="form-section-title">Service Information</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>Requested Location</label>
+									<select id="requestedLocation">
+										<option value="">Select location...</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label>Requested Physician</label>
+									<select id="requestedPhysician">
+										<option value="">Select physician...</option>
+									</select>
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group checkbox-group">
+									<input type="checkbox" id="urgent">
+									<label for="urgent">Urgent</label>
+								</div>
+								<div class="form-group">
+									<label>Referral Type</label>
+									<select id="referralType">
+										<option value="">Select...</option>
+									</select>
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>Service Requested</label>
+									<select id="serviceRequested">
+										<option value="">Select service...</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label>Sub Service Requested</label>
+									<input type="text" id="subServiceRequested">
+								</div>
+							</div>
+						</div>
+
+						<!-- Patient Information -->
+						<div class="form-section">
+							<div class="form-section-title">Patient Information</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>PID</label>
+									<input type="text" id="patientPID">
+								</div>
+								<div class="form-group">
+									<label>MRN</label>
+									<input type="text" id="patientMRN">
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>First Name</label>
+									<input type="text" id="patientFirstName">
+								</div>
+								<div class="form-group">
+									<label>Middle Name</label>
+									<input type="text" id="patientMiddleName">
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>Last Name</label>
+									<input type="text" id="patientLastName">
+								</div>
+								<div class="form-group">
+									<label>Date of Birth</label>
+									<input type="text" id="patientDOB" class="datepicker">
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>Phone</label>
+									<input type="tel" id="patientPhone">
+								</div>
+								<div class="form-group">
+									<label>Email</label>
+									<input type="email" id="patientEmail">
+								</div>
+							</div>
+							
+							<div class="form-row full">
+								<div class="form-group">
+									<label>Address</label>
+									<input type="text" id="patientAddress">
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>Health Card</label>
+									<input type="text" id="patientHC">
+								</div>
+								<div class="form-group">
+									<label>Gender at Birth</label>
+									<select id="patientGenderAtBirth">
+										<option value="">Select...</option>
+									</select>
+								</div>
+							</div>
+						</div>
+
+						<!-- Partner Information -->
+						<div class="form-section">
+							<div class="form-section-title">Partner Information</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>PID</label>
+									<input type="text" id="partnerPID">
+								</div>
+								<div class="form-group">
+									<label>MRN</label>
+									<input type="text" id="partnerMRN">
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>First Name</label>
+									<input type="text" id="partnerFirstName">
+								</div>
+								<div class="form-group">
+									<label>Middle Name</label>
+									<input type="text" id="partnerMiddleName">
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>Last Name</label>
+									<input type="text" id="partnerLastName">
+								</div>
+								<div class="form-group">
+									<label>Date of Birth</label>
+									<input type="text" id="partnerDOB" class="datepicker">
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>Phone</label>
+									<input type="tel" id="partnerPhone">
+								</div>
+								<div class="form-group">
+									<label>Email</label>
+									<input type="email" id="partnerEmail">
+								</div>
+							</div>
+							
+							<div class="form-row full">
+								<div class="form-group">
+									<label>Address</label>
+									<input type="text" id="partnerAddress">
+								</div>
+							</div>
+							
+							<div class="form-row">
+								<div class="form-group">
+									<label>Health Card</label>
+									<input type="text" id="partnerHC">
+								</div>
+								<div class="form-group">
+									<label>Gender at Birth</label>
+									<select id="partnerGenderAtBirth">
+										<option value="">Select...</option>
+									</select>
+								</div>
+							</div>
+						</div>
+					</form>
+				</div>
+				
+				<div class="modal-footer">
+					<button onclick="closeModal('referralModal')" class="btn btn-secondary">Cancel</button>
+					<button onclick="saveReferral()" class="btn btn-success" id="saveReferralBtn">Save Referral</button>
+				</div>
+			</div>
+		</div>
     </div>
 
     <!-- Modals will go here - keeping from previous version -->
@@ -990,7 +1242,8 @@
             if (result.status === 'success') {
                 database = result.data;
                 document.getElementById('currentFile').textContent = 'DB\\referrals.json';
-                renderReferralList();
+                populateSelectOptions();
+				renderReferralList();
                 updateKPIs();
                 
 				// Initialize date pickers
@@ -1044,22 +1297,33 @@
         }
 
         // Save database
-        async function saveDatabase(silent = false) {
-            if (isReadOnly) {
-                if (!silent) alert('Cannot save in read-only mode');
-                return;
-            }
-            
-            const result = await eel.save_database(database)();
-            
-            if (result.status === 'success') {
-                unsavedChanges = 0;
-                if (!silent) alert('Database saved successfully');
-            } else {
+		async function saveDatabase(silent = false) {
+			if (isReadOnly) {
+				if (!silent) {
+					document.getElementById('currentFile').textContent = 'Error: Cannot save in read-only mode';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+				}
+				return;
+			}
+			
+			const result = await eel.save_database(database)();
+			
+			if (result.status === 'success') {
+				unsavedChanges = 0;
+				if (!silent) {
+					document.getElementById('currentFile').textContent = 'DB\\referrals.json - Saved successfully';
+					document.getElementById('statusBar').style.color = '#27ae60';
+					// Reset color after 3 seconds
+					setTimeout(() => {
+						document.getElementById('currentFile').textContent = 'DB\\referrals.json';
+						document.getElementById('statusBar').style.color = '#666';
+					}, 3000);
+				}
+			} else {
 				document.getElementById('currentFile').textContent = 'Save Error: ' + result.message;
 				document.getElementById('statusBar').style.color = '#e74c3c';
 			}
-        }
+		}
 
         // Update KPIs
         function updateKPIs() {
@@ -1276,10 +1540,16 @@
             renderReferralList();
         }
 
-        // Placeholder functions for modals (to be implemented)
-        function openAddReferralModal() {
-            alert('Add Referral modal - coming soon');
-        }
+		function openAddReferralModal() {
+			if (isReadOnly) {
+				document.getElementById('currentFile').textContent = 'Error: Cannot add referrals in read-only mode';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				return;
+			}
+			
+			// Will implement the modal below
+			openModal('referralModal');
+		}
 
         function viewReferral(id) {
             alert('View referral #' + id + ' - coming soon');
@@ -1292,6 +1562,187 @@
         function quickContact(id) {
             alert('Quick contact for referral #' + id + ' - coming soon');
         }
+		
+		// Modal helpers
+		function openModal(id) {
+			document.getElementById(id).classList.add('active');
+		}
+
+		function closeModal(id) {
+			document.getElementById(id).classList.remove('active');
+		}
+
+		// Populate select options in modal
+		function populateSelectOptions() {
+			if (!database || !database.selectOptions) return;
+			
+			const options = database.selectOptions;
+			
+			// Requested locations
+			populateSelect('requestedLocation', options.requestedLocations);
+			
+			// Requested physicians
+			populateSelect('requestedPhysician', options.requestedPhysicians);
+			
+			// Services
+			populateSelect('serviceRequested', options.servicesRequested);
+			
+			// Referral Type
+			populateSelect('referralType', options.referralType);
+			
+			// Gender
+			populateSelect('patientGenderAtBirth', options.genderAtBirth);
+			populateSelect('partnerGenderAtBirth', options.genderAtBirth);
+		}
+
+		function populateSelect(id, values) {
+			const select = document.getElementById(id);
+			const currentValue = select.value;
+			const firstOption = select.options[0].outerHTML; // Keep first option
+			select.innerHTML = firstOption;
+			values.forEach(val => {
+				const opt = document.createElement('option');
+				opt.value = val;
+				opt.textContent = val;
+				select.appendChild(opt);
+			});
+			if (currentValue) {
+				select.value = currentValue;
+			}
+		}
+
+		// Initialize date pickers in modal
+		function initializeDatePickers() {
+			const datepickers = document.querySelectorAll('.datepicker');
+			datepickers.forEach(input => {
+				flatpickr(input, {
+					dateFormat: 'Y-m-d',
+					allowInput: true
+				});
+			});
+		}
+
+		// Save referral
+		async function saveReferral() {
+			if (isReadOnly) {
+				document.getElementById('currentFile').textContent = 'Error: Cannot save in read-only mode';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				return;
+			}
+			
+			// Collect form data
+			const referralData = {
+				// Referral info
+				referralDate: document.getElementById('referralDate').value,
+				receivedDate: document.getElementById('receivedDate').value,
+				fileName: document.getElementById('fileName').value,
+				referringPhysicianName: document.getElementById('referringPhysician').value,
+				referringPhysicianBilling: document.getElementById('billingNumber').value,
+				referringPhysicianFax: document.getElementById('physicianFax').value,
+				referringPhysicianPhone: document.getElementById('physicianPhone').value,
+				referringPhysicianEmail: document.getElementById('physicianEmail').value,
+				
+				// Service info
+				requestedLocation: document.getElementById('requestedLocation').value,
+				requestedPhysician: document.getElementById('requestedPhysician').value,
+				urgent: document.getElementById('urgent').checked,
+				serviceRequested: document.getElementById('serviceRequested').value,
+				subServiceRequested: document.getElementById('subServiceRequested').value,
+				referralType: document.getElementById('referralType').value,
+				
+				// Patient info
+				patientPID: document.getElementById('patientPID').value,
+				patientMRN: document.getElementById('patientMRN').value,
+				patientFirstName: document.getElementById('patientFirstName').value,
+				patientMiddleName: document.getElementById('patientMiddleName').value,
+				patientLastName: document.getElementById('patientLastName').value,
+				patientDOB: document.getElementById('patientDOB').value,
+				patientPhone: document.getElementById('patientPhone').value,
+				patientEmail: document.getElementById('patientEmail').value,
+				patientAddress: document.getElementById('patientAddress').value,
+				patientHC: document.getElementById('patientHC').value,
+				patientGenderAtBirth: document.getElementById('patientGenderAtBirth').value,
+				
+				// Partner info
+				partnerPID: document.getElementById('partnerPID').value,
+				partnerMRN: document.getElementById('partnerMRN').value,
+				partnerFirstName: document.getElementById('partnerFirstName').value,
+				partnerMiddleName: document.getElementById('partnerMiddleName').value,
+				partnerLastName: document.getElementById('partnerLastName').value,
+				partnerDOB: document.getElementById('partnerDOB').value,
+				partnerPhone: document.getElementById('partnerPhone').value,
+				partnerEmail: document.getElementById('partnerEmail').value,
+				partnerAddress: document.getElementById('partnerAddress').value,
+				partnerHC: document.getElementById('partnerHC').value,
+				partnerGenderAtBirth: document.getElementById('partnerGenderAtBirth').value,
+				
+				// Referral handling (defaults for new referrals)
+				referralStatus: 'New',
+				lastAttemptDate: null,
+				lastAttemptTime: null,
+				lastAttemptMode: null,
+				lastAttemptComment: null,
+				attemptHistory: [],
+				faxedBackDate: null,
+				completeInfoReceivedDate: null,
+				taskedToPhysicianAdmin: null,
+				referralCompleteDate: null,
+				notes: null,
+				notesDate: null,
+				notesHistory: []
+			};
+			
+			let result;
+			if (currentEditingReferral) {
+				// Update existing
+				referralData.referralID = currentEditingReferral.referralID;
+				referralData.addedToDBDate = currentEditingReferral.addedToDBDate;
+				result = await eel.update_referral(currentEditingReferral.referralID, referralData)();
+				
+				// Update in local database
+				const index = database.referrals.findIndex(r => r.referralID === currentEditingReferral.referralID);
+				if (index !== -1) {
+					database.referrals[index] = referralData;
+				}
+			} else {
+				// Add new
+				result = await eel.add_referral(referralData)();
+				if (result.status === 'success') {
+					database.referrals.push(result.referral);
+				}
+			}
+			
+			if (result.status === 'success') {
+				unsavedChanges = 0;
+				renderReferralList();
+				updateKPIs();
+				closeModal('referralModal');
+				document.getElementById('currentFile').textContent = 'DB\\referrals.json - Referral saved';
+				document.getElementById('statusBar').style.color = '#27ae60';
+				setTimeout(() => {
+					document.getElementById('currentFile').textContent = 'DB\\referrals.json';
+					document.getElementById('statusBar').style.color = '#666';
+				}, 3000);
+			} else {
+				document.getElementById('currentFile').textContent = 'Error: ' + result.message;
+				document.getElementById('statusBar').style.color = '#e74c3c';
+			}
+		}		
+		
+		// Reset and open add referral modal  
+		function openAddReferralModal() {
+			if (isReadOnly) {
+				document.getElementById('currentFile').textContent = 'Error: Cannot add referrals in read-only mode';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				return;
+			}
+			
+			currentEditingReferral = null;
+			document.getElementById('referralModalTitle').textContent = 'Add New Referral';
+			document.getElementById('referralForm').reset();
+			initializeDatePickers();
+			openModal('referralModal');
+		}
     </script>
 </body>
 </html>
