@@ -62,7 +62,7 @@
         }
 
         .form-group {
-            margin-bottom: 0px;
+            margin-bottom: 20px;
         }
 
         .form-group label {
@@ -85,6 +85,17 @@
             outline: none;
             border-color: #667eea;
         }
+
+		.form-group label.required::after {
+			content: " *";
+			color: #e74c3c;
+		}
+
+		#loginForm button {
+			width: 100%;
+			display: block;
+			margin-top: 10px;
+		}
 
         .error-message {
             background: #ffe6e6;
@@ -900,32 +911,32 @@
 							
 							<div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
 								<div class="form-group">
-									<label>Referral Date</label>
-									<input type="text" id="referralDate" class="datepicker">
+									<label class="required">Referral Date</label>
+									<input type="text" id="referralDate" class="datepicker" required>
 								</div>
 								<div class="form-group">
-									<label>Received Date</label>
-									<input type="text" id="receivedDate" class="datepicker">
+									<label class="required">Received Date</label>
+									<input type="text" id="receivedDate" class="datepicker" required>
 								</div>
 								<div class="form-group">
 									<label>File Name</label>
-									<input type="file" id="fileNamePicker" onchange="updateFileName()" accept=".pdf,.doc,.docx,.jpg,.png">
-									<input type="text" id="fileName" readonly style="margin-top: 5px; background: #f0f0f0;">
+									<input type="text" id="fileName" readonly style="background: #f0f0f0; cursor: pointer;" onclick="document.getElementById('fileNamePicker').click()" placeholder="Click to select file...">
+									<input type="file" id="fileNamePicker" onchange="updateFileName()" accept=".pdf,.doc,.docx,.jpg,.png" style="display: none;">
 								</div>
 							</div>
 							
 							<div class="form-row" style="grid-template-columns: 2fr 1fr 1fr;">
 								<div class="form-group">
-									<label>Referring Physician Name</label>
-									<input type="text" id="referringPhysician">
+									<label class="required">Referring Physician Name</label>
+									<input type="text" id="referringPhysician" required>
 								</div>
 								<div class="form-group">
-									<label>Billing Number</label>
-									<input type="text" id="billingNumber">
+									<label class="required">Billing Number</label>
+									<input type="text" id="billingNumber" required>
 								</div>
 								<div class="form-group">
-									<label>Fax</label>
-									<input type="text" id="physicianFax">
+									<label class="required">Fax</label>
+									<input type="text" id="physicianFax" required>
 								</div>
 							</div>
 							
@@ -943,10 +954,9 @@
 
 						<!-- Service Information -->
 						<div class="form-section">
-							<div class="form-section-title">Service Information</div>
-							
-							<div class="form-row full">
-								<div class="form-group checkbox-group" style="justify-content: flex-start;">
+							<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+								<div class="form-section-title" style="margin-bottom: 0;">Service Information</div>
+								<div class="checkbox-group">
 									<input type="checkbox" id="urgent">
 									<label for="urgent" style="color: #e74c3c; font-weight: 600; font-size: 14px;">⚠️ URGENT</label>
 								</div>
@@ -954,14 +964,14 @@
 							
 							<div class="form-row">
 								<div class="form-group">
-									<label>Requested Location</label>
-									<select id="requestedLocation">
+									<label class="required">Requested Location</label>
+									<select id="requestedLocation" required>
 										<option value="">Select location...</option>
 									</select>
 								</div>
 								<div class="form-group">
-									<label>Requested Physician</label>
-									<select id="requestedPhysician">
+									<label class="required">Requested Physician</label>
+									<select id="requestedPhysician" required>
 										<option value="">Select physician...</option>
 									</select>
 								</div>
@@ -969,14 +979,14 @@
 							
 							<div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
 								<div class="form-group">
-									<label>Referral Type</label>
-									<select id="referralType">
+									<label class="required">Referral Type</label>
+									<select id="referralType" required>
 										<option value="">Select...</option>
 									</select>
 								</div>
 								<div class="form-group">
-									<label>Service Requested</label>
-									<select id="serviceRequested">
+									<label class="required">Service Requested</label>
+									<select id="serviceRequested" required>
 										<option value="">Select service...</option>
 									</select>
 								</div>
@@ -1015,12 +1025,12 @@
 									
 									<div class="form-row">
 										<div class="form-group">
-											<label>First Name</label>
-											<input type="text" id="patientFirstName">
+											<label class="required">First Name</label>
+											<input type="text" id="patientFirstName" required>
 										</div>
 										<div class="form-group">
-											<label>Last Name</label>
-											<input type="text" id="patientLastName">
+											<label class="required">Last Name</label>
+											<input type="text" id="patientLastName" required>
 										</div>
 									</div>
 									
@@ -1033,8 +1043,8 @@
 									
 									<div class="form-row">
 										<div class="form-group">
-											<label>Date of Birth</label>
-											<input type="text" id="patientDOB" class="datepicker">
+											<label class="required">Date of Birth</label>
+											<input type="text" id="patientDOB" class="datepicker" required>
 										</div>
 										<div class="form-group">
 											<label>Gender at Birth</label>
@@ -1406,12 +1416,10 @@
                 
                 return `
 					<div class="referral-item" onclick="viewReferral(${ref.referralID})">
-						<div class="referral-left">
-							<div class="referral-header">
-								<span class="referral-patient-name">${patientName}</span>
-								<span class="status-badge ${statusClass}">${ref.referralStatus}</span>
-							</div>
-							<div class="referral-info">
+						<div class="referral-left" style="display: flex; align-items: center; gap: 15px;">
+							<span class="referral-patient-name" style="font-weight: 600; font-size: 14px; min-width: 200px;">${patientName}</span>
+							<span class="status-badge ${statusClass}">${ref.referralStatus}</span>
+							<div style="display: flex; gap: 12px; font-size: 12px; color: #7f8c8d; flex-wrap: wrap;">
 								<span>📅 ${receivedDate}</span>
 								<span>📞 ${ref.patientPhone || 'No phone'}</span>
 								<span>📧 ${ref.patientEmail || 'No email'}</span>
@@ -1425,7 +1433,7 @@
 							<button class="btn btn-success btn-small" onclick="quickContact(${ref.referralID})">Contact</button>
 						</div>
 					</div>
-                `;
+				`;
             }).join('');
         }
 
@@ -1708,35 +1716,110 @@
 				return;
 			}
 			
+			// Validate required fields
+			const receivedDate = document.getElementById('receivedDate').value;
+			const referringPhysician = document.getElementById('referringPhysician').value;
+			const requestedLocation = document.getElementById('requestedLocation').value;
+			const requestedPhysician = document.getElementById('requestedPhysician').value;
+			const referralType = document.getElementById('referralType').value;
+			const serviceRequested = document.getElementById('serviceRequested').value;
+			const patientFirstName = document.getElementById('patientFirstName').value;
+			const patientLastName = document.getElementById('patientLastName').value;
+			const patientDOB = document.getElementById('patientDOB').value;
+			const patientPhone = document.getElementById('patientPhone').value;
+			const patientEmail = document.getElementById('patientEmail').value;
+			
+			// Check required fields
+			if (!receivedDate) {
+				document.getElementById('currentFile').textContent = 'Error: Received Date is required';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				document.getElementById('receivedDate').focus();
+				return;
+			}
+			if (!referringPhysician) {
+				document.getElementById('currentFile').textContent = 'Error: Referring Physician Name is required';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				document.getElementById('referringPhysician').focus();
+				return;
+			}
+			if (!requestedLocation) {
+				document.getElementById('currentFile').textContent = 'Error: Requested Location is required';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				document.getElementById('requestedLocation').focus();
+				return;
+			}
+			if (!requestedPhysician) {
+				document.getElementById('currentFile').textContent = 'Error: Requested Physician is required';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				document.getElementById('requestedPhysician').focus();
+				return;
+			}
+			if (!referralType) {
+				document.getElementById('currentFile').textContent = 'Error: Referral Type is required';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				document.getElementById('referralType').focus();
+				return;
+			}
+			if (!serviceRequested) {
+				document.getElementById('currentFile').textContent = 'Error: Service Requested is required';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				document.getElementById('serviceRequested').focus();
+				return;
+			}
+			if (!patientFirstName) {
+				document.getElementById('currentFile').textContent = 'Error: Patient First Name is required';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				document.getElementById('patientFirstName').focus();
+				return;
+			}
+			if (!patientLastName) {
+				document.getElementById('currentFile').textContent = 'Error: Patient Last Name is required';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				document.getElementById('patientLastName').focus();
+				return;
+			}
+			if (!patientDOB) {
+				document.getElementById('currentFile').textContent = 'Error: Patient Date of Birth is required';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				document.getElementById('patientDOB').focus();
+				return;
+			}
+			if (!patientPhone && !patientEmail) {
+				document.getElementById('currentFile').textContent = 'Error: Patient must have Phone or Email';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				document.getElementById('patientPhone').focus();
+				return;
+			}
+			
 			// Collect form data
 			const referralData = {
 				// Referral info
 				referralDate: document.getElementById('referralDate').value,
-				receivedDate: document.getElementById('receivedDate').value,
+				receivedDate: receivedDate,
 				fileName: document.getElementById('fileName').value,
-				referringPhysicianName: document.getElementById('referringPhysician').value,
+				referringPhysicianName: referringPhysician,
 				referringPhysicianBilling: document.getElementById('billingNumber').value,
 				referringPhysicianFax: document.getElementById('physicianFax').value,
 				referringPhysicianPhone: document.getElementById('physicianPhone').value,
 				referringPhysicianEmail: document.getElementById('physicianEmail').value,
 				
 				// Service info
-				requestedLocation: document.getElementById('requestedLocation').value,
-				requestedPhysician: document.getElementById('requestedPhysician').value,
+				requestedLocation: requestedLocation,
+				requestedPhysician: requestedPhysician,
 				urgent: document.getElementById('urgent').checked,
-				serviceRequested: document.getElementById('serviceRequested').value,
+				serviceRequested: serviceRequested,
 				subServiceRequested: document.getElementById('subServiceRequested').value,
-				referralType: document.getElementById('referralType').value,
+				referralType: referralType,
 				
 				// Patient info
 				patientPID: document.getElementById('patientPID').value,
 				patientMRN: document.getElementById('patientMRN').value,
-				patientFirstName: document.getElementById('patientFirstName').value,
+				patientFirstName: patientFirstName,
 				patientMiddleName: document.getElementById('patientMiddleName').value,
-				patientLastName: document.getElementById('patientLastName').value,
-				patientDOB: document.getElementById('patientDOB').value,
-				patientPhone: document.getElementById('patientPhone').value,
-				patientEmail: document.getElementById('patientEmail').value,
+				patientLastName: patientLastName,
+				patientDOB: patientDOB,
+				patientPhone: patientPhone,
+				patientEmail: patientEmail,
 				patientAddress: document.getElementById('patientAddress').value,
 				patientHC: document.getElementById('patientHC').value,
 				patientGenderAtBirth: document.getElementById('patientGenderAtBirth').value,
@@ -1754,20 +1837,20 @@
 				partnerHC: document.getElementById('partnerHC').value,
 				partnerGenderAtBirth: document.getElementById('partnerGenderAtBirth').value,
 				
-				// Referral handling (defaults for new referrals)
-				referralStatus: 'New',
-				lastAttemptDate: null,
-				lastAttemptTime: null,
-				lastAttemptMode: null,
-				lastAttemptComment: null,
-				attemptHistory: [],
-				faxedBackDate: null,
-				completeInfoReceivedDate: null,
-				taskedToPhysicianAdmin: null,
-				referralCompleteDate: null,
-				notes: null,
-				notesDate: null,
-				notesHistory: []
+				// Referral handling (defaults for new referrals, preserve for edits)
+				referralStatus: currentEditingReferral ? currentEditingReferral.referralStatus : 'New',
+				lastAttemptDate: currentEditingReferral ? currentEditingReferral.lastAttemptDate : null,
+				lastAttemptTime: currentEditingReferral ? currentEditingReferral.lastAttemptTime : null,
+				lastAttemptMode: currentEditingReferral ? currentEditingReferral.lastAttemptMode : null,
+				lastAttemptComment: currentEditingReferral ? currentEditingReferral.lastAttemptComment : null,
+				attemptHistory: currentEditingReferral ? currentEditingReferral.attemptHistory : [],
+				faxedBackDate: currentEditingReferral ? currentEditingReferral.faxedBackDate : null,
+				completeInfoReceivedDate: currentEditingReferral ? currentEditingReferral.completeInfoReceivedDate : null,
+				taskedToPhysicianAdmin: currentEditingReferral ? currentEditingReferral.taskedToPhysicianAdmin : null,
+				referralCompleteDate: currentEditingReferral ? currentEditingReferral.referralCompleteDate : null,
+				notes: currentEditingReferral ? currentEditingReferral.notes : null,
+				notesDate: currentEditingReferral ? currentEditingReferral.notesDate : null,
+				notesHistory: currentEditingReferral ? currentEditingReferral.notesHistory : []
 			};
 			
 			let result;
@@ -1805,7 +1888,7 @@
 				document.getElementById('currentFile').textContent = 'Error: ' + result.message;
 				document.getElementById('statusBar').style.color = '#e74c3c';
 			}
-		}		
+		}
 		
 		// Reset and open add referral modal  
 		function openAddReferralModal() {
@@ -1826,7 +1909,8 @@
 			const fileInput = document.getElementById('fileNamePicker');
 			const fileName = document.getElementById('fileName');
 			if (fileInput.files.length > 0) {
-				fileName.value = fileInput.files[0].name;
+				// Show full path if available, otherwise just filename
+				fileName.value = fileInput.files[0].path || fileInput.files[0].name;
 			}
 		}
 
