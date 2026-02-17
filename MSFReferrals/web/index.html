@@ -19,12 +19,14 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f3ebff; color: #2c3e50; line-height: 1.6; }
 
 		/* When both modals are open, position them side by side */
+		body.dual-modal #referralModal {
+			justify-content: flex-start;
+			padding-left: 2%;
+			background: rgba(0,0,0,0.3);
+		}
+
 		body.dual-modal #referralModal .modal-content {
-			position: fixed;
-			left: 2%;
-			top: 5%;
-			max-width: 48%;
-			margin: 0;
+			max-width: 50%;
 		}
 
 		body.dual-modal #pdfViewerModal .modal-content {
@@ -1193,22 +1195,36 @@
 		</div>
     </div>
 
-	<!-- PDF Viewer Modal -->
-	<div id="pdfViewerModal" class="modal">
-		<div class="modal-content" style="max-width: 800px; height: 90vh;">
-			<div class="modal-header">
-				<h2 class="modal-title">File Preview</h2>
-				<button type="button" class="close-btn" onclick="closeModal('pdfViewerModal')">&times;</button>
-			</div>
-			
-			<div class="modal-body" style="padding: 0; overflow: hidden; flex: 1;">
-				<iframe id="pdfFrame" style="width: 100%; height: 100%; border: none;"></iframe>
-			</div>
-			
-			<div class="modal-footer">
-				<button type="button" onclick="closeModal('pdfViewerModal')" class="btn btn-secondary">Close</button>
-			</div>
+	<!-- PDF Viewer (no modal backdrop - positioned to the right) -->
+	<div id="pdfViewerModal" style="
+		display: none;
+		position: fixed;
+		top: 5%;
+		right: 1%;
+		width: 46%;
+		height: 90vh;
+		z-index: 1001;
+		background: white;
+		border-radius: 10px;
+		box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+		flex-direction: column;
+	">
+		<div style="
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 12px 15px;
+			border-bottom: 2px solid #ecf0f1;
+			flex-shrink: 0;
+		">
+			<strong id="pdfViewerTitle">File Preview</strong>
 		</div>
+		<iframe id="pdfFrame" style="
+			flex: 1;
+			width: 100%;
+			border: none;
+			height: calc(100% - 50px);
+		"></iframe>
 	</div>
 
     <!-- Modals will go here - keeping from previous version -->
@@ -1680,9 +1696,12 @@
 			document.getElementById('referralModalTitle').textContent = 'Add New Referral';
 			document.getElementById('referralForm').reset();
 			initializeDatePickers();
-			openModal('referralModal');
 			
-			// Scroll to top
+			closePdfViewer();
+			currentFileObjectURL = null;
+			document.getElementById('viewFileBtn').style.display = 'none';
+			
+			openModal('referralModal');
 			document.querySelector('#referralModal .modal-body').scrollTop = 0;
 		}
 
@@ -1750,6 +1769,11 @@
 			document.getElementById('partnerGenderAtBirth').value = referral.partnerGenderAtBirth || '';
 			
 			initializeDatePickers();
+			
+			closePdfViewer();
+			currentFileObjectURL = null;
+			document.getElementById('viewFileBtn').style.display = 'none';
+			
 			openModal('referralModal');
 			document.querySelector('#referralModal .modal-body').scrollTop = 0;
 		}
@@ -1758,39 +1782,50 @@
             alert('Quick contact for referral #' + id + ' - coming soon');
         }
 		
-		// Modal helpers
+		// Store file URL so it can be reopened
+		let currentFileObjectURL = null;
+
 		function openModal(id) {
 			document.getElementById(id).classList.add('active');
-			
 			checkDualModal();
 		}
 
 		function closeModal(id) {
-			document.getElementById(id).classList.remove('active');
-			
-			checkDualModal();
-			
-			if (id === 'pdfViewerModal') {
-				document.getElementById('pdfFrame').src = '';
+			if (id === 'referralModal') {
+				// Close PDF viewer too when referral modal closes
+				closePdfViewer();
 			}
+			document.getElementById(id).classList.remove('active');
+			checkDualModal();
 		}
 
 		function checkDualModal() {
 			const referralModalOpen = document.getElementById('referralModal').classList.contains('active');
-			const pdfModalOpen = document.getElementById('pdfViewerModal').classList.contains('active');
-			
-			if (referralModalOpen && pdfModalOpen) {
+			const pdfOpen = document.getElementById('pdfViewerModal').style.display === 'flex';
+
+			if (referralModalOpen && pdfOpen) {
 				document.body.classList.add('dual-modal');
 			} else {
 				document.body.classList.remove('dual-modal');
 			}
 		}
 
+		function openPdfViewer() {
+			if (!currentFileObjectURL) return;
+			document.getElementById('pdfFrame').src = currentFileObjectURL;
+			document.getElementById('pdfViewerModal').style.display = 'flex';
+			checkDualModal();
+		}
+
+		function closePdfViewer() {
+			document.getElementById('pdfViewerModal').style.display = 'none';
+			document.getElementById('pdfFrame').src = '';
+			document.body.classList.remove('dual-modal');
+			// Don't clear currentFileObjectURL - keep it so it can be reopened
+		}
+
 		function reopenPdfViewer() {
-			const iframe = document.getElementById('pdfFrame');
-			if (iframe.src) {
-				openModal('pdfViewerModal');
-			}
+			openPdfViewer();
 		}
 
 		// Populate select options in modal
@@ -2046,24 +2081,30 @@
 			
 			if (fileInput.files.length > 0) {
 				const file = fileInput.files[0];
-				const sizeKB = (file.size / 1024).toFixed(1);
-				fileName.value = `${file.name} (${sizeKB} KB)`;
 				
-				// Show PDF preview if it's a PDF or image
-				if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
-					const fileURL = URL.createObjectURL(file);
-					document.getElementById('pdfFrame').src = fileURL;
-					document.getElementById('viewFileBtn').style.display = 'inline-block';
-					openModal('pdfViewerModal');
-				} else {
-					document.getElementById('viewFileBtn').style.display = 'none';
-					alert('File selected: ' + file.name + '\n\nPreview is only available for PDF and image files.');
+				// Show just filename, no size
+				fileName.value = file.name;
+				
+				// Revoke previous URL to free memory
+				if (currentFileObjectURL) {
+					URL.revokeObjectURL(currentFileObjectURL);
+					currentFileObjectURL = null;
 				}
+				
+				// Show PDF or image preview
+				if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
+					currentFileObjectURL = URL.createObjectURL(file);
+					document.getElementById('viewFileBtn').style.display = 'inline-block';
+					openPdfViewer();
+				} else {
+					currentFileObjectURL = null;
+					document.getElementById('viewFileBtn').style.display = 'none';
+					closePdfViewer();
+				}
+				
+				// Reset file input so same file can be picked again
+				fileInput.value = '';
 			}
-		}
-		function closePdfViewer() {
-			document.getElementById('pdfViewer').style.display = 'none';
-			document.getElementById('pdfFrame').src = '';
 		}
 
 		function togglePartnerFields() {
