@@ -21,7 +21,7 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # GUI toolkits - not needed
+        # GUI toolkits - definitely not needed
         'tkinter',
         '_tkinter',
         'tcl',
@@ -33,43 +33,35 @@ a = Analysis(
         'wx',
         'gi',
 
-        # Scientific/ML libraries - not needed
+        # Scientific/ML libraries - definitely not needed
         'scipy',
         'sklearn',
         'matplotlib',
         'PIL',
+        'Pillow',
         'cv2',
         'tensorflow',
         'torch',
-
+        
         # Package management - not needed at runtime
-        # Note: setuptools/distutils cannot be excluded -
-        # PyInstaller uses them internally during analysis
         'pip',
-
-        # Unused stdlib modules
-        'unittest',
+        
+        # Development/testing tools - not needed at runtime
         'pydoc',
         'doctest',
-        'difflib',
+        
+        # Network protocols we don't use
         'ftplib',
         'imaplib',
         'poplib',
         'smtplib',
         'telnetlib',
+        
+        # Other unused stdlib
         'turtle',
         'curses',
-        'readline',
-        'rlcompleter',
         'antigravity',
         'this',
-
-        # Test modules
-        'test',
-        'tests',
-        '_testcapi',
-        '_testinternalcapi',
-        '_testmultiphase',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -111,6 +103,8 @@ coll = COLLECT(
 )
 
 
+# ── Post-build cleanup ────────────────────────────────────────────────────────
+
 internal_dir = os.path.join(
     DISTPATH, 'MSFReferralsKPIsDashboard', '_internal'
 )
@@ -134,8 +128,7 @@ if os.path.exists(internal_dir):
             total_saved   += size
             print(f'  Removed: {item}  ({size // 1024} KB)')
 
-
-    # 3. Remove debug symbols and other safe-to-delete file types
+    # 2. Remove debug symbols and test files
     print('\n── Removing debug/test files ──')
     REMOVE_PATTERNS = [
         r'\.pdb$',         # Windows debug symbols
