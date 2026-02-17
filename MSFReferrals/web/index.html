@@ -526,28 +526,26 @@
         }
 
         .modal-content {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 800px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-        }
+			background: white;
+			padding: 20px;
+			border-radius: 10px;
+			max-width: 1000px;
+			width: 100%;
+			max-height: 90vh;
+			display: flex;
+			flex-direction: column;
+			box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+		}
 
         .modal-content.large {
             max-width: 1000px;
         }
 
         .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #ecf0f1;
-        }
+			flex-shrink: 0;
+			margin-bottom: 15px;
+			padding-bottom: 10px;
+		}
 
         .modal-title {
             font-size: 20px;
@@ -557,6 +555,18 @@
 
 		.modal-body {
 			margin-bottom: 15px;
+			overflow-y: auto;
+			flex: 1;
+			max-height: calc(90vh - 150px);  /* Leave room for header and footer */
+		}
+
+		.modal-footer {
+			flex-shrink: 0;
+			display: flex;
+			justify-content: flex-end;
+			gap: 10px;
+			padding-top: 15px;
+			border-top: 1px solid #ecf0f1;
 		}
 
         .close-btn {
@@ -575,20 +585,12 @@
             margin-bottom: 20px;
         }
 
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            padding-top: 15px;
-            border-top: 1px solid #ecf0f1;
-        }
-
         /* Form Styles */
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 15px;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
 
         .form-row.full {
@@ -599,7 +601,7 @@
             background: #f8f9fa;
             padding: 10px;
             border-radius: 6px;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
 
         .form-section-title {
@@ -900,11 +902,11 @@
 			<div class="modal-content large">
 				<div class="modal-header">
 					<h2 class="modal-title" id="referralModalTitle">Add New Referral</h2>
-					<button class="close-btn" onclick="closeModal('referralModal')">&times;</button>
+					<button type="button" class="close-btn" onclick="closeModal('referralModal')">&times;</button>
 				</div>
 				
 				<div class="modal-body">
-					<form id="referralForm">
+					<form id="referralForm" onsubmit="return false;">
 						<!-- Referral Information -->
 						<div class="form-section">
 							<div class="form-section-title">Referral Information</div>
@@ -1155,8 +1157,8 @@
 						</div>
 				
 				<div class="modal-footer">
-					<button onclick="closeModal('referralModal')" class="btn btn-secondary">Cancel</button>
-					<button onclick="saveReferral()" class="btn btn-success" id="saveReferralBtn">Save Referral</button>
+					<button type="button" onclick="closeModal('referralModal')" class="btn btn-secondary">Cancel</button>
+					<button type="button" onclick="saveReferral()" class="btn btn-success" id="saveReferralBtn">Save Referral</button>
 				</div>
 			</div>
 		</div>
@@ -1232,10 +1234,10 @@
                     document.getElementById('loginPassword').value = '';
                 }
             } catch (error) {
-                console.error('Login error:', error);
-                errorDiv.textContent = 'An error occurred during login';
-                errorDiv.style.display = 'block';
-            }
+				console.error('Login error:', error);
+				errorDiv.textContent = 'Connection error: Cannot connect to application. Please close and restart the application.';
+				errorDiv.style.display = 'block';
+			}
         }
 
         // Logout
@@ -1416,9 +1418,9 @@
                 
                 return `
 					<div class="referral-item" onclick="viewReferral(${ref.referralID})">
-						<div class="referral-left" style="display: flex; align-items: center; gap: 15px;">
-							<span class="referral-patient-name" style="font-weight: 600; font-size: 14px; min-width: 200px;">${patientName}</span>
-							<span class="status-badge ${statusClass}">${ref.referralStatus}</span>
+						<div class="referral-left" style="display: flex; align-items: center; gap: 5px;">
+							<span class="referral-patient-name" style="font-weight: 600; font-size: 14px;">${patientName}</span>
+							<span class="status-badge ${statusClass}" style="margin-left: 5px;">${ref.referralStatus}</span>
 							<div style="display: flex; gap: 12px; font-size: 12px; color: #7f8c8d; flex-wrap: wrap;">
 								<span>📅 ${receivedDate}</span>
 								<span>📞 ${ref.patientPhone || 'No phone'}</span>
