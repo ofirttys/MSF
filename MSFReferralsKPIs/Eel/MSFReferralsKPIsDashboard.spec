@@ -115,6 +115,10 @@ coll = COLLECT(
 )
 
 
+internal_dir = os.path.join(
+    DISTPATH, 'MSFReferralsKPIsDashboard', '_internal'
+)
+
 if os.path.exists(internal_dir):
     total_removed = 0
     total_saved   = 0
