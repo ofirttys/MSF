@@ -429,7 +429,7 @@
         /* Grid header row (column labels) */
         .referrals-grid-header {
             display: grid;
-            grid-template-columns: 60px 180px 100px 80px 80px 60px 100px 120px 100px 100px 100px 140px 60px 60px 180px;
+            grid-template-columns: 40px 40px 180px 100px 80px 80px 60px 100px 120px 100px 100px 100px 140px 60px;
             gap: 10px;
             padding: 10px 15px;
             background: #ecf0f1;
@@ -443,7 +443,7 @@
         /* Main referral item - Grid layout */
         .referral-item {
             display: grid;
-            grid-template-columns: 60px 180px 100px 80px 80px 60px 100px 120px 100px 100px 100px 140px 60px 60px 180px;
+            grid-template-columns: 40px 40px 180px 100px 80px 80px 60px 100px 120px 100px 100px 100px 140px 60px;
             gap: 10px;
             align-items: center;
             padding: 10px 15px;
@@ -462,10 +462,15 @@
         }
 
         /* Individual column styles */
-        .ref-id {
-            font-size: 12px;
-            color: #7f8c8d;
-            font-weight: 500;
+        .ref-urgent {
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .ref-file {
+            font-size: 16px;
+            text-align: center;
+            cursor: pointer;
         }
 
         .ref-name {
@@ -484,11 +489,6 @@
         .ref-type {
             font-size: 11px;
             color: #7f8c8d;
-        }
-
-        .ref-urgent {
-            font-size: 18px;
-            text-align: center;
         }
 
         .ref-dob {
@@ -549,22 +549,10 @@
             white-space: nowrap;
         }
 
-        .ref-file {
-            font-size: 16px;
-            text-align: center;
-            cursor: pointer;
-        }
-
         .ref-location {
             font-size: 14px;
             text-align: center;
             cursor: help;
-        }
-
-        .ref-actions {
-            display: flex;
-            gap: 5px;
-            justify-content: flex-end;
         }
 
         /* Responsive: Stack on smaller screens */
@@ -580,11 +568,6 @@
             
             .ref-name {
                 font-size: 16px;
-            }
-            
-            .ref-actions {
-                justify-content: flex-start;
-                margin-top: 8px;
             }
         }
 
@@ -1035,7 +1018,8 @@
                 </div>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search referrals..." oninput="filterReferrals()">
                 <div class="referrals-grid-header">
-                    <div>ID</div>
+                    <div>🚨</div>
+                    <div>📄</div>
                     <div>Patient Name</div>
                     <div>Status</div>
                     <div>Type</div>
@@ -1047,10 +1031,7 @@
                     <div>📧 Email</div>
                     <div>Service</div>
                     <div>Physician</div>
-                    <div>🚨</div>
-                    <div>📍</div>
-                    <div>📄</div>
-                    <div>Actions</div>
+                    <div>📍 Location</div>
                 </div>
                 <div class="referral-list" id="referralList">
                     <div class="empty-state">
@@ -1674,11 +1655,11 @@
                     case 'Completed': statusClass = 'status-completed'; break;
                 }
                 
-                // File icon
-                const fileIcon = ref.fileName ? '📄' : '';
-                
                 // Urgent icon
                 const urgentIcon = ref.urgent ? '🚨' : '';
+                
+                // File icon
+                const fileIcon = ref.fileName ? '📄' : '';
                 
                 // Location icon
                 let locationIcon = '';
@@ -1688,7 +1669,8 @@
                 
                 return `
                     <div class="referral-item" onclick="viewReferral(${ref.referralID})">
-                        <div class="ref-id">#${ref.referralID}</div>
+                        <div class="ref-urgent">${urgentIcon}</div>
+                        <div class="ref-file" title="${ref.fileName || ''}" onclick="event.stopPropagation(); if('${ref.fileName}') viewSelectedFile();">${fileIcon}</div>
                         <div class="ref-name" title="${patientName}">${patientName}</div>
                         <div class="ref-status"><span class="status-badge ${statusClass}">${ref.referralStatus}</span></div>
                         <div class="ref-type">${typeText}</div>
@@ -1700,13 +1682,7 @@
                         <div class="ref-email" title="${email}">${email}</div>
                         <div class="ref-service" title="${service}">${service}</div>
                         <div class="ref-physician" title="${physician}">${physician}</div>
-                        <div class="ref-urgent">${urgentIcon}</div>
                         <div class="ref-location" title="${ref.requestedLocation || ''}">${locationIcon}</div>
-                        <div class="ref-file" title="${ref.fileName || ''}" onclick="event.stopPropagation(); if('${ref.fileName}') viewSelectedFile();">${fileIcon}</div>
-                        <div class="ref-actions" onclick="event.stopPropagation()">
-                            <button class="btn btn-primary btn-small" onclick="editReferralById(${ref.referralID})">Edit</button>
-                            <button class="btn btn-success btn-small" onclick="quickContact(${ref.referralID})">Contact</button>
-                        </div>
                     </div>
                 `;
             }).join('');
@@ -1765,7 +1741,7 @@
 					// Check if referral matches ANY of the active filters
 					return currentFilter.some(filter => {
 						switch(filter) {
-							case 'new': return ref.referralStatus === 'New';
+							case 'new': return ref.referralType === 'New';  // Filter by TYPE, not status
 							case 'previous': return ref.referralType === 'Previous';
 							case 'partner': return ref.referralType === 'Partner';
 							case 'new-referral': return ref.referralStatus === 'New' && !ref.lastAttemptDate;
