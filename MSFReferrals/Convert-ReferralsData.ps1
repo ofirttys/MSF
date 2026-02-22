@@ -279,7 +279,11 @@ foreach ($row in $oldData) {
 Write-Host "`nConverting to JSON format..." -ForegroundColor Cyan
 $jsonOutput = $newData | ConvertTo-Json -Depth 10 -Compress:$false
 
-# Ensure DB folder exists
+# Ensure DB folder exists - resolve to full path
+if (![System.IO.Path]::IsPathRooted($OutputFile)) {
+    $OutputFile = Join-Path (Get-Location) $OutputFile
+}
+
 $outputDir = Split-Path -Parent $OutputFile
 if ($outputDir -and !(Test-Path $outputDir)) {
     New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
