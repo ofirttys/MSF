@@ -296,7 +296,7 @@ $firstBytes = $bytes[0..3] | ForEach-Object { $_.ToString("X2") }
 if ($firstBytes[0] -eq "EF" -and $firstBytes[1] -eq "BB" -and $firstBytes[2] -eq "BF") {
     Write-Host "WARNING: File still has UTF-8 BOM!" -ForegroundColor Red
 } else {
-    Write-Host "File encoding verified: UTF-8 without BOM ✓" -ForegroundColor Green
+    Write-Host "File encoding verified: UTF-8 without BOM [OK]" -ForegroundColor Green
 }
 
 Write-Host "`nConversion complete!" -ForegroundColor Green
