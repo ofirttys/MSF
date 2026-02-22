@@ -126,7 +126,7 @@ foreach ($row in $oldData) {
         $normalized = $newOrReturning.Trim()
         
         # Check for "Prev Pt", "Previous", "Returning", "Return"
-		if ($normalized -match "(?i)Prev\s*Pt|Previous|Returning|Return") {
+		if ($normalized -match "(?i)Prev Pt|Previous|Returning|Return") {
 			$referralType = "Previous"
 		}
         # Check for "Partner"
