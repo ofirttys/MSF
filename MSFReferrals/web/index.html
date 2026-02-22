@@ -429,28 +429,28 @@
         /* Grid header row (column labels) */
         .referrals-grid-header {
             display: grid;
-            grid-template-columns: 40px 40px 180px 100px 80px 80px 60px 100px 120px 100px 100px 100px 140px 60px;
-            gap: 10px;
-            padding: 10px 15px;
+            grid-template-columns: 28px 28px 180px 100px 70px 80px 50px 90px 110px 90px 110px 110px 80px 90px 90px;
+            gap: 5px;
+            padding: 6px 10px;
             background: #ecf0f1;
             border-radius: 6px;
             font-weight: 600;
             color: #2c3e50;
-            font-size: 12px;
-            margin-bottom: 8px;
+            font-size: 11px;
+            margin-bottom: 6px;
         }
 
         /* Main referral item - Grid layout */
         .referral-item {
             display: grid;
-            grid-template-columns: 40px 40px 180px 100px 80px 80px 60px 100px 120px 100px 100px 100px 140px 60px;
-            gap: 10px;
+            grid-template-columns: 28px 28px 180px 100px 70px 80px 50px 90px 110px 90px 110px 110px 80px 90px 90px;
+            gap: 5px;
             align-items: center;
-            padding: 10px 15px;
+            padding: 6px 10px;
             background: white;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             transition: all 0.2s;
             cursor: pointer;
         }
@@ -461,14 +461,21 @@
             transform: translateY(-1px);
         }
 
+        /* Limit visible rows */
+        .referral-list {
+            max-height: calc(7 * 44px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
         /* Individual column styles */
         .ref-urgent {
-            font-size: 18px;
+            font-size: 16px;
             text-align: center;
         }
 
         .ref-file {
-            font-size: 16px;
+            font-size: 14px;
             text-align: center;
             cursor: pointer;
         }
@@ -483,23 +490,45 @@
         }
 
         .ref-status {
-            /* Status badge already has its own styling */
+            /* Status badge styling below */
         }
 
         .ref-type {
-            font-size: 11px;
-            color: #7f8c8d;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            text-align: center;
+            display: inline-block;
+        }
+
+        .ref-type.type-new {
+            background: transparent;
+            border: 1px solid #3498db;
+            color: #3498db;
+        }
+
+        .ref-type.type-previous {
+            background: transparent;
+            border: 1px solid #1abc9c;
+            color: #1abc9c;
+        }
+
+        .ref-type.type-partner {
+            background: transparent;
+            border: 1px solid #f39c12;
+            color: #f39c12;
         }
 
         .ref-dob {
             color: #7f8c8d;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .ref-age {
             color: #7f8c8d;
-            font-size: 12px;
-            text-align: center;
+            font-size: 11px;
+            text-align: left;
         }
 
         .ref-age.red {
@@ -509,17 +538,23 @@
 
         .ref-date {
             color: #7f8c8d;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .ref-contact {
             color: #7f8c8d;
-            font-size: 12px;
+            font-size: 11px;
+        }
+
+        .ref-contact-count {
+            color: #7f8c8d;
+            font-size: 11px;
+            white-space: nowrap;
         }
 
         .ref-phone {
             color: #34495e;
-            font-size: 12px;
+            font-size: 11px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -527,32 +562,107 @@
 
         .ref-email {
             color: #34495e;
-            font-size: 12px;
+            font-size: 11px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
         .ref-service {
-            color: #34495e;
-            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            background: transparent;
+            border: 1px solid #95a5a6;
+            color: #95a5a6;
+            text-align: center;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
         .ref-physician {
-            color: #34495e;
-            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            text-align: center;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
+        .ref-physician.phys-first-available {
+            background: transparent;
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+        }
+
+        .ref-physician.phys-michaeli {
+            background: transparent;
+            border: 1px solid #9b59b6;
+            color: #9b59b6;
+        }
+
+        .ref-physician.phys-russo {
+            background: transparent;
+            border: 1px solid #3498db;
+            color: #3498db;
+        }
+
+        .ref-physician.phys-pereira {
+            background: transparent;
+            border: 1px solid #2ecc71;
+            color: #2ecc71;
+        }
+
+        .ref-physician.phys-jones {
+            background: transparent;
+            border: 1px solid #e91e63;
+            color: #e91e63;
+        }
+
+        .ref-physician.phys-liu {
+            background: transparent;
+            border: 1px solid #f39c12;
+            color: #f39c12;
+        }
+
+        .ref-physician.phys-bacal {
+            background: transparent;
+            border: 1px solid #f1c40f;
+            color: #f1c40f;
+        }
+
+        .ref-physician.phys-shapiro {
+            background: transparent;
+            border: 1px solid #34495e;
+            color: #34495e;
+        }
+
+        .ref-physician.phys-greenblatt {
+            background: transparent;
+            border: 1px solid #27ae60;
+            color: #27ae60;
+        }
+
+        .ref-physician.phys-other {
+            background: transparent;
+            border: 1px solid #95a5a6;
+            color: #95a5a6;
+        }
+
         .ref-location {
-            font-size: 14px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            background: transparent;
+            border: 1px solid #95a5a6;
+            color: #95a5a6;
             text-align: center;
-            cursor: help;
+            white-space: nowrap;
         }
 
         /* Responsive: Stack on smaller screens */
@@ -1018,20 +1128,21 @@
                 </div>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search referrals..." oninput="filterReferrals()">
                 <div class="referrals-grid-header">
-                    <div>🚨</div>
+                    <div>⚠️</div>
                     <div>📄</div>
                     <div>Patient Name</div>
-                    <div>Status</div>
+                    <div>📊 Status</div>
                     <div>Type</div>
-                    <div>DOB</div>
+                    <div>🎂 DOB</div>
                     <div>Age</div>
                     <div>📅 Received</div>
                     <div>🔄 Last Contact</div>
+                    <div>No. Contact</div>
+                    <div>Service</div>
+                    <div>👨‍⚕️ Physician</div>
+                    <div>📍 Loc</div>
                     <div>📞 Phone</div>
                     <div>📧 Email</div>
-                    <div>Service</div>
-                    <div>Physician</div>
-                    <div>📍 Location</div>
                 </div>
                 <div class="referral-list" id="referralList">
                     <div class="empty-state">
@@ -1640,11 +1751,19 @@
                     }
                 }
                 
-                // Referral type (New/Previous/Partner)
+                // Referral type badge
+                let typeClass = '';
                 let typeText = '';
-                if (ref.referralType === 'New') typeText = 'New';
-                else if (ref.referralType === 'Previous') typeText = 'Prev';
-                else if (ref.referralType === 'Partner') typeText = 'Partner';
+                if (ref.referralType === 'New') {
+                    typeClass = 'type-new';
+                    typeText = 'New';
+                } else if (ref.referralType === 'Previous') {
+                    typeClass = 'type-previous';
+                    typeText = 'Prev';
+                } else if (ref.referralType === 'Partner') {
+                    typeClass = 'type-partner';
+                    typeText = 'Partner';
+                }
                 
                 let statusClass = '';
                 switch(ref.referralStatus) {
@@ -1655,17 +1774,42 @@
                     case 'Completed': statusClass = 'status-completed'; break;
                 }
                 
+                // Physician badge class
+                let physicianClass = 'phys-other';
+                if (physician.includes('First Available')) physicianClass = 'phys-first-available';
+                else if (physician.includes('Michaeli')) physicianClass = 'phys-michaeli';
+                else if (physician.includes('Russo')) physicianClass = 'phys-russo';
+                else if (physician.includes('Pereira')) physicianClass = 'phys-pereira';
+                else if (physician.includes('Jones')) physicianClass = 'phys-jones';
+                else if (physician.includes('Liu')) physicianClass = 'phys-liu';
+                else if (physician.includes('Bacal')) physicianClass = 'phys-bacal';
+                else if (physician.includes('Shapiro')) physicianClass = 'phys-shapiro';
+                else if (physician.includes('Greenblatt')) physicianClass = 'phys-greenblatt';
+                
                 // Urgent icon
-                const urgentIcon = ref.urgent ? '🚨' : '';
+                const urgentIcon = ref.urgent ? '⚠️' : '';
                 
                 // File icon
                 const fileIcon = ref.fileName ? '📄' : '';
                 
-                // Location icon
-                let locationIcon = '';
-                if (ref.requestedLocation && ref.requestedLocation !== 'Any') {
-                    locationIcon = '📍';
+                // Location abbreviation
+                let locationText = '';
+                if (ref.requestedLocation) {
+                    if (ref.requestedLocation === 'Downtown') locationText = '📍 DT';
+                    else if (ref.requestedLocation === 'Vaughan') locationText = '📍 VGN';
+                    else if (ref.requestedLocation === 'Mississauga') locationText = '📍 MISS';
                 }
+                
+                // Count contact attempts
+                let phoneCount = 0;
+                let emailCount = 0;
+                if (ref.attemptHistory && Array.isArray(ref.attemptHistory)) {
+                    ref.attemptHistory.forEach(attempt => {
+                        if (attempt.mode === 'Phone') phoneCount++;
+                        else if (attempt.mode === 'E-Mail') emailCount++;
+                    });
+                }
+                const contactCountText = `📞 ${phoneCount} 📧 ${emailCount}`;
                 
                 return `
                     <div class="referral-item" onclick="viewReferral(${ref.referralID})">
@@ -1673,16 +1817,17 @@
                         <div class="ref-file" title="${ref.fileName || ''}" onclick="event.stopPropagation(); if('${ref.fileName}') viewSelectedFile();">${fileIcon}</div>
                         <div class="ref-name" title="${patientName}">${patientName}</div>
                         <div class="ref-status"><span class="status-badge ${statusClass}">${ref.referralStatus}</span></div>
-                        <div class="ref-type">${typeText}</div>
+                        <div class="ref-type ${typeClass}">${typeText}</div>
                         <div class="ref-dob">${dob}</div>
                         <div class="ref-age ${ageClass}">${age}</div>
                         <div class="ref-date">${receivedDate}</div>
                         <div class="ref-contact">${lastContact}</div>
+                        <div class="ref-contact-count">${contactCountText}</div>
+                        <div class="ref-service">${service}</div>
+                        <div class="ref-physician ${physicianClass}">${physician}</div>
+                        <div class="ref-location">${locationText}</div>
                         <div class="ref-phone" title="${phone}">${phone}</div>
                         <div class="ref-email" title="${email}">${email}</div>
-                        <div class="ref-service" title="${service}">${service}</div>
-                        <div class="ref-physician" title="${physician}">${physician}</div>
-                        <div class="ref-location" title="${ref.requestedLocation || ''}">${locationIcon}</div>
                     </div>
                 `;
             }).join('');

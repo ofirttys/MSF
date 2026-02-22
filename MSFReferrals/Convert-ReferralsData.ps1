@@ -126,15 +126,15 @@ foreach ($row in $oldData) {
         $normalized = $newOrReturning.Trim()
         
         # Check for "Prev Pt", "Previous", "Returning", "Return"
-		if ($normalized -match "(?i)Prev Pt|Previous|Returning|Return") {
-			$referralType = "Previous"
-		}
+        if ($normalized -match "(?i)Prev Pt|Previous|Returning|Return") {
+            $referralType = "Previous"
+        }
         # Check for "Partner"
-        elseif ($normalized -match "(?i)^Partner$") {
+        elseif ($normalized -match "(?i)Partner") {
             $referralType = "Partner"
         }
         # Check for "New"
-        elseif ($normalized -match "(?i)^New$") {
+        elseif ($normalized -match "(?i)New") {
             $referralType = "New"
         }
         # If none match, default to "New" (already set)
@@ -218,7 +218,7 @@ foreach ($row in $oldData) {
         referringPhysicianEmail = ""
         
         # Service Information
-        requestedLocation = "Any"
+        requestedLocation = ""
         requestedPhysician = if (![string]::IsNullOrWhiteSpace($row.'Requested Physician')) { $row.'Requested Physician'.Trim() } else { "First Available" }
         urgent = $false
         serviceRequested = if (![string]::IsNullOrWhiteSpace($row.'Service Requested')) { $row.'Service Requested'.Trim() } else { "" }
@@ -236,7 +236,11 @@ foreach ($row in $oldData) {
         patientEmail = Clean-Email $row.'E-Mail'  # This is the NEW patient email column (mostly empty)
         patientAddress = ""
         patientHC = ""
-        patientGenderAtBirth = if ($newReferral.serviceRequested -eq "SB") { "Male" } else { "" }
+        patientGenderAtBirth = if ($serviceRequested -eq "SB") { "Male" } `
+							   elseif ($serviceRequested -eq "EEF") { "Female" } `
+							   elseif ($serviceRequested -eq "ONC") { "Female" } `
+							   elseif ($serviceRequested -eq "Gyne") { "Female" } `
+							   elseif ($serviceRequested -eq "RPL") { "Female" } else { "" }
         
         # Partner Information (empty by default)
         partnerPID = ""
