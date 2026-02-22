@@ -429,24 +429,24 @@
         /* Grid header row (column labels) */
         .referrals-grid-header {
             display: grid;
-            grid-template-columns: 200px 120px 110px 140px 140px 180px 1fr 180px;
-            gap: 12px;
+            grid-template-columns: 60px 180px 100px 80px 80px 60px 100px 120px 100px 100px 100px 140px 60px 60px 180px;
+            gap: 10px;
             padding: 10px 15px;
             background: #ecf0f1;
             border-radius: 6px;
             font-weight: 600;
             color: #2c3e50;
-            font-size: 13px;
+            font-size: 12px;
             margin-bottom: 8px;
         }
 
         /* Main referral item - Grid layout */
         .referral-item {
             display: grid;
-            grid-template-columns: 200px 120px 110px 140px 140px 180px 1fr 180px;
-            gap: 12px;
+            grid-template-columns: 60px 180px 100px 80px 80px 60px 100px 120px 100px 100px 100px 140px 60px 60px 180px;
+            gap: 10px;
             align-items: center;
-            padding: 12px 15px;
+            padding: 10px 15px;
             background: white;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
@@ -462,26 +462,80 @@
         }
 
         /* Individual column styles */
+        .ref-id {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+
         .ref-name {
             font-weight: 600;
             color: #2c3e50;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            font-size: 13px;
         }
 
         .ref-status {
             /* Status badge already has its own styling */
         }
 
+        .ref-type {
+            font-size: 11px;
+            color: #7f8c8d;
+        }
+
+        .ref-urgent {
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .ref-dob {
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        .ref-age {
+            color: #7f8c8d;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .ref-age.red {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
         .ref-date {
             color: #7f8c8d;
-            font-size: 13px;
+            font-size: 12px;
+        }
+
+        .ref-contact {
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        .ref-phone {
+            color: #34495e;
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ref-email {
+            color: #34495e;
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .ref-service {
             color: #34495e;
-            font-size: 13px;
+            font-size: 12px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -489,29 +543,22 @@
 
         .ref-physician {
             color: #34495e;
-            font-size: 13px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .ref-icons {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .ref-icons span {
-            font-size: 14px;
-            cursor: help;
-        }
-
-        .ref-notes {
-            color: #95a5a6;
             font-size: 12px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .ref-file {
+            font-size: 16px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .ref-location {
+            font-size: 14px;
+            text-align: center;
+            cursor: help;
         }
 
         .ref-actions {
@@ -521,7 +568,7 @@
         }
 
         /* Responsive: Stack on smaller screens */
-        @media (max-width: 1400px) {
+        @media (max-width: 1600px) {
             .referrals-grid-header {
                 display: none;
             }
@@ -964,7 +1011,8 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <div class="card-title" style="margin-bottom: 0;">All Referrals (<span id="referralCount">0</span>)</div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <button class="sort-btn active" id="sortNameAZ" onclick="setSortMode('name-az')">Name A→Z</button>
+                        <button class="sort-btn active" id="sortID" onclick="setSortMode('id')">ID</button>
+                        <button class="sort-btn" id="sortNameAZ" onclick="setSortMode('name-az')">Name A→Z</button>
                         <button class="sort-btn" id="sortAttemptOld" onclick="setSortMode('attempt-old')">Last Attempt (Old→New)</button>
                         <button class="sort-btn" id="sortAttemptNew" onclick="setSortMode('attempt-new')">Last Attempt (New→Old)</button>
                         <button class="sort-btn" id="sortReceivedOld" onclick="setSortMode('received-old')">Received (Old→New)</button>
@@ -974,24 +1022,34 @@
                 <div class="filter-buttons" id="filterButtons">
                     <button class="filter-btn active" onclick="filterByStatus('all')">All</button>
                     <button class="filter-btn" onclick="filterByStatus('new')">New<br>Patient</button>
+                    <button class="filter-btn" onclick="filterByStatus('previous')">Previous<br>Patient</button>
+                    <button class="filter-btn" onclick="filterByStatus('partner')">Partner</button>
+                    <button class="filter-btn" onclick="filterByStatus('new-referral')">New<br>Referral</button>
                     <button class="filter-btn" onclick="filterByStatus('pending')">Pending</button>
                     <button class="filter-btn" onclick="filterByStatus('info-received')">Info<br>Received</button>
                     <button class="filter-btn" onclick="filterByStatus('completed')">Completed</button>
                     <button class="filter-btn" onclick="filterByStatus('deferred')">Deferred</button>
-                    <button class="filter-btn" onclick="filterByStatus('missing-contact')">Waiting<br>Contact</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-2days')">Contact<br>> 2 days</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-3days')">Contact<br>> 3 days</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-7days')">Contact<br>> 7 days</button>
                 </div>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search referrals..." oninput="filterReferrals()">
                 <div class="referrals-grid-header">
+                    <div>ID</div>
                     <div>Patient Name</div>
                     <div>Status</div>
-                    <div>Received</div>
+                    <div>Type</div>
+                    <div>DOB</div>
+                    <div>Age</div>
+                    <div>📅 Received</div>
+                    <div>🔄 Last Contact</div>
+                    <div>📞 Phone</div>
+                    <div>📧 Email</div>
                     <div>Service</div>
                     <div>Physician</div>
-                    <div>Contact</div>
-                    <div>Notes</div>
+                    <div>🚨</div>
+                    <div>📍</div>
+                    <div>📄</div>
                     <div>Actions</div>
                 </div>
                 <div class="referral-list" id="referralList">
@@ -1331,7 +1389,7 @@
         let currentEditingReferral = null;
         let currentViewingReferral = null;
         let autoSaveInterval = null;
-        let currentSortMode = 'name-az';
+        let currentSortMode = 'id';
         let currentFilter = [];
 
         // Initialize on load
@@ -1434,12 +1492,12 @@
 				flatpickr('#dateFrom', {
 					dateFormat: 'Y-m-d',
 					allowInput: true,
-					onChange: function() { filterReferrals(); }
+					onChange: function() { filterReferrals(); updateKPIs(); }
 				});
 				flatpickr('#dateTo', {
 					dateFormat: 'Y-m-d',
 					allowInput: true,
-					onChange: function() { filterReferrals(); }
+					onChange: function() { filterReferrals(); updateKPIs(); }
 				});				
 				
                 if (!isReadOnly) {
@@ -1513,7 +1571,31 @@
         function updateKPIs() {
             if (!database || !database.referrals) return;
             
-            const refs = database.referrals;
+            // Apply date filters to KPIs
+            let refs = [...database.referrals];
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            
+            if (dateFrom || dateTo) {
+                refs = refs.filter(ref => {
+                    if (!ref.receivedDate) return false;
+                    const receivedDate = new Date(ref.receivedDate);
+                    
+                    if (dateFrom) {
+                        const fromDate = new Date(dateFrom);
+                        if (receivedDate < fromDate) return false;
+                    }
+                    
+                    if (dateTo) {
+                        const toDate = new Date(dateTo);
+                        toDate.setHours(23, 59, 59);
+                        if (receivedDate > toDate) return false;
+                    }
+                    
+                    return true;
+                });
+            }
+            
             const now = new Date();
             const twoDaysAgo = new Date(now.getTime() - (2 * 24 * 60 * 60 * 1000));
             
@@ -1553,8 +1635,35 @@
             container.innerHTML = referrals.map(ref => {
                 const patientName = `${ref.patientLastName || ''}, ${ref.patientFirstName || ''}`.trim();
                 const receivedDate = ref.receivedDate || '';
+                const lastContact = ref.lastAttemptDate || '';
+                const phone = ref.patientPhone || '';
+                const email = ref.patientEmail || '';
                 const service = ref.serviceRequested || '';
                 const physician = ref.requestedPhysician || '';
+                const dob = ref.patientDOB || '';
+                
+                // Calculate age
+                let age = '';
+                let ageClass = '';
+                if (dob) {
+                    const birthDate = new Date(dob);
+                    const today = new Date();
+                    let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+                    const monthDiff = today.getMonth() - birthDate.getMonth();
+                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                        calculatedAge--;
+                    }
+                    age = calculatedAge;
+                    if (calculatedAge > 43) {
+                        ageClass = 'red';
+                    }
+                }
+                
+                // Referral type (New/Previous/Partner)
+                let typeText = '';
+                if (ref.referralType === 'New') typeText = 'New';
+                else if (ref.referralType === 'Previous') typeText = 'Prev';
+                else if (ref.referralType === 'Partner') typeText = 'Partner';
                 
                 let statusClass = '';
                 switch(ref.referralStatus) {
@@ -1565,26 +1674,35 @@
                     case 'Completed': statusClass = 'status-completed'; break;
                 }
                 
-                // Build icons HTML
-                let icons = '';
-                if (ref.receivedDate) icons += `<span title="Received: ${ref.receivedDate}">📅</span>`;
-                if (ref.patientPhone) icons += `<span title="${ref.patientPhone}">📞</span>`;
-                if (ref.patientEmail) icons += `<span title="${ref.patientEmail}">📧</span>`;
-                if (ref.requestedLocation && ref.requestedLocation !== 'Any') icons += `<span title="${ref.requestedLocation}">📍</span>`;
-                if (ref.referringPhysicianName) icons += `<span title="Referring: ${ref.referringPhysicianName}">👨‍⚕️</span>`;
-                if (ref.lastAttemptDate) icons += `<span title="Last contact: ${ref.lastAttemptDate}">🔄</span>`;
+                // File icon
+                const fileIcon = ref.fileName ? '📄' : '';
                 
-                const notes = ref.notes || '';
+                // Urgent icon
+                const urgentIcon = ref.urgent ? '🚨' : '';
+                
+                // Location icon
+                let locationIcon = '';
+                if (ref.requestedLocation && ref.requestedLocation !== 'Any') {
+                    locationIcon = '📍';
+                }
                 
                 return `
                     <div class="referral-item" onclick="viewReferral(${ref.referralID})">
+                        <div class="ref-id">#${ref.referralID}</div>
                         <div class="ref-name" title="${patientName}">${patientName}</div>
                         <div class="ref-status"><span class="status-badge ${statusClass}">${ref.referralStatus}</span></div>
+                        <div class="ref-type">${typeText}</div>
+                        <div class="ref-dob">${dob}</div>
+                        <div class="ref-age ${ageClass}">${age}</div>
                         <div class="ref-date">${receivedDate}</div>
+                        <div class="ref-contact">${lastContact}</div>
+                        <div class="ref-phone" title="${phone}">${phone}</div>
+                        <div class="ref-email" title="${email}">${email}</div>
                         <div class="ref-service" title="${service}">${service}</div>
                         <div class="ref-physician" title="${physician}">${physician}</div>
-                        <div class="ref-icons">${icons}</div>
-                        <div class="ref-notes" title="${notes}">${notes}</div>
+                        <div class="ref-urgent">${urgentIcon}</div>
+                        <div class="ref-location" title="${ref.requestedLocation || ''}">${locationIcon}</div>
+                        <div class="ref-file" title="${ref.fileName || ''}" onclick="event.stopPropagation(); if('${ref.fileName}') viewSelectedFile();">${fileIcon}</div>
                         <div class="ref-actions" onclick="event.stopPropagation()">
                             <button class="btn btn-primary btn-small" onclick="editReferralById(${ref.referralID})">Edit</button>
                             <button class="btn btn-success btn-small" onclick="quickContact(${ref.referralID})">Contact</button>
@@ -1648,11 +1766,13 @@
 					return currentFilter.some(filter => {
 						switch(filter) {
 							case 'new': return ref.referralStatus === 'New';
+							case 'previous': return ref.referralType === 'Previous';
+							case 'partner': return ref.referralType === 'Partner';
+							case 'new-referral': return ref.referralStatus === 'New' && !ref.lastAttemptDate;
 							case 'pending': return ref.referralStatus === 'Pending';
 							case 'info-received': return ref.referralStatus === 'Info Received';
 							case 'deferred': return ref.referralStatus === 'Deferred';
 							case 'completed': return ref.referralStatus === 'Completed';
-							case 'missing-contact': return !ref.lastAttemptDate;
 							case 'contact-2days':
 							case 'contact-3days':
 							case 'contact-7days':
@@ -1669,6 +1789,9 @@
             // Apply sort
             referrals.sort((a, b) => {
                 switch(currentSortMode) {
+                    case 'id':
+                        return a.referralID - b.referralID;
+                    
                     case 'name-az':
                         const nameA = `${a.patientFirstName || ''} ${a.patientLastName || ''}`.toLowerCase();
                         const nameB = `${b.patientFirstName || ''} ${b.patientLastName || ''}`.toLowerCase();
@@ -1707,6 +1830,7 @@
             // Update button states
             document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
             const btnId = {
+                'id': 'sortID',
                 'name-az': 'sortNameAZ',
                 'attempt-old': 'sortAttemptOld',
                 'attempt-new': 'sortAttemptNew',
@@ -1765,14 +1889,14 @@
             document.getElementById('dateFrom').value = '';
             document.getElementById('dateTo').value = '';
             currentFilter = 'all';
-            currentSortMode = 'name-az';
+            currentSortMode = 'id';
             document.getElementById('searchBox').value = '';
             
             // Reset button states
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelector('.filter-btn').classList.add('active');
             document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('sortNameAZ').classList.add('active');
+            document.getElementById('sortID').classList.add('active');
             
             renderReferralList();
         }
