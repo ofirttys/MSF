@@ -126,9 +126,9 @@ foreach ($row in $oldData) {
         $normalized = $newOrReturning.Trim()
         
         # Check for "Prev Pt", "Previous", "Returning", "Return"
-        if ($normalized -match "(?i)^Prev\s*Pt$|^Previous$|^Returning$|^Return") {
-            $referralType = "Previous"
-        }
+		if ($normalized -match "(?i)Prev\s*Pt|Previous|Returning|Return") {
+			$referralType = "Previous"
+		}
         # Check for "Partner"
         elseif ($normalized -match "(?i)^Partner$") {
             $referralType = "Partner"
@@ -236,7 +236,7 @@ foreach ($row in $oldData) {
         patientEmail = Clean-Email $row.'E-Mail'  # This is the NEW patient email column (mostly empty)
         patientAddress = ""
         patientHC = ""
-        patientGenderAtBirth = ""
+        patientGenderAtBirth = if ($newReferral.serviceRequested -eq "SB") { "Male" } else { "" }
         
         # Partner Information (empty by default)
         partnerPID = ""
