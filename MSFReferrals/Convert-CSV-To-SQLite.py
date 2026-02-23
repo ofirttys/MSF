@@ -21,16 +21,28 @@ def parse_date_to_timestamp(date_str):
         date_obj = datetime.strptime(date_str.strip(), '%d-%b-%y')
         
         # Adjust 2-digit year: 00-49 = 2000s, 50-99 = 1900s
-        if date_obj.year < 2000:
-            # Already handled by strptime with %y
-            pass
+        # (strptime already does this, but be explicit)
         
-        return int(date_obj.timestamp())
+        # For dates before 1970, timestamp() may fail on Windows
+        # Use alternative calculation
+        try:
+            return int(date_obj.timestamp())
+        except (OSError, OverflowError):
+            # Windows can't handle dates before 1970 with timestamp()
+            # Calculate manually from epoch
+            epoch = datetime(1970, 1, 1)
+            delta = date_obj - epoch
+            return int(delta.total_seconds())
     except ValueError:
         try:
             # Fallback to general parse
             date_obj = datetime.strptime(date_str.strip(), '%Y-%m-%d')
-            return int(date_obj.timestamp())
+            try:
+                return int(date_obj.timestamp())
+            except (OSError, OverflowError):
+                epoch = datetime(1970, 1, 1)
+                delta = date_obj - epoch
+                return int(delta.total_seconds())
         except:
             return None
 
