@@ -214,11 +214,27 @@ def convert_csv_to_sqlite(csv_path, db_path):
     cursor = conn.cursor()
     print("Schema created successfully!")
     
-    # Load CSV
+    # Load CSV with auto-detect encoding
     print("Loading CSV data...")
-    with open(csv_path, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
+    
+    # Try different encodings
+    encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'windows-1252', 'iso-8859-1']
+    rows = None
+    
+    for encoding in encodings:
+        try:
+            with open(csv_path, 'r', encoding=encoding) as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+            print(f"Successfully loaded CSV with {encoding} encoding")
+            break
+        except UnicodeDecodeError:
+            continue
+    
+    if rows is None:
+        print("Error: Could not decode CSV file with any known encoding")
+        sys.exit(1)
+    
     print(f"Loaded {len(rows)} rows from CSV")
     
     # Convert rows
