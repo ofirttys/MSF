@@ -1676,39 +1676,30 @@
         async function initializeApp() {
             // Load from SQLite backend
             await loadSelectOptions();
+            populateSelectOptions(); // Populate dropdown menus
             await loadReferrals(true);
             await updateKPIs();
-            const result = await eel.load_database()();
-            if (result.status === 'success') {
-                database = result.data;
-                document.getElementById('currentFile').textContent = 'DB\\referrals.json';
-                populateSelectOptions();
-				renderReferralList();
-                updateKPIs();
-                
-				// Initialize date pickers
-				flatpickr('#dateFrom', {
-					dateFormat: 'Y-m-d',
-					allowInput: true,
-					onChange: function() { filterReferrals(); updateKPIs(); }
-				});
-				flatpickr('#dateTo', {
-					dateFormat: 'Y-m-d',
-					allowInput: true,
-					onChange: function() { filterReferrals(); updateKPIs(); }
-				});				
-				
-                if (!isReadOnly) {
-                    autoSaveInterval = setInterval(async () => {
-                        if (unsavedChanges > 0) {
-                            await saveDatabase(true);
-                        }
-                    }, 5 * 60 * 1000);
-                }
-            } else {
-				document.getElementById('currentFile').textContent = 'Error: ' + result.message;
-				document.getElementById('statusBar').style.color = '#e74c3c';
-			}
+            
+            document.getElementById('currentFile').textContent = 'DB\\referrals.db';
+            
+            // Initialize date pickers
+            flatpickr('#dateFrom', {
+                dateFormat: 'Y-m-d',
+                allowInput: true,
+                onChange: function() { filterReferrals(); updateKPIs(); }
+            });
+            flatpickr('#dateTo', {
+                dateFormat: 'Y-m-d',
+                allowInput: true,
+                onChange: function() { filterReferrals(); updateKPIs(); }
+            });				
+            
+            if (!isReadOnly) {
+                autoSaveInterval = setInterval(async () => {
+                    // SQLite auto-saves on each operation, no need for periodic save
+                    // Just refresh lock file
+                }, 5 * 60 * 1000);
+            }
         }
 
 		// Initialize date pickers (add after initializeApp function)
@@ -1736,33 +1727,11 @@
             document.getElementById('addReferralBtn').style.opacity = '0.5';
         }
 
-        // Save database
+        // Save database - NOT NEEDED WITH SQLITE (auto-saves on each operation)
 		async function saveDatabase(silent = false) {
-			if (isReadOnly) {
-				if (!silent) {
-					document.getElementById('currentFile').textContent = 'Error: Cannot save in read-only mode';
-					document.getElementById('statusBar').style.color = '#e74c3c';
-				}
-				return;
-			}
-			
-			const result = await eel.save_database(database)();
-			
-			if (result.status === 'success') {
-				unsavedChanges = 0;
-				if (!silent) {
-					document.getElementById('currentFile').textContent = 'DB\\referrals.json - Saved successfully';
-					document.getElementById('statusBar').style.color = '#27ae60';
-					// Reset color after 3 seconds
-					setTimeout(() => {
-						document.getElementById('currentFile').textContent = 'DB\\referrals.json';
-						document.getElementById('statusBar').style.color = '#666';
-					}, 3000);
-				}
-			} else {
-				document.getElementById('currentFile').textContent = 'Save Error: ' + result.message;
-				document.getElementById('statusBar').style.color = '#e74c3c';
-			}
+			// SQLite backend saves automatically on each add/update/delete
+			// No need for manual save
+			return;
 		}
 
         // Update KPIs
@@ -2346,25 +2315,25 @@
 
 		// Populate select options in modal
 		function populateSelectOptions() {
-			if (!database || !database.selectOptions) return;
+			if (!selectOptions) return;
 			
-			const options = database.selectOptions;
+			const options = selectOptions;
 			
 			// Requested locations
-			populateSelect('requestedLocation', options.requestedLocations);
+			populateSelect('requestedLocation', options.requestedLocations || []);
 			
 			// Requested physicians
-			populateSelect('requestedPhysician', options.requestedPhysicians);
+			populateSelect('requestedPhysician', options.requestedPhysicians || []);
 			
 			// Services
-			populateSelect('serviceRequested', options.servicesRequested);
+			populateSelect('serviceRequested', options.servicesRequested || []);
 			
 			// Referral Type
-			populateSelect('referralType', options.referralType);
+			populateSelect('referralType', options.referralType || []);
 			
 			// Gender
-			populateSelect('patientGenderAtBirth', options.genderAtBirth);
-			populateSelect('partnerGenderAtBirth', options.genderAtBirth);
+			populateSelect('patientGenderAtBirth', options.genderAtBirth || []);
+			populateSelect('partnerGenderAtBirth', options.genderAtBirth || []);
 		}
 
 		function populateSelect(id, values) {
