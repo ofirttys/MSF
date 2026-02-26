@@ -120,6 +120,8 @@ def create_database(db_path):
         lastAttemptTime TEXT,
         lastAttemptMode TEXT,
         lastAttemptComment TEXT,
+        phoneAttempts INTEGER DEFAULT 0,
+        emailAttempts INTEGER DEFAULT 0,
         faxedBackDate INTEGER,
         completeInfoReceivedDate INTEGER,
         taskedToPhysicianAdmin TEXT,
@@ -174,6 +176,8 @@ def create_database(db_path):
     CREATE INDEX idx_physician ON referrals(requestedPhysician);
     CREATE INDEX idx_last_name ON referrals(patientLastName);
     CREATE INDEX idx_service ON referrals(serviceRequested);
+    CREATE INDEX idx_phone_attempts ON referrals(phoneAttempts);
+    CREATE INDEX idx_email_attempts ON referrals(emailAttempts);
     CREATE INDEX idx_attempt_referral ON attempt_history(referralID);
     CREATE INDEX idx_notes_referral ON notes_history(referralID);
     CREATE INDEX idx_status_referral ON status_history(referralID);
@@ -190,7 +194,7 @@ def create_database(db_path):
         ('requestedPhysicians', ['First Available', 'Dr. Bacal', 'Dr. Greenblatt', 'Dr. Jones', 'Dr. Liu', 'Dr. Michaeli', 'Dr. Pereira', 'Dr. Russo', 'Dr. Shapiro']),
         ('servicesRequested', ['Infertility', 'EEF', 'ONC', 'SB', 'RPL', 'Donor', 'ARA', 'PGD', 'Gyne', 'Other']),
         ('referralType', ['New', 'Previous', 'Partner']),
-        ('lastAttemptModes', ['Phone', 'E-Mail']),
+        ('lastAttemptModes', ['Phone', 'E-Mail', 'Fax', 'In-Person', 'Mail', 'Text/SMS', 'Other']),
         ('physicianAdmins', ['CJ Admin', 'EG Admin', 'HS Admin', 'JM Admin', 'KL Admin', 'MR Admin', 'NP Admin', 'VB Admin', 'NursePrac Admin', 'Fellow Admin']),
         ('genderAtBirth', ['Female', 'Male', 'Other'])
     ]
@@ -303,50 +307,73 @@ def convert_csv_to_sqlite(csv_path, db_path):
         # Build attempt history
         attempts = []
         
-        # 1st attempt
-        if has_first_attempt:
-            contact_mode_1 = "Phone"
-            email_col = row.get('Email', '').strip()
-            if email_col and ('email' in email_col.lower() or 'e-mail' in email_col.lower()):
-                contact_mode_1 = "E-Mail"
+        # Helper function to determine contact mode
+        def get_contact_mode(type_field, email_field=None):
+            """Determine contact mode from Type of Contact field"""
+            if not type_field or not type_field.strip():
+                # Try to infer from email field (for 1st attempt)
+                if email_field and 'email' in email_field.lower():
+                    return "E-Mail"
+                return "Phone"  # Default
             
+            mode_lower = type_field.strip().lower()
+            if 'email' in mode_lower or 'e-mail' in mode_lower:
+                return "E-Mail"
+            elif 'phone' in mode_lower or 'call' in mode_lower:
+                return "Phone"
+            elif 'fax' in mode_lower:
+                return "Fax"
+            elif 'person' in mode_lower or 'visit' in mode_lower or 'in person' in mode_lower:
+                return "In-Person"
+            elif 'mail' in mode_lower or 'post' in mode_lower:
+                return "Mail"
+            elif 'text' in mode_lower or 'sms' in mode_lower:
+                return "Text/SMS"
+            else:
+                return type_field.strip()  # Keep original if not recognized
+        
+        # 1st attempt - add if date OR comment exists
+        attempt_1_date = row.get('1st Attempt to reach Patient/Referring MD', '').strip()
+        attempt_1_comment = row.get('Comments', '').strip()
+        
+        if attempt_1_date or attempt_1_comment:
             attempts.append({
-                'date': parse_date_to_timestamp(row.get('1st Attempt to reach Patient/Referring MD', '')),
+                'date': parse_date_to_timestamp(attempt_1_date) if attempt_1_date else None,
                 'time': '',
-                'mode': contact_mode_1,
-                'comment': row.get('Comments', '').strip()
+                'mode': get_contact_mode(row.get('Email', ''), row.get('Email', '')),
+                'comment': attempt_1_comment
             })
         
-        # 2nd attempt
-        if row.get('2nd Attempt to reach Patient/Referring MD', '').strip():
-            contact_mode_2 = "Phone"
-            type_contact = row.get('Type of Contact', '').strip()
-            if type_contact and ('email' in type_contact.lower() or 'e-mail' in type_contact.lower()):
-                contact_mode_2 = "E-Mail"
-            
+        # 2nd attempt - add if date OR comment exists
+        attempt_2_date = row.get('2nd Attempt to reach Patient/Referring MD', '').strip()
+        attempt_2_comment = row.get('Comments2', '').strip()
+        
+        if attempt_2_date or attempt_2_comment:
             attempts.append({
-                'date': parse_date_to_timestamp(row.get('2nd Attempt to reach Patient/Referring MD', '')),
+                'date': parse_date_to_timestamp(attempt_2_date) if attempt_2_date else None,
                 'time': '',
-                'mode': contact_mode_2,
-                'comment': row.get('Comments2', '').strip()
+                'mode': get_contact_mode(row.get('Type of Contact', '')),
+                'comment': attempt_2_comment
             })
         
-        # 3rd attempt
-        if row.get('3rd Attempt to reach Patient/Referring MD', '').strip():
-            contact_mode_3 = "Phone"
-            type_contact_3 = row.get('Type of Contact3', '').strip()
-            if type_contact_3 and ('email' in type_contact_3.lower() or 'e-mail' in type_contact_3.lower()):
-                contact_mode_3 = "E-Mail"
-            
+        # 3rd attempt - add if date OR comment exists
+        attempt_3_date = row.get('3rd Attempt to reach Patient/Referring MD', '').strip()
+        attempt_3_comment = row.get('Comments4', '').strip()
+        
+        if attempt_3_date or attempt_3_comment:
             attempts.append({
-                'date': parse_date_to_timestamp(row.get('3rd Attempt to reach Patient/Referring MD', '')),
+                'date': parse_date_to_timestamp(attempt_3_date) if attempt_3_date else None,
                 'time': '',
-                'mode': contact_mode_3,
-                'comment': row.get('Comments4', '').strip()
+                'mode': get_contact_mode(row.get('Type of Contact3', '')),
+                'comment': attempt_3_comment
             })
         
         # Get last attempt
         last_attempt = attempts[-1] if attempts else None
+        
+        # Calculate attempt counts
+        phone_count = sum(1 for a in attempts if a['mode'] in ['Phone', 'Phone call'])
+        email_count = sum(1 for a in attempts if a['mode'] in ['E-Mail', 'Email'])
         
         # Insert referral
         cursor.execute("""
@@ -363,9 +390,10 @@ def convert_csv_to_sqlite(csv_path, db_path):
                 partnerDOB, partnerPhone, partnerEmail, partnerAddress, partnerHC, partnerGenderAtBirth,
                 partnerEmergencyContact, partnerEmergencyContactRelationship,
                 referralStatus, lastAttemptDate, lastAttemptTime, lastAttemptMode, lastAttemptComment,
+                phoneAttempts, emailAttempts,
                 faxedBackDate, completeInfoReceivedDate, taskedToPhysicianAdmin,
                 referralCompleteDate, notes, notesDate
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             now_timestamp,
             parse_date_to_timestamp(row.get('Date Referral Received', '')),
@@ -413,6 +441,8 @@ def convert_csv_to_sqlite(csv_path, db_path):
             last_attempt['time'] if last_attempt else '',
             last_attempt['mode'] if last_attempt else None,
             last_attempt['comment'] if last_attempt else None,
+            phone_count,  # phoneAttempts
+            email_count,  # emailAttempts
             None,  # faxedBackDate
             parse_date_to_timestamp(row.get('Date Complete Information received', '')),
             row.get('Tasked To', '').strip() or None,

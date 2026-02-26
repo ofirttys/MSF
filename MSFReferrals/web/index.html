@@ -996,6 +996,22 @@
             .kpi-summary { flex-direction: column; }
             .form-row { grid-template-columns: 1fr; }
         }
+    
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -1473,16 +1489,102 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     
     <script>
-        // Global state
-        let database = null;
+        // Global state - UPDATED FOR SQLITE
+        let database = null;  // Keep for compatibility
         let currentUser = null;
         let isReadOnly = false;
         let unsavedChanges = 0;
         let currentEditingReferral = null;
         let currentViewingReferral = null;
-        let autoSaveInterval = null;
+        autoSaveInterval = null;
         let currentSortMode = 'id';
         let currentFilter = [];
+        
+        // SQLite Backend State
+        let currentFilters = {};
+        let currentSort = { by: 'id', order: 'asc' };
+        let currentOffset = 0;
+        let isLoading = false;
+        let hasMore = true;
+        let allLoadedReferrals = [];
+        let selectOptions = {};
+        let totalReferralsCount = 0;
+
+        
+        // ========== SQLITE BACKEND FUNCTIONS ==========
+        
+        async function loadSelectOptions() {
+            const result = await eel.get_select_options()();
+            if (result.status === 'success') {
+                selectOptions = result.options;
+            }
+        }
+        
+        async function loadReferrals(reset = false) {
+            if (isLoading) return;
+            if (!hasMore && !reset) return;
+            
+            if (reset) {
+                currentOffset = 0;
+                hasMore = true;
+                allLoadedReferrals = [];
+            }
+            
+            isLoading = true;
+            
+            currentFilters = {
+                statuses: getActiveFilterButtons(),
+                search: document.getElementById('searchBox')?.value || '',
+                dateFrom: document.getElementById('dateFrom')?.value || '',
+                dateTo: document.getElementById('dateTo')?.value || ''
+            };
+            
+            const result = await eel.get_referrals(
+                currentFilters,
+                currentSort.by,
+                currentSort.order,
+                currentOffset,
+                100
+            )();
+            
+            if (result.status === 'success') {
+                if (reset) {
+                    allLoadedReferrals = result.referrals;
+                } else {
+                    allLoadedReferrals = allLoadedReferrals.concat(result.referrals);
+                }
+                
+                hasMore = result.hasMore;
+                currentOffset += result.referrals.length;
+                totalReferralsCount = result.total;
+                
+                renderReferralList();
+                updateReferralCount(result.total);
+            }
+            
+            isLoading = false;
+        }
+        
+        function getActiveFilterButtons() {
+            const buttons = document.querySelectorAll('.filter-btn.active');
+            const filters = [];
+            buttons.forEach(btn => {
+                const filter = btn.getAttribute('data-filter');
+                if (filter && filter !== 'all') {
+                    filters.push(filter);
+                }
+            });
+            return filters.length > 0 ? filters : null;
+        }
+        
+        function updateReferralCount(count) {
+            const countEl = document.getElementById('referralCount');
+            if (countEl) {
+                countEl.textContent = count;
+            }
+        }
+        
+        // ==============================================
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
@@ -1572,6 +1674,10 @@
 
         // Initialize app
         async function initializeApp() {
+            // Load from SQLite backend
+            await loadSelectOptions();
+            await loadReferrals(true);
+            await updateKPIs();
             const result = await eel.load_database()();
             if (result.status === 'success') {
                 database = result.data;
@@ -1660,23 +1766,19 @@
 		}
 
         // Update KPIs
-        function updateKPIs() {
-            if (!database || !database.referrals) return;
+        async function updateKPIs() {
+            const dateFilters = {
+                dateFrom: document.getElementById('dateFrom')?.value || '',
+                dateTo: document.getElementById('dateTo')?.value || ''
+            };
             
-            // Apply date filters to KPIs
-            let refs = [...database.referrals];
-            const dateFrom = document.getElementById('dateFrom').value;
-            const dateTo = document.getElementById('dateTo').value;
+            const result = await eel.get_kpi_counts(dateFilters)();
             
-            if (dateFrom || dateTo) {
-                refs = refs.filter(ref => {
-                    if (!ref.receivedDate) return false;
-                    const receivedDate = new Date(ref.receivedDate);
-                    
-                    if (dateFrom) {
-                        const fromDate = new Date(dateFrom);
-                        if (receivedDate < fromDate) return false;
-                    }
+            document.getElementById('totalReferrals').textContent = result.total || 0;
+            document.getElementById('newReferrals').textContent = result.new || 0;
+            document.getElementById('pendingReferrals').textContent = result.pending || 0;
+            document.getElementById('completedReferrals').textContent = result.completed || 0;
+        }
                     
                     if (dateTo) {
                         const toDate = new Date(dateTo);
@@ -1710,7 +1812,7 @@
         // Render referral list
         function renderReferralList() {
             const container = document.getElementById('referralList');
-            const referrals = filterAndSortReferrals();
+            const referrals = allLoadedReferrals;
             
             document.getElementById('referralCount').textContent = referrals.length;
             
@@ -1835,9 +1937,9 @@
 
         // Filter and sort referrals
         function filterAndSortReferrals() {
-            if (!database || !database.referrals) return [];
+            if (!database || !allLoadedReferrals) return [];
             
-            let referrals = [...database.referrals];
+            let referrals = [...allLoadedReferrals];
 
 			// Apply DATE FILTER
 			const dateFrom = document.getElementById('dateFrom').value;
@@ -2001,9 +2103,7 @@
 		}
 
         // Filter referrals (called by search input)
-        function filterReferrals() {
-            renderReferralList();
-        }
+        function filterReferrals() { loadReferrals(true); }
 
         // Reset filters
         function resetFilters() {
@@ -2053,7 +2153,7 @@
 				return;
 			}
 			
-			const referral = database.referrals.find(r => r.referralID === id);
+			const referral = allLoadedReferrals.find(r => r.referralID === id);
 			if (!referral) return;
 			
 			currentEditingReferral = referral;
@@ -2441,15 +2541,15 @@
 				result = await eel.update_referral(currentEditingReferral.referralID, referralData)();
 				
 				// Update in local database
-				const index = database.referrals.findIndex(r => r.referralID === currentEditingReferral.referralID);
+				const index = allLoadedReferrals.findIndex(r => r.referralID === currentEditingReferral.referralID);
 				if (index !== -1) {
-					database.referrals[index] = referralData;
+					allLoadedReferrals[index] = referralData;
 				}
 			} else {
 				// Add new
 				result = await eel.add_referral(referralData)();
 				if (result.status === 'success') {
-					database.referrals.push(result.referral);
+					allLoadedReferrals.push(result.referral);
 				}
 			}
 			
@@ -2508,6 +2608,20 @@
 			}
 		}
 
+    
+        // Infinite scroll for referral list
+        document.getElementById('referralList')?.addEventListener('scroll', async function(e) {
+            const container = e.target;
+            const scrollTop = container.scrollTop;
+            const scrollHeight = container.scrollHeight;
+            const clientHeight = container.clientHeight;
+            
+            if (scrollTop + clientHeight >= scrollHeight - 200) {
+                if (hasMore && !isLoading) {
+                    await loadReferrals(false);
+                }
+            }
+        });
     </script>
 </body>
 </html>

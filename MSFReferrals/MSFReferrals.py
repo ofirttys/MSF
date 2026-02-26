@@ -1,7 +1,8 @@
 import eel
-import json
+import sqlite3
 import sys
 import os
+import json
 import tempfile
 import threading
 import time
@@ -18,7 +19,7 @@ else:
     exe_dir = Path(__file__).parent
 
 DB_FOLDER = str(exe_dir / 'DB')
-DATABASE_FILE = str(Path(DB_FOLDER) / 'referrals.json')
+DATABASE_FILE = str(Path(DB_FOLDER) / 'referrals.db')
 LOCK_FILE = str(Path(DB_FOLDER) / 'referrals.lock')
 LOCK_STALE_HOURS = 4
 
@@ -26,7 +27,6 @@ LOCK_STALE_HOURS = 4
 DEBUG_MODE = False
 
 # User credentials (hashed passwords)
-# To add a user: Set DEBUG_MODE=True, login with password, copy hash shown in alert
 VALID_USERS = {
     'admin': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da',
     'jennia': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da'
@@ -48,18 +48,15 @@ def hash_password(password):
     
     for char in combined:
         hash_val = ((hash_val << 5) - hash_val) + ord(char)
-        # Force to 32-bit signed integer like JavaScript does
         if hash_val > 0x7FFFFFFF:
             hash_val = hash_val - 0x100000000
         elif hash_val < -0x80000000:
             hash_val = hash_val + 0x100000000
     
-    # Convert to positive hex string with padding
-    hex_hash = format(hash_val & 0xFFFFFFFF, 'x')  # Ensure positive
+    hex_hash = format(hash_val & 0xFFFFFFFF, 'x')
     while len(hex_hash) < 8:
         hex_hash = '0' + hex_hash
     
-    # Extend to 64 characters using helper function
     extended = hex_hash
     for i in range(7):
         extended += _simple_hash(hex_hash + str(i))
@@ -67,20 +64,40 @@ def hash_password(password):
     return extended[:64]
 
 def _simple_hash(s):
-    """Helper function for hash extension - matches HTA version"""
+    """Helper function for hash extension"""
     h = 0
     for char in s:
         h = ((h << 5) - h) + ord(char)
-        # Force to 32-bit signed integer
         if h > 0x7FFFFFFF:
             h = h - 0x100000000
         elif h < -0x80000000:
             h = h + 0x100000000
     
-    hex_result = format(h & 0xFFFFFFFF, 'x')  # Ensure positive
+    hex_result = format(h & 0xFFFFFFFF, 'x')
     while len(hex_result) < 8:
         hex_result = '0' + hex_result
     return hex_result[:8]
+
+def get_db_connection():
+    """Get database connection with WAL mode enabled"""
+    conn = sqlite3.connect(DATABASE_FILE)
+    conn.row_factory = sqlite3.Row  # Access columns by name
+    conn.execute('PRAGMA journal_mode=WAL')
+    conn.execute('PRAGMA synchronous=NORMAL')
+    return conn
+
+def timestamp_to_date(timestamp):
+    """Convert Unix timestamp to date string"""
+    if not timestamp:
+        return ''
+    try:
+        return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+    except:
+        return ''
+
+def row_to_dict(row):
+    """Convert sqlite3.Row to dict"""
+    return {key: row[key] for key in row.keys()}
 
 @eel.expose
 def login(username, password):
@@ -90,27 +107,18 @@ def login(username, password):
     username = username.lower()
     entered_hash = hash_password(password)
     
-    # DEBUG MODE: Show the hash for the entered password
     if DEBUG_MODE:
         print(f'\n=== DEBUG MODE ===')
         print(f'Password: {password}')
         print(f'Hash: {entered_hash}')
-        print(f'\nTo use this hash:')
-        print(f'1. Copy the hash above')
-        print(f'2. Update VALID_USERS in the Python file')
-        print(f'3. Set DEBUG_MODE = False')
-        print(f'4. Save and restart')
         print(f'==================\n')
     
-    # Check credentials
     if username not in VALID_USERS or entered_hash != VALID_USERS[username]:
         return {'status': 'error', 'message': 'Invalid username or password'}
     
-    # Check lock file
     lock_status = check_lock_file()
     
     if lock_status['locked'] and not lock_status['stale']:
-        # Ask user if they want read-only access
         current_user = username
         is_read_only = True
         lock_owner = lock_status['user']
@@ -121,11 +129,9 @@ def login(username, password):
             'message': f"Database is locked by {lock_status['user']}"
         }
     
-    # Clear stale lock if needed
     if lock_status.get('stale', False):
         delete_lock_file()
     
-    # Create lock file
     create_lock_file(username)
     current_user = username
     is_read_only = False
@@ -204,49 +210,356 @@ def refresh_lock_file():
         create_lock_file(current_user)
 
 @eel.expose
-def load_database():
-    """Load referrals database"""
+def get_referrals(filters=None, sort_by='id', sort_order='asc', offset=0, limit=100):
+    """Get referrals with filtering, sorting, and pagination - OPTIMIZED
+    
+    Only returns 17 fields needed for dashboard display (not all 52 fields)
+    
+    Args:
+        filters: dict with keys like 'status', 'type', 'search', 'dateFrom', 'dateTo'
+        sort_by: 'id', 'name', 'received', 'lastAttempt'
+        sort_order: 'asc' or 'desc'
+        offset: Starting row (for infinite scroll)
+        limit: Number of rows to return (default 100)
+    
+    Returns:
+        {
+            'status': 'success',
+            'referrals': [...],
+            'total': 5447,
+            'hasMore': true/false
+        }
+    """
     try:
-        if not os.path.exists(DATABASE_FILE):
-            # Create empty database
-            os.makedirs(DB_FOLDER, exist_ok=True)
-            empty_db = {
-                'referrals': [],
-                'nextId': 1,
-                'selectOptions': get_default_select_options()
-            }
-            with open(DATABASE_FILE, 'w') as f:
-                json.dump(empty_db, f, indent=2)
-            return {'status': 'success', 'data': empty_db}
+        conn = get_db_connection()
+        cursor = conn.cursor()
         
-        with open(DATABASE_FILE, 'r') as f:
-            data = json.load(f)
+        # Build WHERE clause
+        where_clauses = []
+        params = []
         
-        # Ensure selectOptions exists
-        if 'selectOptions' not in data:
-            data['selectOptions'] = get_default_select_options()
+        if filters:
+            # Status filters (can be multiple)
+            if filters.get('statuses'):
+                status_list = filters['statuses']
+                if isinstance(status_list, str):
+                    status_list = [status_list]
+                
+                status_conditions = []
+                for status_filter in status_list:
+                    if status_filter == 'new':
+                        status_conditions.append("referralStatus = 'New'")
+                    elif status_filter == 'pending':
+                        status_conditions.append("referralStatus = 'Pending'")
+                    elif status_filter == 'info-received':
+                        status_conditions.append("referralStatus = 'Info Received'")
+                    elif status_filter == 'completed':
+                        status_conditions.append("referralStatus = 'Completed'")
+                    elif status_filter == 'deferred':
+                        status_conditions.append("referralStatus = 'Deferred'")
+                    elif status_filter == 'previous':
+                        status_conditions.append("referralType = 'Previous'")
+                    elif status_filter == 'partner':
+                        status_conditions.append("referralType = 'Partner'")
+                    elif status_filter == 'new-referral':
+                        status_conditions.append("(referralStatus = 'New' AND lastAttemptDate IS NULL)")
+                    elif status_filter == 'contact-2days':
+                        where_clauses.append("(lastAttemptDate IS NOT NULL AND (strftime('%s', 'now') - lastAttemptDate) / 86400 > 2)")
+                    elif status_filter == 'contact-3days':
+                        where_clauses.append("(lastAttemptDate IS NOT NULL AND (strftime('%s', 'now') - lastAttemptDate) / 86400 > 3)")
+                    elif status_filter == 'contact-7days':
+                        where_clauses.append("(lastAttemptDate IS NOT NULL AND (strftime('%s', 'now') - lastAttemptDate) / 86400 > 7)")
+                
+                if status_conditions:
+                    where_clauses.append(f"({' OR '.join(status_conditions)})")
+            
+            # Date range filter
+            if filters.get('dateFrom'):
+                try:
+                    from_date = datetime.strptime(filters['dateFrom'], '%Y-%m-%d')
+                    from_timestamp = int(from_date.timestamp())
+                    where_clauses.append("receivedDate >= ?")
+                    params.append(from_timestamp)
+                except:
+                    pass
+            
+            if filters.get('dateTo'):
+                try:
+                    to_date = datetime.strptime(filters['dateTo'], '%Y-%m-%d')
+                    to_date = to_date.replace(hour=23, minute=59, second=59)
+                    to_timestamp = int(to_date.timestamp())
+                    where_clauses.append("receivedDate <= ?")
+                    params.append(to_timestamp)
+                except:
+                    pass
+            
+            # Search filter
+            if filters.get('search'):
+                search_term = f"%{filters['search']}%"
+                where_clauses.append(
+                    "(patientFirstName LIKE ? OR patientLastName LIKE ? OR patientPhone LIKE ? OR patientEmail LIKE ? OR CAST(referralID AS TEXT) LIKE ?)"
+                )
+                params.extend([search_term, search_term, search_term, search_term, search_term])
         
-        return {'status': 'success', 'data': data}
+        # Build ORDER BY clause
+        order_map = {
+            'id': 'referralID',
+            'name': 'patientLastName, patientFirstName',
+            'received': 'receivedDate',
+            'lastAttempt': 'lastAttemptDate'
+        }
+        order_column = order_map.get(sort_by, 'referralID')
+        order_direction = 'DESC' if sort_order == 'desc' else 'ASC'
+        
+        # Get total count
+        count_sql = "SELECT COUNT(*) FROM referrals"
+        if where_clauses:
+            count_sql += " WHERE " + " AND ".join(where_clauses)
+        
+        cursor.execute(count_sql, params)
+        total_count = cursor.fetchone()[0]
+        
+        # OPTIMIZED: Get only fields displayed in dashboard (17 fields instead of 52)
+        sql = f"""
+            SELECT 
+                referralID,
+                urgent,
+                fileName,
+                patientFirstName,
+                patientLastName,
+                referralStatus,
+                referralType,
+                patientDOB,
+                receivedDate,
+                lastAttemptDate,
+                lastAttemptMode,
+                phoneAttempts,
+                emailAttempts,
+                serviceRequested,
+                requestedPhysician,
+                requestedLocation,
+                patientPhone,
+                patientEmail
+            FROM referrals
+            {" WHERE " + " AND ".join(where_clauses) if where_clauses else ""}
+            ORDER BY {order_column} {order_direction}
+            LIMIT ? OFFSET ?
+        """
+        
+        params.extend([limit, offset])
+        cursor.execute(sql, params)
+        
+        referrals = []
+        for row in cursor.fetchall():
+            ref_dict = row_to_dict(row)
+            
+            # Convert timestamps to date strings for frontend
+            ref_dict['receivedDate'] = timestamp_to_date(ref_dict['receivedDate'])
+            ref_dict['patientDOB'] = timestamp_to_date(ref_dict['patientDOB'])
+            ref_dict['lastAttemptDate'] = timestamp_to_date(ref_dict['lastAttemptDate'])
+            
+            # phoneAttempts and emailAttempts already in row - no need to query!
+            
+            referrals.append(ref_dict)
+        
+        conn.close()
+        
+        return {
+            'status': 'success',
+            'referrals': referrals,
+            'total': total_count,
+            'hasMore': (offset + limit) < total_count
+        }
+        
     except Exception as e:
-        print(f"Error loading database: {e}")
+        print(f"Error getting referrals: {e}")
+        import traceback
+        traceback.print_exc()
         return {'status': 'error', 'message': str(e)}
 
 @eel.expose
-def save_database(data):
-    """Save referrals database"""
-    if is_read_only:
-        return {'status': 'error', 'message': 'Cannot save in read-only mode'}
+def get_referral_details(referral_id):
+    """Get complete referral with all fields and attempt history
     
+    Called when user clicks to view/edit a referral
+    Loads all 52 fields + attempt history (only when needed)
+    
+    Args:
+        referral_id: ID of referral to load
+        
+    Returns:
+        {
+            'status': 'success',
+            'referral': {...}  # All fields + attemptHistory array
+        }
+    """
     try:
-        with open(DATABASE_FILE, 'w') as f:
-            json.dump(data, f, indent=2)
+        conn = get_db_connection()
+        cursor = conn.cursor()
         
-        # Refresh lock file
-        refresh_lock_file()
+        # Get full referral data (all 52 fields)
+        cursor.execute("SELECT * FROM referrals WHERE referralID = ?", (referral_id,))
+        row = cursor.fetchone()
         
-        return {'status': 'success'}
+        if not row:
+            conn.close()
+            return {'status': 'error', 'message': 'Referral not found'}
+        
+        referral = row_to_dict(row)
+        
+        # Convert timestamps to date strings
+        date_fields = ['addedToDBDate', 'referralDate', 'receivedDate', 'patientDOB', 
+                      'partnerDOB', 'lastAttemptDate', 'faxedBackDate', 
+                      'completeInfoReceivedDate', 'referralCompleteDate', 'notesDate']
+        
+        for field in date_fields:
+            if referral.get(field):
+                referral[field] = timestamp_to_date(referral[field])
+        
+        # Get attempt history
+        cursor.execute("""
+            SELECT attemptDate, attemptTime, attemptMode, attemptComment
+            FROM attempt_history
+            WHERE referralID = ?
+            ORDER BY id
+        """, (referral_id,))
+        
+        attempts = []
+        for attempt_row in cursor.fetchall():
+            attempts.append({
+                'date': timestamp_to_date(attempt_row['attemptDate']),
+                'time': attempt_row['attemptTime'] or '',
+                'mode': attempt_row['attemptMode'] or '',
+                'comment': attempt_row['attemptComment'] or ''
+            })
+        
+        referral['attemptHistory'] = attempts
+        
+        conn.close()
+        
+        return {'status': 'success', 'referral': referral}
+        
     except Exception as e:
-        print(f"Error saving database: {e}")
+        print(f"Error getting referral details: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'status': 'error', 'message': str(e)}
+
+@eel.expose
+def get_kpi_counts(date_filters=None):
+    """Get KPI counts with optional date filtering
+    
+    Args:
+        date_filters: dict with 'dateFrom' and 'dateTo'
+    
+    Returns:
+        {
+            'total': 5447,
+            'new': 65,
+            'pending': 632,
+            'completed': 4039,
+            'deferred': 705,
+            'waitingContact': 123
+        }
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Build date filter
+        where_clause = ""
+        params = []
+        
+        if date_filters:
+            conditions = []
+            if date_filters.get('dateFrom'):
+                try:
+                    from_date = datetime.strptime(date_filters['dateFrom'], '%Y-%m-%d')
+                    from_timestamp = int(from_date.timestamp())
+                    conditions.append("receivedDate >= ?")
+                    params.append(from_timestamp)
+                except:
+                    pass
+            
+            if date_filters.get('dateTo'):
+                try:
+                    to_date = datetime.strptime(date_filters['dateTo'], '%Y-%m-%d')
+                    to_date = to_date.replace(hour=23, minute=59, second=59)
+                    to_timestamp = int(to_date.timestamp())
+                    conditions.append("receivedDate <= ?")
+                    params.append(to_timestamp)
+                except:
+                    pass
+            
+            if conditions:
+                where_clause = " WHERE " + " AND ".join(conditions)
+        
+        # Get counts
+        cursor.execute(f"SELECT COUNT(*) FROM referrals{where_clause}", params)
+        total = cursor.fetchone()[0]
+        
+        cursor.execute(f"SELECT COUNT(*) FROM referrals{where_clause} {'AND' if where_clause else 'WHERE'} referralType = 'New'", params)
+        new = cursor.fetchone()[0]
+        
+        cursor.execute(f"SELECT COUNT(*) FROM referrals{where_clause} {'AND' if where_clause else 'WHERE'} referralStatus = 'Pending'", params)
+        pending = cursor.fetchone()[0]
+        
+        cursor.execute(f"SELECT COUNT(*) FROM referrals{where_clause} {'AND' if where_clause else 'WHERE'} referralStatus = 'Completed'", params)
+        completed = cursor.fetchone()[0]
+        
+        cursor.execute(f"SELECT COUNT(*) FROM referrals{where_clause} {'AND' if where_clause else 'WHERE'} referralStatus = 'Deferred'", params)
+        deferred = cursor.fetchone()[0]
+        
+        # Waiting for contact: (New OR Pending) AND (no lastAttemptDate OR > 2 days old)
+        cursor.execute(f"""
+            SELECT COUNT(*) FROM referrals
+            {where_clause}
+            {"AND" if where_clause else "WHERE"} (referralStatus = 'New' OR referralStatus = 'Pending')
+            AND (lastAttemptDate IS NULL OR (strftime('%s', 'now') - lastAttemptDate) / 86400 > 2)
+        """, params)
+        waiting_contact = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        return {
+            'total': total,
+            'new': new,
+            'pending': pending,
+            'completed': completed,
+            'deferred': deferred,
+            'waitingContact': waiting_contact
+        }
+        
+    except Exception as e:
+        print(f"Error getting KPI counts: {e}")
+        return {'total': 0, 'new': 0, 'pending': 0, 'completed': 0, 'deferred': 0, 'waitingContact': 0}
+
+@eel.expose
+def get_select_options():
+    """Get dropdown options from database"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT category, value
+            FROM select_options
+            ORDER BY category, displayOrder
+        """)
+        
+        options = {}
+        for row in cursor.fetchall():
+            category = row['category']
+            value = row['value']
+            if category not in options:
+                options[category] = []
+            options[category].append(value)
+        
+        conn.close()
+        return {'status': 'success', 'options': options}
+        
+    except Exception as e:
+        print(f"Error getting select options: {e}")
         return {'status': 'error', 'message': str(e)}
 
 @eel.expose
@@ -256,27 +569,80 @@ def add_referral(referral_data):
         return {'status': 'error', 'message': 'Cannot add referrals in read-only mode'}
     
     try:
-        # Load current database
-        with open(DATABASE_FILE, 'r') as f:
-            db = json.load(f)
+        conn = get_db_connection()
+        cursor = conn.cursor()
         
-        # Add referralID and timestamp
-        referral_data['referralID'] = db['nextId']
-        referral_data['addedToDBDate'] = datetime.now().isoformat()
-        db['nextId'] += 1
+        # Add timestamp
+        referral_data['addedToDBDate'] = int(datetime.now().timestamp())
         
-        # Add to referrals list
-        db['referrals'].append(referral_data)
+        # Extract attempt history
+        attempt_history = referral_data.pop('attemptHistory', [])
         
-        # Save
-        with open(DATABASE_FILE, 'w') as f:
-            json.dump(db, f, indent=2)
+        # Calculate attempt counts (OPTIMIZED - store counts instead of querying)
+        phone_count = sum(1 for a in attempt_history if a.get('mode') in ['Phone', 'Phone call'])
+        email_count = sum(1 for a in attempt_history if a.get('mode') in ['E-Mail', 'Email'])
+        
+        referral_data['phoneAttempts'] = phone_count
+        referral_data['emailAttempts'] = email_count
+        
+        # Set lastAttemptMode from last attempt
+        if attempt_history:
+            referral_data['lastAttemptMode'] = attempt_history[-1].get('mode', '')
+        
+        # Convert date strings to timestamps
+        date_fields = ['referralDate', 'receivedDate', 'patientDOB', 'partnerDOB', 
+                      'lastAttemptDate', 'faxedBackDate', 'completeInfoReceivedDate', 
+                      'referralCompleteDate', 'notesDate']
+        
+        for field in date_fields:
+            if field in referral_data and referral_data[field]:
+                try:
+                    dt = datetime.strptime(referral_data[field], '%Y-%m-%d')
+                    referral_data[field] = int(dt.timestamp())
+                except:
+                    referral_data[field] = None
+        
+        # Insert referral
+        columns = ', '.join(referral_data.keys())
+        placeholders = ', '.join(['?' for _ in referral_data])
+        sql = f"INSERT INTO referrals ({columns}) VALUES ({placeholders})"
+        
+        cursor.execute(sql, list(referral_data.values()))
+        referral_id = cursor.lastrowid
+        
+        # Insert attempt history
+        for attempt in attempt_history:
+            attempt_date = None
+            if attempt.get('date'):
+                try:
+                    dt = datetime.strptime(attempt['date'], '%Y-%m-%d')
+                    attempt_date = int(dt.timestamp())
+                except:
+                    pass
+            
+            cursor.execute("""
+                INSERT INTO attempt_history (referralID, attemptDate, attemptTime, attemptMode, attemptComment)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                referral_id,
+                attempt_date,
+                attempt.get('time', ''),
+                attempt.get('mode', ''),
+                attempt.get('comment', '')
+            ))
+        
+        conn.commit()
+        conn.close()
         
         refresh_lock_file()
         
+        referral_data['referralID'] = referral_id
         return {'status': 'success', 'referral': referral_data}
+        
     except Exception as e:
         print(f"Error adding referral: {e}")
+        import traceback
+        traceback.print_exc()
         return {'status': 'error', 'message': str(e)}
 
 @eel.expose
@@ -286,24 +652,77 @@ def update_referral(referral_id, referral_data):
         return {'status': 'error', 'message': 'Cannot update referrals in read-only mode'}
     
     try:
-        with open(DATABASE_FILE, 'r') as f:
-            db = json.load(f)
+        conn = get_db_connection()
+        cursor = conn.cursor()
         
-        # Find and update referral
-        for i, ref in enumerate(db['referrals']):
-            if ref['referralID'] == referral_id:
-                db['referrals'][i] = referral_data
-                break
+        # Extract attempt history
+        attempt_history = referral_data.pop('attemptHistory', [])
         
-        # Save
-        with open(DATABASE_FILE, 'w') as f:
-            json.dump(db, f, indent=2)
+        # Calculate attempt counts (OPTIMIZED - store counts instead of querying)
+        phone_count = sum(1 for a in attempt_history if a.get('mode') in ['Phone', 'Phone call'])
+        email_count = sum(1 for a in attempt_history if a.get('mode') in ['E-Mail', 'Email'])
+        
+        referral_data['phoneAttempts'] = phone_count
+        referral_data['emailAttempts'] = email_count
+        
+        # Set lastAttemptMode from last attempt
+        if attempt_history:
+            referral_data['lastAttemptMode'] = attempt_history[-1].get('mode', '')
+        
+        # Convert date strings to timestamps
+        date_fields = ['referralDate', 'receivedDate', 'patientDOB', 'partnerDOB',
+                      'lastAttemptDate', 'faxedBackDate', 'completeInfoReceivedDate',
+                      'referralCompleteDate', 'notesDate']
+        
+        for field in date_fields:
+            if field in referral_data and referral_data[field]:
+                try:
+                    dt = datetime.strptime(referral_data[field], '%Y-%m-%d')
+                    referral_data[field] = int(dt.timestamp())
+                except:
+                    referral_data[field] = None
+        
+        # Update referral
+        set_clause = ', '.join([f"{k} = ?" for k in referral_data.keys()])
+        sql = f"UPDATE referrals SET {set_clause} WHERE referralID = ?"
+        
+        cursor.execute(sql, list(referral_data.values()) + [referral_id])
+        
+        # Delete old attempt history
+        cursor.execute("DELETE FROM attempt_history WHERE referralID = ?", (referral_id,))
+        
+        # Insert new attempt history
+        for attempt in attempt_history:
+            attempt_date = None
+            if attempt.get('date'):
+                try:
+                    dt = datetime.strptime(attempt['date'], '%Y-%m-%d')
+                    attempt_date = int(dt.timestamp())
+                except:
+                    pass
+            
+            cursor.execute("""
+                INSERT INTO attempt_history (referralID, attemptDate, attemptTime, attemptMode, attemptComment)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                referral_id,
+                attempt_date,
+                attempt.get('time', ''),
+                attempt.get('mode', ''),
+                attempt.get('comment', '')
+            ))
+        
+        conn.commit()
+        conn.close()
         
         refresh_lock_file()
         
         return {'status': 'success', 'referral': referral_data}
+        
     except Exception as e:
         print(f"Error updating referral: {e}")
+        import traceback
+        traceback.print_exc()
         return {'status': 'error', 'message': str(e)}
 
 @eel.expose
@@ -313,19 +732,19 @@ def delete_referral(referral_id):
         return {'status': 'error', 'message': 'Cannot delete referrals in read-only mode'}
     
     try:
-        with open(DATABASE_FILE, 'r') as f:
-            db = json.load(f)
+        conn = get_db_connection()
+        cursor = conn.cursor()
         
-        # Remove referral
-        db['referrals'] = [r for r in db['referrals'] if r['referralID'] != referral_id]
+        # Delete referral (CASCADE will delete attempt_history)
+        cursor.execute("DELETE FROM referrals WHERE referralID = ?", (referral_id,))
         
-        # Save
-        with open(DATABASE_FILE, 'w') as f:
-            json.dump(db, f, indent=2)
+        conn.commit()
+        conn.close()
         
         refresh_lock_file()
         
         return {'status': 'success'}
+        
     except Exception as e:
         print(f"Error deleting referral: {e}")
         return {'status': 'error', 'message': str(e)}
@@ -339,10 +758,10 @@ def open_file_dialog():
         
         root = tk.Tk()
         root.withdraw()
-        root.attributes('-topmost', True)  # Forces window to top level
-        root.update()                       # Processes pending events
-        root.winfo_toplevel().lift()        # Lifts to top of window stack
-        root.focus_force()                  # Forces focus to this window
+        root.attributes('-topmost', True)
+        root.update()
+        root.winfo_toplevel().lift()
+        root.focus_force()
         
         file_path = filedialog.askopenfilename(
             parent=root,
@@ -390,66 +809,6 @@ def get_file_content(file_path):
         print(f"Error reading file: {e}")
         return {'status': 'error', 'message': str(e)}
 
-def get_default_select_options():
-    """Get default select options for dropdowns"""
-    return {
-        'requestedLocations': [
-            'Any',
-            'Downtown',
-            'Mississauga',
-            'Vaughan'
-        ],
-        'requestedPhysicians': [
-            'First Available',
-            'Dr. Bacal',
-            'Dr. Greenblatt',
-            'Dr. Jones',
-            'Dr. Liu',
-            'Dr. Michaeli',
-            'Dr. Pereira',
-            'Dr. Russo',
-            'Dr. Shapiro'
-        ],
-        'servicesRequested': [
-            'Infertility',
-            'EEF',
-            'ONC',
-            'SB',
-            'RPL',
-            'Donor',
-            'ARA',
-            'PGD',
-            'Gyne',
-            'Other'
-        ],
-        'referralType': [
-            'New',
-            'Previous',
-            'Partner'
-        ],
-        'lastAttemptModes': [
-            'Phone',
-            'E-Mail'
-        ],
-        'physicianAdmins': [
-            'CJ Admin',
-            'EG Admin',
-            'HS Admin',
-            'JM Admin',
-            'KL Admin',
-            'MR Admin',
-            'NP Admin',
-            'VB Admin',
-            'NursePrac Admin',
-            'Fellow Admin'
-        ],
-        'genderAtBirth': [
-            'Female',
-            'Male',
-            'Other'
-        ]
-    }
-
 def on_close(page, sockets):
     """Handle window close"""
     global _shutting_down
@@ -475,6 +834,13 @@ def shutdown():
         delete_lock_file()
 
 if __name__ == '__main__':
+    # Check if database exists
+    if not os.path.exists(DATABASE_FILE):
+        print(f"ERROR: Database not found at {DATABASE_FILE}")
+        print(f"Please run the CSV to SQLite converter first:")
+        print(f"  python Convert-CSV-To-SQLite.py referral-status.csv DB/referrals.db")
+        sys.exit(1)
+    
     # Initialize Eel
     eel.init('web')
     
