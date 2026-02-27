@@ -1086,6 +1086,7 @@
                     </div>
                     <div class="header-center">
                         <button onclick="openAddReferralModal()" class="btn btn-primary" id="addReferralBtn">+ Add Referral</button>
+                        <button onclick="exportToCSV()" class="btn btn-info" id="exportButton">Export</button>
                         <button onclick="saveDatabase()" class="btn btn-success" id="saveButton">Save</button>
                     </div>
                     <div class="filters">
@@ -1153,6 +1154,7 @@
                 </div>
                 <div class="filter-buttons" id="filterButtons">
                     <button class="filter-btn active" onclick="filterByStatus('all')">All</button>
+                    <button class="filter-btn" onclick="filterByStatus('urgent')">Urgent</button>
                     <button class="filter-btn" onclick="filterByStatus('new')">New<br>Patient</button>
                     <button class="filter-btn" onclick="filterByStatus('previous')">Previous<br>Patient</button>
                     <button class="filter-btn" onclick="filterByStatus('partner')">Partner</button>
@@ -1166,6 +1168,7 @@
                     <button class="filter-btn" onclick="filterByStatus('contact-7days')">Contact<br>> 7 days</button>
                     <button class="filter-btn" onclick="filterByStatus('no-contact')">No<br>Contact</button>
                     <button class="filter-btn" onclick="filterByStatus('no-email')">No<br>Email</button>
+                    <button class="filter-btn" onclick="filterByStatus('no-file')">No<br>File</button>
                 </div>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search referrals..." oninput="filterReferrals()">
                 <div class="referrals-grid-header">
@@ -1781,6 +1784,22 @@
 			// No need for manual save
 			return;
 		}
+		
+		// Export database to CSV
+		async function exportToCSV() {
+			try {
+				const result = await eel.export_to_csv()();
+				
+				if (result.status === 'success') {
+					alert(`Database exported successfully!\n\nFile: ${result.filename}\nLocation: Application folder\nRows: ${result.rows}`);
+				} else {
+					alert(`Export failed: ${result.message}`);
+				}
+			} catch (error) {
+				console.error('Export error:', error);
+				alert('Failed to export database. Check console for details.');
+			}
+		}
 
         // Update KPIs
         async function updateKPIs() {
@@ -1981,10 +2000,12 @@
 			}
 			
 			// Define mutually exclusive groups
+			const urgentGroup = ['urgent'];
 			const typeGroup = ['new', 'previous', 'partner'];
 			const statusGroup = ['new-referral', 'pending', 'info-received', 'completed', 'deferred'];
 			const contactGroup = ['contact-2days', 'contact-3days', 'contact-7days', 'no-contact'];
 			const emailGroup = ['no-email'];
+			const fileGroup = ['no-file'];
 			
 			// Check if this filter is already active (toggle off)
 			const index = currentFilter.indexOf(status);
@@ -2005,10 +2026,12 @@
 			
 			// Find which group this filter belongs to
 			let group = null;
-			if (typeGroup.includes(status)) group = typeGroup;
+			if (urgentGroup.includes(status)) group = urgentGroup;
+			else if (typeGroup.includes(status)) group = typeGroup;
 			else if (statusGroup.includes(status)) group = statusGroup;
 			else if (contactGroup.includes(status)) group = contactGroup;
 			else if (emailGroup.includes(status)) group = emailGroup;
+			else if (fileGroup.includes(status)) group = fileGroup;
 			
 			// Remove any filters from the same group (mutual exclusivity)
 			if (group) {

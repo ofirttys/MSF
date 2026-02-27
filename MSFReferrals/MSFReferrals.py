@@ -245,6 +245,14 @@ def get_referrals(filters=None, sort_by='id', sort_order='asc', offset=0, limit=
                 if isinstance(status_list, str):
                     status_list = [status_list]
                 
+                # Group 0: Urgent (mutually exclusive)
+                urgent_filters = []
+                if 'urgent' in status_list:
+                    urgent_filters.append("urgent = 1")
+                
+                if urgent_filters:
+                    where_clauses.append(f"({urgent_filters[-1]})")
+                
                 # Group 1: Referral Type (mutually exclusive)
                 type_filters = []
                 if 'new' in status_list:
@@ -304,6 +312,14 @@ def get_referrals(filters=None, sort_by='id', sort_order='asc', offset=0, limit=
                 
                 if email_filters:
                     where_clauses.append(f"({email_filters[-1]})")
+                
+                # Group 5: File presence (mutually exclusive)
+                file_filters = []
+                if 'no-file' in status_list:
+                    file_filters.append("(fileName IS NULL OR fileName = '')")
+                
+                if file_filters:
+                    where_clauses.append(f"({file_filters[-1]})")
             
             # Date range filter
             if filters.get('dateFrom'):
@@ -855,6 +871,66 @@ def on_close(page, sockets):
     except:
         pass
     os._exit(0)
+
+@eel.expose
+def export_to_csv():
+    """Export database to CSV file in application folder"""
+    try:
+        from datetime import datetime
+        import csv
+        
+        # Generate filename with current date
+        current_date = datetime.now().strftime('%Y%m%d')
+        filename = f'Referrals Master List - {current_date}.csv'
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get all referrals with full details
+        cursor.execute("""
+            SELECT 
+                referralID, addedToDBDate, referralDate, receivedDate, fileName,
+                referringPhysicianName, referringPhysicianBilling, referringPhysicianFax,
+                referringPhysicianPhone, referringPhysicianEmail,
+                urgent, requestedLocation, requestedPhysician, serviceRequested,
+                subServiceRequested, referralType,
+                patientPID, patientMRN, patientFirstName, patientMiddleName, patientLastName,
+                patientDOB, patientPhone, patientEmail, patientAddress, patientHC, patientGenderAtBirth,
+                emergencyContact, emergencyContactRelationship,
+                partnerPID, partnerMRN, partnerFirstName, partnerMiddleName, partnerLastName,
+                partnerDOB, partnerPhone, partnerEmail, partnerAddress, partnerHC, partnerGenderAtBirth,
+                partnerEmergencyContact, partnerEmergencyContactRelationship,
+                referralStatus, lastAttemptDate, lastAttemptTime, lastAttemptMode, lastAttemptComment,
+                phoneAttempts, emailAttempts, assignedPhysician,
+                faxedBackDate, completeInfoReceivedDate, taskedToPhysicianAdmin,
+                referralCompleteDate, notes, notesDate
+            FROM referrals
+            ORDER BY referralID
+        """)
+        
+        rows = cursor.fetchall()
+        columns = [description[0] for description in cursor.description]
+        
+        # Write CSV file in application folder (current directory)
+        with open(filename, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(columns)
+            writer.writerows(rows)
+        
+        conn.close()
+        
+        return {
+            'status': 'success',
+            'filename': filename,
+            'rows': len(rows)
+        }
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            'status': 'error',
+            'message': str(e)
+        }
 
 def shutdown():
     """Cleanup on shutdown"""
