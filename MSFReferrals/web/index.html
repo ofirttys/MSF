@@ -1906,37 +1906,47 @@
 
         // Filter by status
         function filterByStatus(status) {
-			// Handle "All" button
+			// Handle "All" button - clears everything
 			if (status === 'all') {
 				currentFilter = [];
-				// Update active buttons
+				// Update all buttons
 				document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
 				event.target.classList.add('active');
-				loadReferrals(true); // Reload with no filters
+				loadReferrals(true);
 				return;
 			}
 			
-			// Toggle filter in array
-			const index = currentFilter.indexOf(status);
-			if (index > -1) {
-				// Filter already active, remove it
-				currentFilter.splice(index, 1);
-				event.target.classList.remove('active');
-			} else {
-				// Filter not active, add it
-				currentFilter.push(status);
-				event.target.classList.add('active');
+			// Define mutually exclusive groups
+			const typeGroup = ['new', 'previous', 'partner'];
+			const statusGroup = ['new-referral', 'pending', 'info-received', 'completed', 'deferred'];
+			const contactGroup = ['contact-2days', 'contact-3days', 'contact-7days'];
+			
+			// Find which group this filter belongs to
+			let group = null;
+			if (typeGroup.includes(status)) group = typeGroup;
+			else if (statusGroup.includes(status)) group = statusGroup;
+			else if (contactGroup.includes(status)) group = contactGroup;
+			
+			// Remove any filters from the same group (mutual exclusivity)
+			if (group) {
+				currentFilter = currentFilter.filter(f => !group.includes(f));
+				
+				// Remove active class from all buttons in this group
+				group.forEach(filterName => {
+					const btn = Array.from(document.querySelectorAll('.filter-btn')).find(
+						b => b.onclick && b.onclick.toString().includes(`'${filterName}'`)
+					);
+					if (btn) btn.classList.remove('active');
+				});
 			}
 			
-			// Update "All" button state
+			// Add the new filter
+			currentFilter.push(status);
+			event.target.classList.add('active');
+			
+			// Deactivate "All" button
 			const allButton = document.querySelector('.filter-btn');
-			if (currentFilter.length === 0) {
-				// No filters active, activate "All"
-				allButton.classList.add('active');
-			} else {
-				// Filters active, deactivate "All"
-				allButton.classList.remove('active');
-			}
+			allButton.classList.remove('active');
 			
 			// Reload with new filters
 			loadReferrals(true);

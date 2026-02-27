@@ -239,39 +239,54 @@ def get_referrals(filters=None, sort_by='id', sort_order='asc', offset=0, limit=
         params = []
         
         if filters:
-            # Status filters (can be multiple)
+            # Status filters - organized into mutually exclusive groups
             if filters.get('statuses'):
                 status_list = filters['statuses']
                 if isinstance(status_list, str):
                     status_list = [status_list]
                 
-                status_conditions = []
-                for status_filter in status_list:
-                    if status_filter == 'new':
-                        status_conditions.append("referralStatus = 'New'")
-                    elif status_filter == 'pending':
-                        status_conditions.append("referralStatus = 'Pending'")
-                    elif status_filter == 'info-received':
-                        status_conditions.append("referralStatus = 'Info Received'")
-                    elif status_filter == 'completed':
-                        status_conditions.append("referralStatus = 'Completed'")
-                    elif status_filter == 'deferred':
-                        status_conditions.append("referralStatus = 'Deferred'")
-                    elif status_filter == 'previous':
-                        status_conditions.append("referralType = 'Previous'")
-                    elif status_filter == 'partner':
-                        status_conditions.append("referralType = 'Partner'")
-                    elif status_filter == 'new-referral':
-                        status_conditions.append("(referralStatus = 'New' AND lastAttemptDate IS NULL)")
-                    elif status_filter == 'contact-2days':
-                        where_clauses.append("(lastAttemptDate IS NOT NULL AND (strftime('%s', 'now') - lastAttemptDate) / 86400 > 2)")
-                    elif status_filter == 'contact-3days':
-                        where_clauses.append("(lastAttemptDate IS NOT NULL AND (strftime('%s', 'now') - lastAttemptDate) / 86400 > 3)")
-                    elif status_filter == 'contact-7days':
-                        where_clauses.append("(lastAttemptDate IS NOT NULL AND (strftime('%s', 'now') - lastAttemptDate) / 86400 > 7)")
+                # Group 1: Referral Type (mutually exclusive)
+                type_filters = []
+                if 'new' in status_list:
+                    type_filters.append("referralType = 'New'")
+                if 'previous' in status_list:
+                    type_filters.append("referralType = 'Previous'")
+                if 'partner' in status_list:
+                    type_filters.append("referralType = 'Partner'")
                 
-                if status_conditions:
-                    where_clauses.append(f"({' OR '.join(status_conditions)})")
+                # If multiple type filters selected, use only the last one (shouldn't happen with mutual exclusive UI)
+                if type_filters:
+                    where_clauses.append(f"({type_filters[-1]})")
+                
+                # Group 2: Referral Status (mutually exclusive)
+                status_filters = []
+                if 'new-referral' in status_list:
+                    status_filters.append("(referralStatus = 'New' AND lastAttemptDate IS NULL)")
+                if 'pending' in status_list:
+                    status_filters.append("referralStatus = 'Pending'")
+                if 'info-received' in status_list:
+                    status_filters.append("referralStatus = 'Info Received'")
+                if 'completed' in status_list:
+                    status_filters.append("referralStatus = 'Completed'")
+                if 'deferred' in status_list:
+                    status_filters.append("referralStatus = 'Deferred'")
+                
+                # If multiple status filters selected, use only the last one
+                if status_filters:
+                    where_clauses.append(f"({status_filters[-1]})")
+                
+                # Group 3: Contact timing (mutually exclusive)
+                contact_filters = []
+                if 'contact-2days' in status_list:
+                    contact_filters.append("(lastAttemptDate IS NOT NULL AND (strftime('%s', 'now') - lastAttemptDate) / 86400 > 2)")
+                if 'contact-3days' in status_list:
+                    contact_filters.append("(lastAttemptDate IS NOT NULL AND (strftime('%s', 'now') - lastAttemptDate) / 86400 > 3)")
+                if 'contact-7days' in status_list:
+                    contact_filters.append("(lastAttemptDate IS NOT NULL AND (strftime('%s', 'now') - lastAttemptDate) / 86400 > 7)")
+                
+                # If multiple contact filters selected, use only the last one
+                if contact_filters:
+                    where_clauses.append(f"({contact_filters[-1]})")
             
             # Date range filter
             if filters.get('dateFrom'):
