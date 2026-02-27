@@ -1145,6 +1145,8 @@
                     <button class="filter-btn" onclick="filterByStatus('contact-2days')">Contact<br>> 2 days</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-3days')">Contact<br>> 3 days</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-7days')">Contact<br>> 7 days</button>
+                    <button class="filter-btn" onclick="filterByStatus('no-contact')">No<br>Contact</button>
+                    <button class="filter-btn" onclick="filterByStatus('no-email')">No<br>Email</button>
                 </div>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search referrals..." oninput="filterReferrals()">
                 <div class="referrals-grid-header">
@@ -1929,7 +1931,8 @@
 			// Define mutually exclusive groups
 			const typeGroup = ['new', 'previous', 'partner'];
 			const statusGroup = ['new-referral', 'pending', 'info-received', 'completed', 'deferred'];
-			const contactGroup = ['contact-2days', 'contact-3days', 'contact-7days'];
+			const contactGroup = ['contact-2days', 'contact-3days', 'contact-7days', 'no-contact'];
+			const emailGroup = ['no-email'];
 			
 			// Check if this filter is already active (toggle off)
 			const index = currentFilter.indexOf(status);
@@ -1953,6 +1956,7 @@
 			if (typeGroup.includes(status)) group = typeGroup;
 			else if (statusGroup.includes(status)) group = statusGroup;
 			else if (contactGroup.includes(status)) group = contactGroup;
+			else if (emailGroup.includes(status)) group = emailGroup;
 			
 			// Remove any filters from the same group (mutual exclusivity)
 			if (group) {
@@ -1986,19 +1990,23 @@
 
         // Reset filters
         function resetFilters() {
+            // Clear all filters
             document.getElementById('dateFrom').value = '';
             document.getElementById('dateTo').value = '';
-            currentFilter = 'all';
-            currentSortMode = 'id';
             document.getElementById('searchBox').value = '';
+            currentFilter = [];  // Clear filter array (not string 'all')
+            currentSort = { by: 'id', order: 'asc' };  // Reset sort
+            currentSortMode = 'id';
             
             // Reset button states
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelector('.filter-btn').classList.add('active');
+            document.querySelector('.filter-btn').classList.add('active');  // Activate "All"
             document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById('sortID').classList.add('active');
             
-            renderReferralList();
+            // Reload data from backend
+            loadReferrals(true);
+            updateKPIs();
         }
 
 		function openAddReferralModal() {

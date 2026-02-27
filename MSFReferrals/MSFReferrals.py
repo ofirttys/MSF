@@ -261,7 +261,8 @@ def get_referrals(filters=None, sort_by='id', sort_order='asc', offset=0, limit=
                 # Group 2: Referral Status (mutually exclusive)
                 status_filters = []
                 if 'new-referral' in status_list:
-                    status_filters.append("(referralStatus = 'New' AND lastAttemptDate IS NULL)")
+                    # Just check status = New (removed lastAttemptDate check)
+                    status_filters.append("referralStatus = 'New'")
                 if 'pending' in status_list:
                     status_filters.append("referralStatus = 'Pending'")
                 if 'info-received' in status_list:
@@ -283,10 +284,20 @@ def get_referrals(filters=None, sort_by='id', sort_order='asc', offset=0, limit=
                     contact_filters.append("(lastAttemptDate IS NOT NULL AND (strftime('%s', 'now') - lastAttemptDate) / 86400 > 3)")
                 if 'contact-7days' in status_list:
                     contact_filters.append("(lastAttemptDate IS NOT NULL AND (strftime('%s', 'now') - lastAttemptDate) / 86400 > 7)")
+                if 'no-contact' in status_list:
+                    contact_filters.append("(lastAttemptDate IS NULL)")
                 
                 # If multiple contact filters selected, use only the last one
                 if contact_filters:
                     where_clauses.append(f"({contact_filters[-1]})")
+                
+                # Group 4: Email presence (mutually exclusive)
+                email_filters = []
+                if 'no-email' in status_list:
+                    email_filters.append("(patientEmail IS NULL OR patientEmail = '')")
+                
+                if email_filters:
+                    where_clauses.append(f"({email_filters[-1]})")
             
             # Date range filter
             if filters.get('dateFrom'):
