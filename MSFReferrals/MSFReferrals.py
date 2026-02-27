@@ -880,6 +880,15 @@ def export_to_csv():
         from datetime import datetime
         import csv
         
+        # Helper function to convert timestamp to date string
+        def timestamp_to_date(ts):
+            if ts is None or ts == '':
+                return ''
+            try:
+                return datetime.fromtimestamp(int(ts)).strftime('%Y-%m-%d')
+            except:
+                return ''
+        
         # Generate filename with current date
         current_date = datetime.now().strftime('%Y%m%d')
         filename = f'Referrals Master List - {current_date}.csv'
@@ -912,11 +921,23 @@ def export_to_csv():
         rows = cursor.fetchall()
         columns = [description[0] for description in cursor.description]
         
+        # Date column indices (0-based)
+        date_columns = [1, 2, 3, 40, 45, 46, 47, 49]  # addedToDBDate, referralDate, receivedDate, lastAttemptDate, faxedBackDate, completeInfoReceivedDate, referralCompleteDate, notesDate
+        
+        # Convert timestamps to dates
+        converted_rows = []
+        for row in rows:
+            row_list = list(row)
+            for idx in date_columns:
+                if idx < len(row_list):
+                    row_list[idx] = timestamp_to_date(row_list[idx])
+            converted_rows.append(row_list)
+        
         # Write CSV file in application folder (current directory)
         with open(filename, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(columns)
-            writer.writerows(rows)
+            writer.writerows(converted_rows)
         
         conn.close()
         

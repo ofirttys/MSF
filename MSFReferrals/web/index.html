@@ -851,7 +851,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 15px;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
 
         .form-row.full {
@@ -1086,8 +1086,8 @@
                     </div>
                     <div class="header-center">
                         <button onclick="openAddReferralModal()" class="btn btn-primary" id="addReferralBtn">+ Add Referral</button>
-                        <button onclick="exportToCSV()" class="btn btn-info" id="exportButton">Export</button>
                         <button onclick="saveDatabase()" class="btn btn-success" id="saveButton">Save</button>
+                        <button onclick="exportToCSV()" class="btn btn-info" id="exportButton">Export</button>
                     </div>
                     <div class="filters">
                         <div class="filter-group">
@@ -1339,21 +1339,18 @@
 										</div>
 									</div>
 									
-									<div class="form-row">
+									<div class="form-row three-col">
 										<div class="form-group">
 											<label class="required">First Name</label>
 											<input type="text" id="patientFirstName" required>
 										</div>
 										<div class="form-group">
-											<label class="required">Last Name</label>
-											<input type="text" id="patientLastName" required>
-										</div>
-									</div>
-									
-									<div class="form-row full">
-										<div class="form-group">
 											<label>Middle Name</label>
 											<input type="text" id="patientMiddleName">
+										</div>
+										<div class="form-group">
+											<label class="required">Last Name</label>
+											<input type="text" id="patientLastName" required>
 										</div>
 									</div>
 									
@@ -1426,21 +1423,18 @@
 										</div>
 									</div>
 									
-									<div class="form-row">
+									<div class="form-row three-col">
 										<div class="form-group">
 											<label>First Name</label>
 											<input type="text" id="partnerFirstName">
 										</div>
 										<div class="form-group">
-											<label>Last Name</label>
-											<input type="text" id="partnerLastName">
-										</div>
-									</div>
-									
-									<div class="form-row full">
-										<div class="form-group">
 											<label>Middle Name</label>
 											<input type="text" id="partnerMiddleName">
+										</div>
+										<div class="form-group">
+											<label>Last Name</label>
+											<input type="text" id="partnerLastName">
 										</div>
 									</div>
 									
@@ -1791,7 +1785,22 @@
 				const result = await eel.export_to_csv()();
 				
 				if (result.status === 'success') {
-					alert(`Database exported successfully!\n\nFile: ${result.filename}\nLocation: Application folder\nRows: ${result.rows}`);
+					// Show professional message without browser prefix
+					const message = `Export completed successfully!\n\nFile: ${result.filename}\nReferrals: ${result.rows}`;
+					
+					// Create custom modal-style alert
+					const modal = document.createElement('div');
+					modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+					modal.innerHTML = `
+						<div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px;">
+							<h3 style="margin: 0 0 20px 0; color: #27ae60;">✓ Export Successful</h3>
+							<p style="margin: 0 0 10px 0; color: #2c3e50;"><strong>File:</strong> ${result.filename}</p>
+							<p style="margin: 0 0 20px 0; color: #2c3e50;"><strong>Referrals:</strong> ${result.rows}</p>
+							<button onclick="this.parentElement.parentElement.remove()" style="background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">OK</button>
+						</div>
+					`;
+					document.body.appendChild(modal);
+					modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 				} else {
 					alert(`Export failed: ${result.message}`);
 				}
