@@ -1743,10 +1743,12 @@
             
             const result = await eel.get_kpi_counts(dateFilters)();
             
-            document.getElementById('totalReferrals').textContent = result.total || 0;
-            document.getElementById('newReferrals').textContent = result.new || 0;
-            document.getElementById('pendingReferrals').textContent = result.pending || 0;
-            document.getElementById('completedReferrals').textContent = result.completed || 0;
+            document.getElementById('kpiTotal').textContent = result.total || 0;
+            document.getElementById('kpiNew').textContent = result.new || 0;
+            document.getElementById('kpiPending').textContent = result.pending || 0;
+            document.getElementById('kpiCompleted').textContent = result.completed || 0;
+            document.getElementById('kpiDeferred').textContent = result.deferred || 0;
+            document.getElementById('kpiWaitingContact').textContent = result.waitingContact || 0;
         }
 
         // Render referral list
@@ -1878,21 +1880,35 @@
 
         // Set sort mode
         function setSortMode(mode) {
-            currentSortMode = mode;
+            // Map old sort modes to new backend format
+            const sortMap = {
+                'id': { by: 'id', order: 'asc' },
+                'name-az': { by: 'name', order: 'asc' },
+                'attempt-old': { by: 'lastAttempt', order: 'asc' },
+                'attempt-new': { by: 'lastAttempt', order: 'desc' },
+                'received-new': { by: 'received', order: 'desc' },
+                'received-old': { by: 'received', order: 'asc' }
+            };
             
-            // Update button states
-            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
-            const btnId = {
-                'id': 'sortID',
-                'name-az': 'sortNameAZ',
-                'attempt-old': 'sortAttemptOld',
-                'attempt-new': 'sortAttemptNew',
-                'received-new': 'sortReceivedNew',
-                'received-old': 'sortReceivedOld'
-            }[mode];
-            if (btnId) document.getElementById(btnId).classList.add('active');
-            
-            renderReferralList();
+            if (sortMap[mode]) {
+                currentSort = sortMap[mode];
+                currentSortMode = mode; // Keep for button state
+                
+                // Update button states
+                document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+                const btnId = {
+                    'id': 'sortID',
+                    'name-az': 'sortNameAZ',
+                    'attempt-old': 'sortAttemptOld',
+                    'attempt-new': 'sortAttemptNew',
+                    'received-new': 'sortReceivedNew',
+                    'received-old': 'sortReceivedOld'
+                }[mode];
+                if (btnId) document.getElementById(btnId).classList.add('active');
+                
+                // Reload with new sort
+                loadReferrals(true);
+            }
         }
 
         // Filter by status
@@ -1903,7 +1919,7 @@
 				// Update active buttons
 				document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
 				event.target.classList.add('active');
-				renderReferralList();
+				loadReferrals(true); // Reload with no filters
 				return;
 			}
 			
@@ -1929,7 +1945,8 @@
 				allButton.classList.remove('active');
 			}
 			
-			renderReferralList();
+			// Reload with new filters
+			loadReferrals(true);
 		}
 
         // Filter referrals (called by search input)
