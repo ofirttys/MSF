@@ -6,6 +6,7 @@ import json
 import tempfile
 import threading
 import time
+import traceback
 from pathlib import Path
 from datetime import datetime
 import psutil
