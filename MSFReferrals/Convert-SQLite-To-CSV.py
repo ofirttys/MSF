@@ -136,7 +136,7 @@ def convert_sqlite_to_csv(db_path, csv_path):
                 old_status = 'Complete'
             elif ref['referralStatus'] == 'Deferred':
                 old_status = 'Deferred'
-            elif ref['referralStatus'] in ['New', 'Pending', 'Info Received']:
+            elif ref['referralStatus'] in ['New', 'Pending', 'Information Completed']:
                 old_status = 'Pending'
             
             # Map referralType back to "New or Returning"

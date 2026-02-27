@@ -266,7 +266,13 @@ def get_referrals(filters=None, sort_by='id', sort_order='asc', offset=0, limit=
                 if 'pending' in status_list:
                     status_filters.append("referralStatus = 'Pending'")
                 if 'info-received' in status_list:
-                    status_filters.append("referralStatus = 'Info Received'")
+                    status_filters.append("referralStatus = 'Information Completed'")
+                if 'physician-assigned' in status_list:
+                    status_filters.append("referralStatus = 'Physician Assigned'")
+                if 'cerner-done' in status_list:
+                    status_filters.append("referralStatus = 'Cerner Done'")
+                if 'eivf-done' in status_list:
+                    status_filters.append("referralStatus = 'eIVF Done'")
                 if 'completed' in status_list:
                     status_filters.append("referralStatus = 'Completed'")
                 if 'deferred' in status_list:

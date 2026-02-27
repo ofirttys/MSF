@@ -122,6 +122,7 @@ def create_database(db_path):
         lastAttemptComment TEXT,
         phoneAttempts INTEGER DEFAULT 0,
         emailAttempts INTEGER DEFAULT 0,
+        assignedPhysician TEXT,
         faxedBackDate INTEGER,
         completeInfoReceivedDate INTEGER,
         taskedToPhysicianAdmin TEXT,
@@ -279,7 +280,7 @@ def convert_csv_to_sqlite(csv_path, db_path):
             status = "Deferred"
         elif old_status == "Pending":
             if has_complete_info:
-                status = "Info Received"
+                status = "Information Completed"
             elif has_first_attempt:
                 status = "Pending"
             else:
@@ -390,10 +391,10 @@ def convert_csv_to_sqlite(csv_path, db_path):
                 partnerDOB, partnerPhone, partnerEmail, partnerAddress, partnerHC, partnerGenderAtBirth,
                 partnerEmergencyContact, partnerEmergencyContactRelationship,
                 referralStatus, lastAttemptDate, lastAttemptTime, lastAttemptMode, lastAttemptComment,
-                phoneAttempts, emailAttempts,
+                phoneAttempts, emailAttempts, assignedPhysician,
                 faxedBackDate, completeInfoReceivedDate, taskedToPhysicianAdmin,
                 referralCompleteDate, notes, notesDate
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             now_timestamp,
             parse_date_to_timestamp(row.get('Date Referral Received', '')),
@@ -443,6 +444,7 @@ def convert_csv_to_sqlite(csv_path, db_path):
             last_attempt['comment'] if last_attempt else None,
             phone_count,  # phoneAttempts
             email_count,  # emailAttempts
+            None,  # assignedPhysician (set later via UI)
             None,  # faxedBackDate
             parse_date_to_timestamp(row.get('Date Complete Information received', '')),
             row.get('Tasked To', '').strip() or None,
