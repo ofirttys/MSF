@@ -197,7 +197,8 @@ def create_database(db_path):
         ('referralType', ['New', 'Previous', 'Partner']),
         ('lastAttemptModes', ['Phone', 'E-Mail', 'Fax', 'In-Person', 'Mail', 'Text/SMS', 'Other']),
         ('physicianAdmins', ['CJ Admin', 'EG Admin', 'HS Admin', 'JM Admin', 'KL Admin', 'MR Admin', 'NP Admin', 'VB Admin', 'NursePrac Admin', 'Fellow Admin']),
-        ('genderAtBirth', ['Female', 'Male', 'Other'])
+        ('genderAtBirth', ['Female', 'Male', 'Other']),
+        ('assignedPhysicians', ['Dr. Bacal', 'Dr. Greenblatt', 'Dr. Jones', 'Dr. Liu', 'Dr. Michaeli', 'Dr. Pereira', 'Dr. Russo', 'Dr. Shapiro'])
     ]
     
     for category, values in select_options:
