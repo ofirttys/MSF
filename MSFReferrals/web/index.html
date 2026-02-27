@@ -1566,15 +1566,8 @@
         }
         
         function getActiveFilterButtons() {
-            const buttons = document.querySelectorAll('.filter-btn.active');
-            const filters = [];
-            buttons.forEach(btn => {
-                const filter = btn.getAttribute('data-filter');
-                if (filter && filter !== 'all') {
-                    filters.push(filter);
-                }
-            });
-            return filters.length > 0 ? filters : null;
+            // Return the currentFilter array that's managed by filterByStatus()
+            return currentFilter.length > 0 ? currentFilter : null;
         }
         
         function updateReferralCount(count) {
