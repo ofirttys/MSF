@@ -583,33 +583,6 @@ def get_kpi_counts(date_filters=None):
         return {'status': 'error', 'message': str(e)}
 
 @eel.expose
-def get_referral_details(referral_id):
-    """Get full details for a single referral"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT * FROM referrals WHERE referralID = ?", (referral_id,))
-        row = cursor.fetchone()
-        
-        if not row:
-            conn.close()
-            return {'status': 'error', 'message': 'Referral not found'}
-        
-        columns = [description[0] for description in cursor.description]
-        referral = dict(zip(columns, row))
-        
-        conn.close()
-        
-        return {
-            'status': 'success',
-            'referral': referral
-        }
-    except Exception as e:
-        traceback.print_exc()
-        return {'status': 'error', 'message': str(e)}
-
-@eel.expose
 def get_status_history(referral_id):
     """Get status change history for a referral"""
     try:
@@ -706,10 +679,9 @@ def get_notes_history(referral_id):
             'status': 'success',
             'history': history
         }
-        
     except Exception as e:
-        print(f"Error getting KPI counts: {e}")
-        return {'total': 0, 'new': 0, 'pending': 0, 'completed': 0, 'deferred': 0, 'waitingContact': 0}
+        traceback.print_exc()
+        return {'status': 'error', 'message': str(e)}
 
 @eel.expose
 def get_select_options():
