@@ -976,6 +976,25 @@
             color: #2c3e50;
             margin-top: 3px;
         }
+		
+		/* View Modal Actions */
+		.modal-actions {
+			margin-top: 30px;
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+		}
+		
+		.action-row {
+			display: flex;
+			gap: 10px;
+			justify-content: center;
+		}
+		
+		.action-row .btn {
+			flex: 1;
+			max-width: 250px;
+		}
 
         /* Empty State */
         .empty-state {
@@ -1201,6 +1220,64 @@
                 <div class="copyright">MSF Referrals Management Dashboard | &copy; Dr. Jennia Michaeli</div>
             </footer>
         </div>
+
+		<!-- View Referral Modal -->
+		<div id="viewReferralModal" class="modal">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h2 class="modal-title" id="viewReferralTitle"></h2>
+					<button type="button" class="close-btn" onclick="closeModal('viewReferralModal')">&times;</button>
+				</div>
+				
+				<div class="tabs">
+					<button class="tab active" onclick="switchViewTab('information')">Information</button>
+					<button class="tab" onclick="switchViewTab('patient')">Patient</button>
+					<button class="tab" onclick="switchViewTab('partner')">Partner</button>
+					<button class="tab" onclick="switchViewTab('history')">History</button>
+					<button class="tab" onclick="switchViewTab('contacts')">Contacts</button>
+					<button class="tab" onclick="switchViewTab('notes')">Notes</button>
+				</div>
+
+				<div id="informationTab" class="tab-content active">
+					<div id="informationContent"></div>
+				</div>
+
+				<div id="patientTab" class="tab-content">
+					<div id="patientContent"></div>
+				</div>
+
+				<div id="partnerTab" class="tab-content">
+					<div id="partnerContent"></div>
+				</div>
+
+				<div id="historyTab" class="tab-content">
+					<div id="historyContent"></div>
+				</div>
+
+				<div id="contactsTab" class="tab-content">
+					<div id="contactsContent"></div>
+				</div>
+
+				<div id="notesTab" class="tab-content">
+					<div id="notesContent"></div>
+				</div>
+
+				<div class="modal-actions">
+					<div class="action-row">
+						<button class="btn" style="background: #9b59b6; color: white;" onclick="contactPatient()">Contact Patient</button>
+						<button class="btn" style="background: #17a2b8; color: white;" onclick="contactReferringPhysician()">Contact Referring Physician</button>
+					</div>
+					<div class="action-row">
+						<button class="btn btn-success" id="nextStatusBtn" onclick="nextStatus()"></button>
+						<button class="btn btn-danger" onclick="deferReferral()">Defer</button>
+					</div>
+					<div class="action-row">
+						<button class="btn btn-secondary" onclick="closeModal('viewReferralModal')">Close</button>
+						<button class="btn btn-primary" onclick="editCurrentReferral()">Edit Referral</button>
+					</div>
+				</div>
+			</div>
+		</div>
 
 		<!-- Add/Edit Referral Modal -->
 		<div id="referralModal" class="modal">
@@ -2112,8 +2189,285 @@
 			document.querySelector('#referralModal .modal-body').scrollTop = 0;
 		}
 
-        function viewReferral(id) {
-            alert('View referral #' + id + ' - coming soon');
+        async function viewReferral(id) {
+            // Find referral in loaded data
+            const referral = allLoadedReferrals.find(r => r.referralID === id);
+            if (!referral) {
+                // If not in current view, fetch from backend
+                const result = await eel.get_referral_details(id)();
+                if (result.status === 'success') {
+                    currentViewingReferral = result.referral;
+                } else {
+                    alert('Could not load referral details');
+                    return;
+                }
+            } else {
+                currentViewingReferral = referral;
+            }
+            
+            populateViewModal(currentViewingReferral);
+            document.getElementById('viewReferralModal').classList.add('active');
+        }
+        
+        function populateViewModal(ref) {
+            // Set title with urgent flag and PID/MRN
+            let title = ref.urgent ? '⚠️ ' : '';
+            title += `${ref.patientFirstName || ''} ${ref.patientLastName || ''}`.trim();
+            
+            const pidMrn = [];
+            if (ref.patientPID) pidMrn.push(`PID: ${ref.patientPID}`);
+            if (ref.patientMRN) pidMrn.push(`MRN: ${ref.patientMRN}`);
+            if (pidMrn.length > 0) {
+                title += ` (${pidMrn.join(', ')})`;
+            }
+            
+            document.getElementById('viewReferralTitle').textContent = title;
+            
+            // Populate tabs
+            populateInformationTab(ref);
+            populatePatientTab(ref);
+            populatePartnerTab(ref);
+            populateHistoryTab(ref);
+            populateContactsTab(ref);
+            populateNotesTab(ref);
+            
+            // Set up next status button
+            updateNextStatusButton(ref.referralStatus);
+        }
+        
+        function populateInformationTab(ref) {
+            const formatDate = (timestamp) => {
+                if (!timestamp) return 'N/A';
+                const date = new Date(timestamp * 1000);
+                return date.toLocaleDateString();
+            };
+            
+            const daysSince = (timestamp) => {
+                if (!timestamp) return null;
+                const now = Date.now();
+                const then = timestamp * 1000;
+                const days = Math.floor((now - then) / (1000 * 60 * 60 * 24));
+                return days;
+            };
+            
+            // Last contact display
+            let lastContactHTML = '';
+            if (ref.lastAttemptDate) {
+                const days = daysSince(ref.lastAttemptDate);
+                lastContactHTML = `${formatDate(ref.lastAttemptDate)} (${days} days ago)`;
+            } else {
+                lastContactHTML = '<span style="color: #e74c3c; font-weight: bold;">No Contact!</span>';
+            }
+            
+            // Sub-service display
+            const subService = ref.subServiceRequested ? ` / ${ref.subServiceRequested}` : '';
+            
+            const html = `
+                <div class="info-grid" style="display: grid; grid-template-columns: 200px 1fr; gap: 15px; line-height: 1.8;">
+                    <strong>Status:</strong><span style="color: #667eea;">${ref.referralStatus || 'N/A'}</span>
+                    <strong>Received:</strong><span>${formatDate(ref.receivedDate)}</span>
+                    <strong>Added:</strong><span>${formatDate(ref.addedToDBDate)}</span>
+                    <strong>Last Contact:</strong><span>${lastContactHTML}</span>
+                    <strong>Requested Location:</strong><span>${ref.requestedLocation || 'N/A'}</span>
+                    <strong>Requested Physician:</strong><span>${ref.requestedPhysician || 'N/A'}</span>
+                    <strong>Requested Service:</strong><span>${ref.serviceRequested || 'N/A'}${subService}</span>
+                </div>
+            `;
+            
+            document.getElementById('informationContent').innerHTML = html;
+        }
+        
+        function populatePatientTab(ref) {
+            const calculateAge = (dobString) => {
+                if (!dobString) return null;
+                const birthDate = new Date(dobString);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                return age;
+            };
+            
+            const age = calculateAge(ref.patientDOB);
+            const ageColor = age && age > 43 ? 'color: #e74c3c; font-weight: bold;' : '';
+            const ageText = age ? ` (${age} years)` : '';
+            
+            const html = `
+                <div class="info-grid" style="display: grid; grid-template-columns: 200px 1fr; gap: 15px; line-height: 1.8;">
+                    <strong>Date of Birth:</strong><span>${ref.patientDOB || 'N/A'}<span style="${ageColor}">${ageText}</span></span>
+                    <strong>Phone:</strong><span>${ref.patientPhone || 'N/A'}</span>
+                    <strong>Email:</strong><span>${ref.patientEmail || 'N/A'}</span>
+                    <strong>Address:</strong><span>${ref.patientAddress || 'N/A'}</span>
+                    <strong>Health Card:</strong><span>${ref.patientHC || 'N/A'}</span>
+                    <strong>Gender at Birth:</strong><span>${ref.patientGenderAtBirth || 'N/A'}</span>
+                    <strong>Emergency Contact:</strong><span>${ref.emergencyContact || 'N/A'}</span>
+                    <strong>Emergency Relation:</strong><span>${ref.emergencyContactRelationship || 'N/A'}</span>
+                </div>
+            `;
+            
+            document.getElementById('patientContent').innerHTML = html;
+        }
+        
+        function populatePartnerTab(ref) {
+            const hasPartner = ref.partnerFirstName || ref.partnerLastName || ref.partnerDOB;
+            
+            if (!hasPartner) {
+                document.getElementById('partnerContent').innerHTML = '<p style="color: #95a5a6; text-align: center; padding: 40px;">No partner information</p>';
+                return;
+            }
+            
+            const calculateAge = (dobString) => {
+                if (!dobString) return null;
+                const birthDate = new Date(dobString);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                return age;
+            };
+            
+            const age = calculateAge(ref.partnerDOB);
+            const ageColor = age && age > 43 ? 'color: #e74c3c; font-weight: bold;' : '';
+            const ageText = age ? ` (${age} years)` : '';
+            
+            const html = `
+                <div class="info-grid" style="display: grid; grid-template-columns: 200px 1fr; gap: 15px; line-height: 1.8;">
+                    <strong>Date of Birth:</strong><span>${ref.partnerDOB || 'N/A'}<span style="${ageColor}">${ageText}</span></span>
+                    <strong>Phone:</strong><span>${ref.partnerPhone || 'N/A'}</span>
+                    <strong>Email:</strong><span>${ref.partnerEmail || 'N/A'}</span>
+                    <strong>Address:</strong><span>${ref.partnerAddress || 'N/A'}</span>
+                    <strong>Health Card:</strong><span>${ref.partnerHC || 'N/A'}</span>
+                    <strong>Gender at Birth:</strong><span>${ref.partnerGenderAtBirth || 'N/A'}</span>
+                    <strong>Emergency Contact:</strong><span>${ref.partnerEmergencyContact || 'N/A'}</span>
+                    <strong>Emergency Relation:</strong><span>${ref.partnerEmergencyContactRelationship || 'N/A'}</span>
+                </div>
+            `;
+            
+            document.getElementById('partnerContent').innerHTML = html;
+        }
+        
+        async function populateHistoryTab(ref) {
+            // Fetch status history from backend
+            const result = await eel.get_status_history(ref.referralID)();
+            
+            if (result.status === 'success' && result.history.length > 0) {
+                let html = '<div class="history-list">';
+                result.history.forEach(h => {
+                    const date = new Date(h.changedDate * 1000).toLocaleString();
+                    html += `
+                        <div class="history-item">
+                            <strong>${h.newStatus}</strong>
+                            <div class="history-meta">Changed by: ${h.changedBy || 'System'} on ${date}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                document.getElementById('historyContent').innerHTML = html;
+            } else {
+                document.getElementById('historyContent').innerHTML = '<p style="color: #95a5a6;">No status history</p>';
+            }
+        }
+        
+        async function populateContactsTab(ref) {
+            // Fetch attempt history from backend
+            const result = await eel.get_attempt_history(ref.referralID)();
+            
+            if (result.status === 'success' && result.history.length > 0) {
+                let html = '<div class="history-list">';
+                result.history.forEach(a => {
+                    const date = new Date(a.attemptDate * 1000).toLocaleDateString();
+                    html += `
+                        <div class="history-item">
+                            <strong>${a.attemptMode}</strong> - ${date} ${a.attemptTime || ''}
+                            ${a.attemptComment ? `<div class="history-meta">${a.attemptComment}</div>` : ''}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                document.getElementById('contactsContent').innerHTML = html;
+            } else {
+                document.getElementById('contactsContent').innerHTML = '<p style="color: #95a5a6;">No contact history</p>';
+            }
+        }
+        
+        async function populateNotesTab(ref) {
+            // Fetch notes history from backend
+            const result = await eel.get_notes_history(ref.referralID)();
+            
+            if (result.status === 'success' && result.history.length > 0) {
+                let html = '<div class="history-list">';
+                result.history.forEach(n => {
+                    const date = new Date(n.noteDate * 1000).toLocaleString();
+                    html += `
+                        <div class="history-item">
+                            <div>${n.noteText}</div>
+                            <div class="history-meta">By: ${n.addedBy || 'Unknown'} on ${date}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                document.getElementById('notesContent').innerHTML = html;
+            } else {
+                document.getElementById('notesContent').innerHTML = '<p style="color: #95a5a6;">No notes</p>';
+            }
+        }
+        
+        function updateNextStatusButton(currentStatus) {
+            const btn = document.getElementById('nextStatusBtn');
+            const statusFlow = {
+                'New': 'Information Completed',
+                'Pending': 'Information Completed',
+                'Information Completed': 'Assign Physician',
+                'Physician Assigned': 'Cerner Entry',
+                'Cerner Done': 'eIVF Entry',
+                'eIVF Done': 'Complete',
+                'Completed': null,
+                'Deferred': 'Return to Active Status'
+            };
+            
+            const nextStatus = statusFlow[currentStatus];
+            
+            if (nextStatus) {
+                btn.textContent = nextStatus;
+                btn.style.display = 'block';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+        
+        function switchViewTab(tabName) {
+            // Remove active from all tabs and content
+            document.querySelectorAll('#viewReferralModal .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#viewReferralModal .tab-content').forEach(c => c.classList.remove('active'));
+            
+            // Activate selected tab
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        }
+        
+        function contactPatient() {
+            alert('Contact Patient modal - Coming soon');
+        }
+        
+        function contactReferringPhysician() {
+            alert('Contact Referring Physician modal - Coming soon');
+        }
+        
+        function nextStatus() {
+            alert('Next status transition modal - Coming soon');
+        }
+        
+        function deferReferral() {
+            alert('Defer referral modal - Coming soon');
+        }
+        
+        function editCurrentReferral() {
+            closeModal('viewReferralModal');
+            editReferralById(currentViewingReferral.referralID);
         }
 
 		function editReferralById(id) {

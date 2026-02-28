@@ -578,6 +578,134 @@ def get_kpi_counts(date_filters=None):
             'deferred': deferred,
             'waitingContact': waiting_contact
         }
+    except Exception as e:
+        traceback.print_exc()
+        return {'status': 'error', 'message': str(e)}
+
+@eel.expose
+def get_referral_details(referral_id):
+    """Get full details for a single referral"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM referrals WHERE referralID = ?", (referral_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            return {'status': 'error', 'message': 'Referral not found'}
+        
+        columns = [description[0] for description in cursor.description]
+        referral = dict(zip(columns, row))
+        
+        conn.close()
+        
+        return {
+            'status': 'success',
+            'referral': referral
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {'status': 'error', 'message': str(e)}
+
+@eel.expose
+def get_status_history(referral_id):
+    """Get status change history for a referral"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT oldStatus, newStatus, changedDate, changedBy
+            FROM status_history
+            WHERE referralID = ?
+            ORDER BY changedDate DESC
+        """, (referral_id,))
+        
+        rows = cursor.fetchall()
+        history = []
+        for row in rows:
+            history.append({
+                'oldStatus': row[0],
+                'newStatus': row[1],
+                'changedDate': row[2],
+                'changedBy': row[3]
+            })
+        
+        conn.close()
+        
+        return {
+            'status': 'success',
+            'history': history
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {'status': 'error', 'message': str(e)}
+
+@eel.expose
+def get_attempt_history(referral_id):
+    """Get contact attempt history for a referral"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT attemptDate, attemptTime, attemptMode, attemptComment
+            FROM attempt_history
+            WHERE referralID = ?
+            ORDER BY attemptDate DESC, attemptTime DESC
+        """, (referral_id,))
+        
+        rows = cursor.fetchall()
+        history = []
+        for row in rows:
+            history.append({
+                'attemptDate': row[0],
+                'attemptTime': row[1],
+                'attemptMode': row[2],
+                'attemptComment': row[3]
+            })
+        
+        conn.close()
+        
+        return {
+            'status': 'success',
+            'history': history
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {'status': 'error', 'message': str(e)}
+
+@eel.expose
+def get_notes_history(referral_id):
+    """Get notes history for a referral"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT noteDate, noteText, addedBy
+            FROM notes_history
+            WHERE referralID = ?
+            ORDER BY noteDate DESC
+        """, (referral_id,))
+        
+        rows = cursor.fetchall()
+        history = []
+        for row in rows:
+            history.append({
+                'noteDate': row[0],
+                'noteText': row[1],
+                'addedBy': row[2]
+            })
+        
+        conn.close()
+        
+        return {
+            'status': 'success',
+            'history': history
+        }
         
     except Exception as e:
         print(f"Error getting KPI counts: {e}")
