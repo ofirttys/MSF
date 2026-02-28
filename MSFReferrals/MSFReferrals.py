@@ -7,6 +7,7 @@ import tempfile
 import threading
 import time
 import traceback
+import shutil
 from pathlib import Path
 from datetime import datetime
 import psutil
@@ -957,6 +958,176 @@ def get_file_content(file_path):
     except Exception as e:
         print(f"Error reading file: {e}")
         return {'status': 'error', 'message': str(e)}
+
+@eel.expose
+def select_file():
+    """Open file dialog in Referrals/ folder and move selected file to Linked/"""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+        
+        # Create Referrals and Linked folders if they don't exist
+        referrals_folder = os.path.join(exe_dir, 'Referrals')
+        linked_folder = os.path.join(referrals_folder, 'Linked')
+        os.makedirs(linked_folder, exist_ok=True)
+        
+        # Open file dialog starting in Referrals folder
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        
+        filepath = filedialog.askopenfilename(
+            initialdir=referrals_folder,
+            title="Select Referral PDF",
+            filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")]
+        )
+        
+        root.destroy()
+        
+        if not filepath:
+            return {'status': 'cancelled'}
+        
+        # Get filename
+        filename = os.path.basename(filepath)
+        
+        # Check if file is already in Linked/ folder
+        if os.path.dirname(filepath) == linked_folder:
+            # File already in Linked/, just return the relative path
+            relative_path = f"Referrals/Linked/{filename}"
+            return {
+                'status': 'success',
+                'fileName': relative_path,
+                'message': f'File already in Linked folder: {filename}'
+            }
+        
+        # Destination path in Linked/
+        dest_path = os.path.join(linked_folder, filename)
+        
+        # Check if file with same name already exists in Linked/
+        if os.path.exists(dest_path):
+            return {
+                'status': 'error',
+                'message': f'A file named "{filename}" already exists in Referrals/Linked/. Please rename the original file or choose a different file.'
+            }
+        
+        # Move file to Linked/
+        shutil.move(filepath, dest_path)
+        
+        # Return relative path for DB storage
+        relative_path = f"Referrals/Linked/{filename}"
+        
+        return {
+            'status': 'success',
+            'fileName': relative_path,
+            'message': f'File moved to Linked folder: {filename}'
+        }
+        
+    except PermissionError:
+        return {
+            'status': 'error',
+            'message': 'Permission denied. The file may be in use or locked by another program.'
+        }
+    except FileNotFoundError:
+        return {
+            'status': 'error',
+            'message': 'File not found. It may have been deleted or moved.'
+        }
+    except OSError as e:
+        if 'No space left on device' in str(e) or e.errno == 28:
+            return {
+                'status': 'error',
+                'message': 'Not enough disk space to move the file.'
+            }
+        return {
+            'status': 'error',
+            'message': f'Error moving file: {str(e)}'
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            'status': 'error',
+            'message': f'Unexpected error: {str(e)}'
+        }
+
+@eel.expose
+def copy_to_eivf(referral_id):
+    """Copy file from Linked/ to eIVF/ with formatted name when transitioning to Cerner Done"""
+    try:
+        # Get referral details
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT fileName, patientMRN, receivedDate 
+            FROM referrals 
+            WHERE referralID = ?
+        """, (referral_id,))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row:
+            return {'status': 'error', 'message': 'Referral not found'}
+        
+        source_relative, mrn, received_date = row
+        
+        # Validate required fields
+        if not source_relative:
+            return {'status': 'error', 'message': 'No file attached to this referral'}
+        
+        if not mrn:
+            return {'status': 'error', 'message': 'MRN is required. Please enter MRN first.'}
+        
+        if not received_date:
+            return {'status': 'error', 'message': 'Received date is missing'}
+        
+        # Build source path
+        source_path = os.path.join(exe_dir, source_relative.replace('/', os.sep))
+        
+        if not os.path.exists(source_path):
+            return {
+                'status': 'error',
+                'message': f'Source file not found: {source_relative}'
+            }
+        
+        # Create eIVF folder
+        eivf_folder = os.path.join(exe_dir, 'Referrals', 'eIVF')
+        os.makedirs(eivf_folder, exist_ok=True)
+        
+        # Convert received date to YYMMDD format
+        # received_date could be timestamp or string
+        if isinstance(received_date, int):
+            date_obj = datetime.fromtimestamp(received_date)
+        elif isinstance(received_date, str):
+            date_obj = datetime.strptime(received_date, '%Y-%m-%d')
+        else:
+            return {'status': 'error', 'message': 'Invalid received date format'}
+        
+        yymmdd = date_obj.strftime('%y%m%d')
+        
+        # Build new filename: MRN_Referral_YYMMDD.pdf
+        new_filename = f"{mrn}_Referral_{yymmdd}.pdf"
+        dest_path = os.path.join(eivf_folder, new_filename)
+        
+        # Copy file (keep original in Linked/)
+        shutil.copy2(source_path, dest_path)
+        
+        # Get absolute path for clipboard
+        abs_path = os.path.abspath(dest_path)
+        
+        return {
+            'status': 'success',
+            'fileName': new_filename,
+            'fullPath': abs_path,
+            'message': f'File copied to eIVF folder as: {new_filename}'
+        }
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            'status': 'error',
+            'message': f'Error copying file: {str(e)}'
+        }
 
 def on_close(page, sockets):
     """Handle window close"""

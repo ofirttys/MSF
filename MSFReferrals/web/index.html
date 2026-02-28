@@ -2533,8 +2533,38 @@
             alert('Contact Referring Physician modal - Coming soon');
         }
         
-        function nextStatus() {
-            alert('Next status transition modal - Coming soon');
+        async function nextStatus() {
+            // Check if this is the Cerner Entry transition (from Physician Assigned to Cerner Done)
+            if (currentViewingReferral.referralStatus === 'Physician Assigned') {
+                // This will trigger copy to eIVF
+                await handleCernerTransition();
+            } else {
+                alert('Next status transition modal - Coming soon');
+            }
+        }
+        
+        async function handleCernerTransition() {
+            try {
+                const result = await eel.copy_to_eivf(currentViewingReferral.referralID)();
+                
+                if (result.status === 'error') {
+                    alert('Error: ' + result.message);
+                    return;
+                }
+                
+                if (result.status === 'success') {
+                    // Copy full path to clipboard
+                    await navigator.clipboard.writeText(result.fullPath);
+                    
+                    // Show success alert with path
+                    alert(result.message + '\n\nFull path copied to clipboard:\n' + result.fullPath);
+                    
+                    // TODO: Update referral status to "Cerner Done" in database
+                    // This will be implemented when we add the full state transition modal
+                }
+            } catch(e) {
+                alert('Error during Cerner transition: ' + e.message);
+            }
         }
         
         function deferReferral() {
@@ -2684,21 +2714,44 @@
 
 		// Select file via Python dialog
 		async function selectFile() {
-			const filePath = await eel.open_file_dialog()();
-			
-			if (filePath) {
-				// Store the full path
-				currentFilePath = filePath;
+			try {
+				const result = await eel.select_file()();
 				
-				// Show just the filename in the input
-				const fileName = filePath.split('\\').pop().split('/').pop();
-				document.getElementById('fileName').value = filePath;
+				if (result.status === 'cancelled') {
+					return; // User cancelled
+				}
 				
-				// Show view button
-				document.getElementById('viewFileBtn').style.display = 'inline-block';
+				if (result.status === 'error') {
+					alert('Error: ' + result.message);
+					return;
+				}
 				
-				// Auto-open the viewer
-				await openFileFromPath(filePath);
+				if (result.status === 'success') {
+					// Store the relative path for database
+					currentFilePath = result.fileName;
+					
+					// Show the relative path in the input
+					document.getElementById('fileName').value = result.fileName;
+					
+					// Show view button
+					document.getElementById('viewFileBtn').style.display = 'inline-block';
+					
+					// Show success message if file was moved
+					if (result.message) {
+						document.getElementById('currentFile').textContent = result.message;
+						document.getElementById('statusBar').style.color = '#27ae60';
+						
+						// Clear message after 3 seconds
+						setTimeout(() => {
+							document.getElementById('currentFile').textContent = '';
+						}, 3000);
+					}
+					
+					// Auto-open the viewer
+					await openFileFromPath(result.fileName);
+				}
+			} catch(e) {
+				alert('Error selecting file: ' + e.message);
 			}
 		}
 
