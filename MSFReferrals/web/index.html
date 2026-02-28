@@ -1042,6 +1042,13 @@
         .mt-10 { margin-top: 10px; }
         .mb-10 { margin-bottom: 10px; }
 
+        @media (max-width: 1200px) {
+            #exportButton,
+            .btn-secondary[onclick="logout()"] {
+                display: none;
+            }
+        }
+
         @media (max-width: 768px) {
             .header-content { flex-direction: column; align-items: stretch; }
             .header-center { justify-content: center; margin: 10px 0; }
