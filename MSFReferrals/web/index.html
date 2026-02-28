@@ -1201,7 +1201,7 @@
                     <button class="filter-btn" onclick="filterByStatus('no-file')">No<br>File</button>
                 </div>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search referrals..." oninput="filterReferrals()">
-                <div class="referral-list" id="referralList">
+                <div class="referral-list">
                     <div class="referrals-grid-header">
                         <div>⚠️</div>
                         <div>📄</div>
@@ -1219,9 +1219,11 @@
                         <div>📞 Phone</div>
                         <div>📧 Email</div>
                     </div>
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📋</div>
-                        <div class="empty-state-text">No referrals found</div>
+                    <div id="referralList">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <div class="empty-state-text">No referrals found</div>
+                        </div>
                     </div>
                 </div>
             </div>
