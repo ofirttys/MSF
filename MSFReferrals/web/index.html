@@ -439,6 +439,9 @@
             font-size: 11px;
             margin-bottom: 6px;
             min-width: 1400px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         /* Main referral item - Grid layout */
@@ -672,20 +675,6 @@
         }
 
         /* Responsive: Stack on smaller screens */
-        @media (max-width: 1600px) {
-            .referrals-grid-header {
-                display: none;
-            }
-            
-            .referral-item {
-                grid-template-columns: 1fr;
-                gap: 8px;
-            }
-            
-            .ref-name {
-                font-size: 16px;
-            }
-        }
 
         .status-badge {
             display: inline-block;
@@ -1212,24 +1201,24 @@
                     <button class="filter-btn" onclick="filterByStatus('no-file')">No<br>File</button>
                 </div>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search referrals..." oninput="filterReferrals()">
-                <div class="referrals-grid-header">
-                    <div>⚠️</div>
-                    <div>📄</div>
-                    <div>Patient Name</div>
-                    <div>📊 Status</div>
-                    <div>Type</div>
-                    <div>🎂 DOB</div>
-                    <div>Age</div>
-                    <div>📅 Received</div>
-                    <div>🔄 Last Contact</div>
-                    <div>No. Contact</div>
-                    <div>Service</div>
-                    <div>👨‍⚕️ Physician</div>
-                    <div>📍 Loc</div>
-                    <div>📞 Phone</div>
-                    <div>📧 Email</div>
-                </div>
                 <div class="referral-list" id="referralList">
+                    <div class="referrals-grid-header">
+                        <div>⚠️</div>
+                        <div>📄</div>
+                        <div>Patient Name</div>
+                        <div>📊 Status</div>
+                        <div>Type</div>
+                        <div>🎂 DOB</div>
+                        <div>Age</div>
+                        <div>📅 Received</div>
+                        <div>🔄 Last Contact</div>
+                        <div>No. Contact</div>
+                        <div>Service</div>
+                        <div>👨‍⚕️ Physician</div>
+                        <div>📍 Loc</div>
+                        <div>📞 Phone</div>
+                        <div>📧 Email</div>
+                    </div>
                     <div class="empty-state">
                         <div class="empty-state-icon">📋</div>
                         <div class="empty-state-text">No referrals found</div>
