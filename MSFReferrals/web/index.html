@@ -429,7 +429,7 @@
         /* Grid header row (column labels) */
         .referrals-grid-header {
             display: grid;
-            grid-template-columns: 28px 28px 180px 100px 70px 80px 50px 90px 110px 90px 110px 110px 80px 90px 90px;
+            grid-template-columns: 28px 28px 180px 145px 70px 80px 50px 90px 110px 90px 110px 110px 80px 90px 90px;
             gap: 5px;
             padding: 6px 10px;
             background: #ecf0f1;
@@ -438,7 +438,7 @@
             color: #2c3e50;
             font-size: 11px;
             margin-bottom: 6px;
-            min-width: 1400px;
+            min-width: 1445px;
             position: sticky;
             top: 0;
             z-index: 10;
@@ -447,7 +447,7 @@
         /* Main referral item - Grid layout */
         .referral-item {
             display: grid;
-            grid-template-columns: 28px 28px 180px 100px 70px 80px 50px 90px 110px 90px 110px 110px 80px 90px 90px;
+            grid-template-columns: 28px 28px 180px 145px 70px 80px 50px 90px 110px 90px 110px 110px 80px 90px 90px;
             gap: 5px;
             align-items: center;
             padding: 6px 10px;
@@ -457,7 +457,7 @@
             margin-bottom: 5px;
             transition: all 0.2s;
             cursor: pointer;
-            min-width: 1400px;
+            min-width: 1445px;
         }
 
         .referral-item:hover {
@@ -544,6 +544,11 @@
         .ref-date {
             color: #7f8c8d;
             font-size: 11px;
+        }
+        
+        .ref-date.red {
+            color: #e74c3c;
+            font-weight: 600;
         }
 
         .ref-contact {
