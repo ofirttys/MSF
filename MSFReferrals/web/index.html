@@ -574,7 +574,7 @@
         }
 
         .ref-service {
-            padding: 2px 6px;
+            padding: 2px 8px;
             border-radius: 10px;
             font-size: 10px;
             font-weight: 600;
@@ -664,14 +664,28 @@
         
         .ref-location .location-badge {
             display: inline-block;
-            padding: 2px 6px;
-            border-radius: 10px;
-            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
             font-weight: 600;
-            background: transparent;
-            border: 1px solid #95a5a6;
-            color: #95a5a6;
+            color: white;
             white-space: nowrap;
+        }
+        
+        .location-any {
+            background: #95a5a6;
+        }
+        
+        .location-downtown {
+            background: #f39c12;
+        }
+        
+        .location-vaughan {
+            background: #f1c40f;
+        }
+        
+        .location-mississauga {
+            background: #27ae60;
         }
 
         /* Responsive: Stack on smaller screens */
@@ -2020,15 +2034,26 @@
                 
                 // Location abbreviation
                 let locationText = '';
+                let locationClass = '';
                 let locationHTML = '';
                 if (ref.requestedLocation) {
-                    if (ref.requestedLocation === 'Downtown') locationText = '📍 DT';
-                    else if (ref.requestedLocation === 'Vaughan') locationText = '📍 VGN';
-                    else if (ref.requestedLocation === 'Mississauga') locationText = '📍 MISS';
+                    if (ref.requestedLocation === 'Downtown') {
+                        locationText = 'DT';
+                        locationClass = 'location-downtown';
+                    } else if (ref.requestedLocation === 'Vaughan') {
+                        locationText = 'VGN';
+                        locationClass = 'location-vaughan';
+                    } else if (ref.requestedLocation === 'Mississauga') {
+                        locationText = 'MISS';
+                        locationClass = 'location-mississauga';
+                    } else if (ref.requestedLocation === 'Any') {
+                        locationText = 'Any';
+                        locationClass = 'location-any';
+                    }
                     
                     // Only create badge HTML if we have a location
                     if (locationText) {
-                        locationHTML = `<span class="location-badge">${locationText}</span>`;
+                        locationHTML = `<span class="location-badge ${locationClass}">${locationText}</span>`;
                     }
                 }
                 
@@ -2722,7 +2747,8 @@
 				}
 				
 				if (result.status === 'error') {
-					alert('Error: ' + result.message);
+					// Show professional error modal instead of alert
+					showErrorModal('File Selection Error', result.message);
 					return;
 				}
 				
@@ -2753,6 +2779,22 @@
 			} catch(e) {
 				alert('Error selecting file: ' + e.message);
 			}
+		}
+		
+		// Show professional error modal
+		function showErrorModal(title, message) {
+			const modal = document.createElement('div');
+			modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+			modal.innerHTML = `
+				<div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; min-width: 400px;">
+					<h3 style="margin: 0 0 20px 0; color: #e74c3c;">⚠️ ${title}</h3>
+					<p style="margin: 0 0 20px 0; color: #2c3e50; line-height: 1.5;">${message}</p>
+					<button onclick="this.parentElement.parentElement.remove()" style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; float: right;">OK</button>
+					<div style="clear: both;"></div>
+				</div>
+			`;
+			document.body.appendChild(modal);
+			modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 		}
 
 		// Open file from a stored path (works for both new and edit)
