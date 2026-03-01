@@ -574,7 +574,7 @@
         }
 
         .ref-service {
-            padding: 2px 8px;
+            padding: 2px 4px;
             border-radius: 10px;
             font-size: 10px;
             font-weight: 600;
@@ -670,6 +670,8 @@
             font-weight: 600;
             color: white;
             white-space: nowrap;
+            min-width: 48px;
+            text-align: center;
         }
         
         .location-any {
@@ -1462,7 +1464,7 @@
 											<input type="text" id="patientFirstName" required>
 										</div>
 										<div class="form-group">
-											<label>Middle Name</label>
+											<label>Middle</label>
 											<input type="text" id="patientMiddleName">
 										</div>
 										<div class="form-group">
@@ -1546,7 +1548,7 @@
 											<input type="text" id="partnerFirstName">
 										</div>
 										<div class="form-group">
-											<label>Middle Name</label>
+											<label>Middle</label>
 											<input type="text" id="partnerMiddleName">
 										</div>
 										<div class="form-group">
@@ -1665,6 +1667,7 @@
         let unsavedChanges = 0;
         let currentEditingReferral = null;
         let currentViewingReferral = null;
+        let cameFromViewModal = false;
         let autoSaveInterval = null;
         let currentSortMode = 'id';
         let currentFilter = [];
@@ -1919,11 +1922,11 @@
 					document.body.appendChild(modal);
 					modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 				} else {
-					alert(`Export failed: ${result.message}`);
+					showErrorModal('Export Failed', result.message);
 				}
 			} catch (error) {
 				console.error('Export error:', error);
-				alert('Failed to export database. Check console for details.');
+				showErrorModal('Export Error', 'Failed to export database. Check console for details.');
 			}
 		}
 
@@ -2028,6 +2031,7 @@
                 
                 // Urgent icon
                 const urgentIcon = ref.urgent ? '⚠️' : '';
+                const urgentTooltip = ref.urgent ? 'title="Urgent"' : '';
                 
                 // File icon
                 const fileIcon = ref.fileName ? '📄' : '';
@@ -2062,16 +2066,19 @@
                 const emailCount = ref.emailAttempts || 0;
                 const contactCountText = `📞 ${phoneCount} 📧 ${emailCount}`;
                 
+                // Red received date for urgent referrals that are not completed or deferred
+                const receivedDateClass = (ref.urgent && ref.referralStatus !== 'Completed' && ref.referralStatus !== 'Deferred') ? 'red' : '';
+                
                 return `
                     <div class="referral-item" onclick="viewReferral(${ref.referralID})">
-                        <div class="ref-urgent">${urgentIcon}</div>
+                        <div class="ref-urgent" ${urgentTooltip}>${urgentIcon}</div>
                         <div class="ref-file" title="${ref.fileName || ''}" onclick="event.stopPropagation(); if('${ref.fileName}') viewSelectedFile();">${fileIcon}</div>
                         <div class="ref-name" title="${patientName}">${patientName}</div>
                         <div class="ref-status"><span class="status-badge ${statusClass}">${ref.referralStatus}</span></div>
                         <div class="ref-type ${typeClass}">${typeText}</div>
                         <div class="ref-dob">${dob}</div>
                         <div class="ref-age ${ageClass}">${age}</div>
-                        <div class="ref-date">${receivedDate}</div>
+                        <div class="ref-date ${receivedDateClass}">${receivedDate}</div>
                         <div class="ref-contact">${lastContact}</div>
                         <div class="ref-contact-count">${contactCountText}</div>
                         <div class="ref-service">${service}</div>
@@ -2250,7 +2257,7 @@
                 if (result.status === 'success') {
                     currentViewingReferral = result.referral;
                 } else {
-                    alert('Could not load referral details');
+                    showErrorModal('Load Referral Error', 'Could not load referral details');
                     return;
                 }
             } else {
@@ -2573,7 +2580,7 @@
                 const result = await eel.copy_to_eivf(currentViewingReferral.referralID)();
                 
                 if (result.status === 'error') {
-                    alert('Error: ' + result.message);
+                    showErrorModal('Cerner Transition Error', result.message);
                     return;
                 }
                 
@@ -2588,7 +2595,7 @@
                     // This will be implemented when we add the full state transition modal
                 }
             } catch(e) {
-                alert('Error during Cerner transition: ' + e.message);
+                showErrorModal('Cerner Transition Error', e.message);
             }
         }
         
@@ -2597,7 +2604,9 @@
         }
         
         function editCurrentReferral() {
-            closeModal('viewReferralModal');
+            cameFromViewModal = true;
+            // Don't close view modal - just hide it
+            document.getElementById('viewReferralModal').classList.remove('active');
             editReferralById(currentViewingReferral.referralID);
         }
 
@@ -2681,6 +2690,9 @@
 				document.getElementById('fileName').value = referral.fileName;
 				document.getElementById('viewFileBtn').style.display = 'inline-block';
 				document.getElementById('viewFileBtn').textContent = 'View';
+				
+				// Auto-open the PDF viewer for existing file
+				openFileFromPath(referral.fileName);
 			} else {
 				document.getElementById('fileName').value = '';
 				document.getElementById('viewFileBtn').style.display = 'none';
@@ -2703,6 +2715,12 @@
 			if (id === 'referralModal') {
 				// Close PDF viewer too when referral modal closes
 				closePdfViewer();
+				
+				// If we came from view modal, reopen it
+				if (cameFromViewModal) {
+					cameFromViewModal = false;
+					document.getElementById('viewReferralModal').classList.add('active');
+				}
 			}
 			document.getElementById(id).classList.remove('active');
 			checkDualModal();
@@ -2777,7 +2795,7 @@
 					await openFileFromPath(result.fileName);
 				}
 			} catch(e) {
-				alert('Error selecting file: ' + e.message);
+				showErrorModal('File Selection Error', e.message);
 			}
 		}
 		
