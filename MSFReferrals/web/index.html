@@ -2915,82 +2915,88 @@
 
 		// Save referral
 		async function saveReferral() {
-			if (isReadOnly) {
-				document.getElementById('currentFile').textContent = 'Error: Cannot save in read-only mode';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				return;
-			}
-			
-			// Validate required fields
-			const receivedDate = document.getElementById('receivedDate').value;
-			const referringPhysician = document.getElementById('referringPhysician').value;
-			const requestedLocation = document.getElementById('requestedLocation').value;
-			const requestedPhysician = document.getElementById('requestedPhysician').value;
-			const referralType = document.getElementById('referralType').value;
-			const serviceRequested = document.getElementById('serviceRequested').value;
-			const patientFirstName = document.getElementById('patientFirstName').value;
-			const patientLastName = document.getElementById('patientLastName').value;
-			const patientDOB = document.getElementById('patientDOB').value;
-			const patientPhone = document.getElementById('patientPhone').value;
-			const patientEmail = document.getElementById('patientEmail').value;
-			
-			// Check required fields
-			if (!receivedDate) {
-				document.getElementById('currentFile').textContent = 'Error: Received Date is required';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				document.getElementById('receivedDate').focus();
-				return;
-			}
-			if (!referringPhysician) {
-				document.getElementById('currentFile').textContent = 'Error: Referring Physician Name is required';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				document.getElementById('referringPhysician').focus();
-				return;
-			}
-			if (!requestedLocation) {
-				document.getElementById('currentFile').textContent = 'Error: Requested Location is required';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				document.getElementById('requestedLocation').focus();
-				return;
-			}
-			if (!requestedPhysician) {
-				document.getElementById('currentFile').textContent = 'Error: Requested Physician is required';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				document.getElementById('requestedPhysician').focus();
-				return;
-			}
-			if (!referralType) {
-				document.getElementById('currentFile').textContent = 'Error: Referral Type is required';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				document.getElementById('referralType').focus();
-				return;
-			}
-			if (!serviceRequested) {
-				document.getElementById('currentFile').textContent = 'Error: Service Requested is required';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				document.getElementById('serviceRequested').focus();
-				return;
-			}
-			if (!patientFirstName) {
-				document.getElementById('currentFile').textContent = 'Error: Patient First Name is required';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				document.getElementById('patientFirstName').focus();
-				return;
-			}
-			if (!patientLastName) {
-				document.getElementById('currentFile').textContent = 'Error: Patient Last Name is required';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				document.getElementById('patientLastName').focus();
-				return;
-			}
-			if (!patientDOB) {
-				document.getElementById('currentFile').textContent = 'Error: Patient Date of Birth is required';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				document.getElementById('patientDOB').focus();
-				return;
-			}
-			
-			// Collect form data
+			try {
+				if (isReadOnly) {
+					document.getElementById('currentFile').textContent = 'Error: Cannot save in read-only mode';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					return;
+				}
+				
+				console.log('Starting saveReferral...');
+				
+				// Validate required fields
+				const receivedDate = document.getElementById('receivedDate').value;
+				const referringPhysician = document.getElementById('referringPhysician').value;
+				const requestedLocation = document.getElementById('requestedLocation').value;
+				const requestedPhysician = document.getElementById('requestedPhysician').value;
+				const referralType = document.getElementById('referralType').value;
+				const serviceRequested = document.getElementById('serviceRequested').value;
+				const patientFirstName = document.getElementById('patientFirstName').value;
+				const patientLastName = document.getElementById('patientLastName').value;
+				const patientDOB = document.getElementById('patientDOB').value;
+				const patientPhone = document.getElementById('patientPhone').value;
+				const patientEmail = document.getElementById('patientEmail').value;
+				
+				console.log('Validating required fields...');
+				
+				// Check required fields
+				if (!receivedDate) {
+					document.getElementById('currentFile').textContent = 'Error: Received Date is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('receivedDate').focus();
+					return;
+				}
+				if (!referringPhysician) {
+					document.getElementById('currentFile').textContent = 'Error: Referring Physician Name is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('referringPhysician').focus();
+					return;
+				}
+				if (!requestedLocation) {
+					document.getElementById('currentFile').textContent = 'Error: Requested Location is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('requestedLocation').focus();
+					return;
+				}
+				if (!requestedPhysician) {
+					document.getElementById('currentFile').textContent = 'Error: Requested Physician is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('requestedPhysician').focus();
+					return;
+				}
+				if (!referralType) {
+					document.getElementById('currentFile').textContent = 'Error: Referral Type is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('referralType').focus();
+					return;
+				}
+				if (!serviceRequested) {
+					document.getElementById('currentFile').textContent = 'Error: Service Requested is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('serviceRequested').focus();
+					return;
+				}
+				if (!patientFirstName) {
+					document.getElementById('currentFile').textContent = 'Error: Patient First Name is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('patientFirstName').focus();
+					return;
+				}
+				if (!patientLastName) {
+					document.getElementById('currentFile').textContent = 'Error: Patient Last Name is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('patientLastName').focus();
+					return;
+				}
+				if (!patientDOB) {
+					document.getElementById('currentFile').textContent = 'Error: Patient Date of Birth is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('patientDOB').focus();
+					return;
+				}
+				
+				console.log('All validations passed, collecting form data...');
+
 			const referralData = {
 				// Referral info
 				referralDate: document.getElementById('referralDate').value,
@@ -3046,19 +3052,19 @@
 				lastAttemptTime: currentEditingReferral ? currentEditingReferral.lastAttemptTime : null,
 				lastAttemptMode: currentEditingReferral ? currentEditingReferral.lastAttemptMode : null,
 				lastAttemptComment: currentEditingReferral ? currentEditingReferral.lastAttemptComment : null,
-				attemptHistory: currentEditingReferral ? currentEditingReferral.attemptHistory : [],
+				// Note: attemptHistory and notesHistory are stored in separate tables, not in referrals table
 				faxedBackDate: currentEditingReferral ? currentEditingReferral.faxedBackDate : null,
 				completeInfoReceivedDate: currentEditingReferral ? currentEditingReferral.completeInfoReceivedDate : null,
 				taskedToPhysicianAdmin: currentEditingReferral ? currentEditingReferral.taskedToPhysicianAdmin : null,
 				referralCompleteDate: currentEditingReferral ? currentEditingReferral.referralCompleteDate : null,
 				notes: currentEditingReferral ? currentEditingReferral.notes : null,
-				notesDate: currentEditingReferral ? currentEditingReferral.notesDate : null,
-				notesHistory: currentEditingReferral ? currentEditingReferral.notesHistory : []
+				notesDate: currentEditingReferral ? currentEditingReferral.notesDate : null
 			};
 			
 			let result;
 			if (currentEditingReferral) {
 				// Update existing
+				console.log('Updating existing referral ID:', currentEditingReferral.referralID);
 				referralData.referralID = currentEditingReferral.referralID;
 				referralData.addedToDBDate = currentEditingReferral.addedToDBDate;
 				result = await eel.update_referral(currentEditingReferral.referralID, referralData)();
@@ -3070,13 +3076,16 @@
 				}
 			} else {
 				// Add new
+				console.log('Adding new referral...');
 				result = await eel.add_referral(referralData)();
+				console.log('Add referral result:', result);
 				if (result.status === 'success') {
 					allLoadedReferrals.push(result.referral);
 				}
 			}
 			
 			if (result.status === 'success') {
+				console.log('Referral saved successfully');
 				unsavedChanges = 0;
 				renderReferralList();
 				updateKPIs();
@@ -3088,10 +3097,16 @@
 					document.getElementById('statusBar').style.color = '#666';
 				}, 3000);
 			} else {
+				console.error('Save failed:', result.message);
 				document.getElementById('currentFile').textContent = 'Error: ' + result.message;
 				document.getElementById('statusBar').style.color = '#e74c3c';
 			}
+		} catch (error) {
+			console.error('Exception in saveReferral:', error);
+			document.getElementById('currentFile').textContent = 'Error: ' + error.message;
+			document.getElementById('statusBar').style.color = '#e74c3c';
 		}
+	}
 		
 		// Reset and open add referral modal  
 		function openAddReferralModal() {
