@@ -659,7 +659,7 @@
         }
 
         .ref-location {
-            text-align: center;
+            text-align: left;
         }
         
         .ref-location .location-badge {
@@ -698,6 +698,8 @@
             border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
+            min-width: 130px;
+            text-align: center;
         }
 
         .status-new {
@@ -2029,9 +2031,10 @@
                 else if (physician.includes('Shapiro')) physicianClass = 'phys-shapiro';
                 else if (physician.includes('Greenblatt')) physicianClass = 'phys-greenblatt';
                 
-                // Urgent icon
-                const urgentIcon = ref.urgent ? '⚠️' : '';
-                const urgentTooltip = ref.urgent ? 'title="Urgent"' : '';
+                // Urgent icon (urgent can be true/false or 1/0 from database)
+                const isUrgent = ref.urgent === true || ref.urgent === 1;
+                const urgentIcon = isUrgent ? '⚠️' : '';
+                const urgentTooltip = isUrgent ? 'title="Urgent"' : '';
                 
                 // File icon
                 const fileIcon = ref.fileName ? '📄' : '';
@@ -2067,7 +2070,8 @@
                 const contactCountText = `📞 ${phoneCount} 📧 ${emailCount}`;
                 
                 // Red received date for urgent referrals that are not completed or deferred
-                const receivedDateClass = (ref.urgent && ref.referralStatus !== 'Completed' && ref.referralStatus !== 'Deferred') ? 'red' : '';
+                // isUrgent already declared above
+                const receivedDateClass = (isUrgent && ref.referralStatus !== 'Completed' && ref.referralStatus !== 'Deferred') ? 'red' : '';
                 
                 return `
                     <div class="referral-item" onclick="viewReferral(${ref.referralID})">
