@@ -1337,106 +1337,84 @@
 					<button type="button" class="close-btn" onclick="closeModal('contactPatientModal')">&times;</button>
 				</div>
 				
-				<div class="modal-body" style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto;">
-					<!-- Contact Method Selection -->
-					<div class="form-group">
-						<label style="display: block; margin-bottom: 8px; font-weight: 600;">Contact Method</label>
-						<div style="display: flex; flex-direction: column; gap: 8px;">
-							<label style="display: flex; align-items: center; cursor: pointer;">
-								<input type="radio" name="contactMethod" value="phone" checked onchange="switchContactMethod('phone')" style="margin-right: 8px;">
-								<span>📞 Phone Call</span>
-							</label>
-							<label style="display: flex; align-items: center; cursor: pointer;">
-								<input type="radio" name="contactMethod" value="email" onchange="switchContactMethod('email')" style="margin-right: 8px;">
-								<span>📧 Email</span>
-							</label>
+				<div class="modal-body" style="display: grid; grid-template-columns: 400px 1fr; gap: 20px; overflow-y: auto; height: calc(85vh - 140px);">
+					<!-- LEFT SIDE - CONTROLS -->
+					<div style="display: flex; flex-direction: column; gap: 15px;">
+						<!-- Contact Method Selection -->
+						<div class="form-group">
+							<label style="display: block; margin-bottom: 8px; font-weight: 600;">Contact Method</label>
+							<div style="display: flex; flex-direction: column; gap: 8px;">
+								<label style="display: flex; align-items: center; cursor: pointer;">
+									<input type="radio" name="contactMethod" value="phone" checked onchange="switchContactMethod('phone')" style="margin-right: 8px;">
+									<span style="white-space: nowrap;">📞 Phone Call</span>
+								</label>
+								<label style="display: flex; align-items: center; cursor: pointer;">
+									<input type="radio" name="contactMethod" value="email" onchange="switchContactMethod('email')" style="margin-right: 8px;">
+									<span style="white-space: nowrap;">📧 Email</span>
+								</label>
+							</div>
 						</div>
-					</div>
-					
-					<!-- Phone Contact Section -->
-					<div id="phoneContactSection">
+						
 						<!-- Patient Contact Info -->
-						<div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
+						<div style="background: #f8f9fa; padding: 12px; border-radius: 6px;">
 							<div style="font-weight: 600; margin-bottom: 8px;">Patient Contact Information:</div>
 							<div id="patientContactInfo" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
 						</div>
 						
 						<!-- Partner Contact Info -->
-						<div id="partnerContactSection" style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 15px; display: none;">
+						<div id="partnerContactSection" style="background: #f8f9fa; padding: 12px; border-radius: 6px; display: none;">
 							<div style="font-weight: 600; margin-bottom: 8px;">Partner Contact Information:</div>
 							<div id="partnerContactInfo" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
 						</div>
 						
-						<!-- Script Selection and Preview (2 columns) -->
-						<div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px;">
-							<!-- Left: Script Selection -->
-							<div>
-								<label for="phoneScriptSelect" style="display: block; margin-bottom: 5px; font-weight: 600;">Select Phone Script</label>
-								<select id="phoneScriptSelect" onchange="updatePhoneScriptPreview()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
-									<option value="">-- Select Script --</option>
-									<option value="allInfoReceived">All information received</option>
-									<option value="moreInfoRequired">More information required</option>
-									<option value="sameCellNumber">Patient Partner Same Cell Number</option>
-									<option value="refusingPartnerInfo">Patient Refusing to Provide Partner Information</option>
-									<option value="voicemailMoreInfo">Leaving voicemail for more information</option>
-									<option value="voicemailAllInfo">Leaving voicemail about receipt of referral</option>
-									<option value="noFamilyPhysician">Referral with no family physician script</option>
-								</select>
-							</div>
-							
-							<!-- Right: Script Preview (non-editable, formatted) -->
-							<div>
-								<label style="display: block; margin-bottom: 5px; font-weight: 600;">Script Preview</label>
-								<div id="phoneScriptPreview" style="width: 100%; min-height: 400px; max-height: 500px; overflow-y: auto; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-family: inherit; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">
-									Select a script to see the preview
-								</div>
-							</div>
-						</div>
-					</div>
-					
-					<!-- Email Contact Section -->
-					<div id="emailContactSection" style="display: none;">
-						<!-- Patient Email Info -->
-						<div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-							<div style="font-weight: 600; margin-bottom: 8px;">Patient Email Information:</div>
-							<div id="patientEmailInfo" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
+						<!-- Phone Script Selection -->
+						<div id="phoneScriptSection">
+							<label for="phoneScriptSelect" style="display: block; margin-bottom: 5px; font-weight: 600;">Select Phone Script</label>
+							<select id="phoneScriptSelect" onchange="updatePhoneScriptPreview()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+								<option value="">-- Select Script --</option>
+								<option value="allInfoReceived">All information received</option>
+								<option value="moreInfoRequired">More information required</option>
+								<option value="sameCellNumber">Patient Partner Same Cell Number</option>
+								<option value="refusingPartnerInfo">Patient Refusing to Provide Partner Information</option>
+								<option value="voicemailMoreInfo">Leaving voicemail for more information</option>
+								<option value="voicemailAllInfo">Leaving voicemail about receipt of referral</option>
+								<option value="noFamilyPhysician">Referral with no family physician script</option>
+							</select>
 						</div>
 						
-						<!-- Email Layout (2 columns) -->
-						<div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px;">
-							<!-- Left: Template Selection -->
-							<div>
-								<div class="form-group">
-									<label for="emailTemplateSelect">Select Email Template</label>
-									<select id="emailTemplateSelect" onchange="updateEmailTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-										<option value="">-- Select Template --</option>
-										<option value="welcomeEmail">Welcome Email</option>
-										<option value="reminder">Reminder</option>
-										<option value="partialInfoReminder">Partial Information Reminder</option>
-										<option value="moreInfoRequired">More information required</option>
-										<option value="allInfoReceived">All information received</option>
-									</select>
-								</div>
-								
-								<div class="form-group">
-									<label for="emailSubject">Subject</label>
-									<input type="text" id="emailSubject" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;">
-								</div>
-								
-								<div style="font-size: 13px; color: #666; margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 4px; border-left: 4px solid #3498db;">
-									<strong>Note:</strong> Email content cannot be edited here. To modify templates, edit the <code>DB/templates.json</code> file, or make changes in Outlook after generating the email.
-								</div>
-								
-								<!-- Hidden textarea to store body for backend -->
-								<textarea id="emailBody" style="display: none;"></textarea>
+						<!-- Email Template Selection -->
+						<div id="emailTemplateSection" style="display: none;">
+							<label for="emailTemplateSelect" style="display: block; margin-bottom: 5px; font-weight: 600;">Select Email Template</label>
+							<select id="emailTemplateSelect" onchange="updateEmailTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+								<option value="">-- Select Template --</option>
+								<option value="welcomeEmail">Welcome Email</option>
+								<option value="reminder">Reminder</option>
+								<option value="partialInfoReminder">Partial Information Reminder</option>
+								<option value="moreInfoRequired">More information required</option>
+								<option value="allInfoReceived">All information received</option>
+							</select>
+						</div>
+						
+						<!-- Hidden fields for email -->
+						<input type="text" id="emailSubject" style="display: none;">
+						<textarea id="emailBody" style="display: none;"></textarea>
+					</div>
+					
+					<!-- RIGHT SIDE - PREVIEW PANE -->
+					<div style="border-left: 2px solid #ecf0f1; padding-left: 20px;">
+						<label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px;">Preview</label>
+						
+						<!-- Phone Script Preview -->
+						<div id="phonePreviewPane">
+							<div id="phoneScriptPreview" style="width: 100%; min-height: 500px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-family: inherit; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-y: auto;">
+								Select a script to see the preview
 							</div>
-							
-							<!-- Right: Email Preview (non-editable, formatted) -->
-							<div>
-								<label style="display: block; margin-bottom: 5px; font-weight: 600;">Email Preview</label>
-								<div id="emailPreview" style="width: 100%; min-height: 400px; max-height: 500px; overflow-y: auto; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: white; font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6;">
-									Select a template to see the preview
-								</div>
+						</div>
+						
+						<!-- Email Preview -->
+						<div id="emailPreviewPane" style="display: none;">
+							<div id="emailPreview" style="width: 100%; min-height: 500px; padding: 20px; border: 1px solid #ddd; border-radius: 4px; background: white; font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; overflow-y: auto;">
+								Select a template to see the preview
 							</div>
 						</div>
 					</div>
@@ -2769,11 +2747,6 @@
                 <span style="font-weight: 600;">${patientName}</span>
                 <span style="color: #666;">Phone:</span>
                 <span>${patientPhone}</span>
-            `;
-            
-            document.getElementById('patientEmailInfo').innerHTML = `
-                <span style="color: #666;">Name:</span>
-                <span style="font-weight: 600;">${patientName}</span>
                 <span style="color: #666;">Email:</span>
                 <span>${patientEmail}</span>
             `;
@@ -2799,36 +2772,39 @@
             document.querySelector('input[name="contactMethod"][value="phone"]').checked = true;
             switchContactMethod('phone');
             document.getElementById('phoneScriptSelect').value = '';
-            document.getElementById('phoneScriptPreview').value = '';
+            document.getElementById('phoneScriptPreview').textContent = 'Select a script to see the preview';
             document.getElementById('emailTemplateSelect').value = '';
             document.getElementById('emailSubject').value = '';
             document.getElementById('emailBody').value = '';
+            document.getElementById('emailPreview').innerHTML = 'Select a template to see the preview';
             
             openModal('contactPatientModal');
         }
         
         function switchContactMethod(method) {
             if (method === 'phone') {
-                document.getElementById('phoneContactSection').style.display = 'block';
-                document.getElementById('emailContactSection').style.display = 'none';
+                // Show phone sections
+                document.getElementById('phoneScriptSection').style.display = 'block';
+                document.getElementById('phonePreviewPane').style.display = 'block';
+                
+                // Hide email sections
+                document.getElementById('emailTemplateSection').style.display = 'none';
+                document.getElementById('emailPreviewPane').style.display = 'none';
+                
+                // Disable Generate Email button for phone
                 document.getElementById('generateEmailBtn').disabled = true;
             } else {
-                document.getElementById('phoneContactSection').style.display = 'none';
-                document.getElementById('emailContactSection').style.display = 'block';
+                // Hide phone sections
+                document.getElementById('phoneScriptSection').style.display = 'none';
+                document.getElementById('phonePreviewPane').style.display = 'none';
+                
+                // Show email sections
+                document.getElementById('emailTemplateSection').style.display = 'block';
+                document.getElementById('emailPreviewPane').style.display = 'block';
                 
                 // Enable Generate Email button only if patient has email
                 const hasEmail = currentViewingReferral && currentViewingReferral.patientEmail;
                 document.getElementById('generateEmailBtn').disabled = !hasEmail;
-                
-                if (!hasEmail) {
-                    // Show message that email is not available
-                    document.getElementById('patientEmailInfo').innerHTML = `
-                        <span style="color: #666;">Name:</span>
-                        <span style="font-weight: 600;">${currentViewingReferral.patientFirstName || ''} ${currentViewingReferral.patientLastName || ''}</span>
-                        <span style="color: #666;">Email:</span>
-                        <span style="color: #e74c3c; font-weight: 600;">Not provided - Cannot generate email</span>
-                    `;
-                }
             }
         }
         
@@ -2899,7 +2875,10 @@
                 closeModal('recordContactModal');
                 closeModal('contactPatientModal');
                 
-                // Refresh the view modal to show updated contact history
+                // Refresh the referrals list to show updated contact info
+                await loadReferrals();
+                
+                // Refresh the view modal with updated data
                 await viewReferral(currentViewingReferral.referralID);
                 
             } catch (error) {
@@ -3058,8 +3037,14 @@ Have a great day.`
             body = body.replace(/{{signature}}/g, templateSettings.signature || 'Mount Sinai Fertility');
             document.getElementById('emailBody').value = body;
             
-            // Update preview with rendered HTML
-            document.getElementById('emailPreview').innerHTML = body;
+            // Update preview with subject and body (like HTA)
+            document.getElementById('emailPreview').innerHTML = `
+                <div style="border-bottom: 2px solid #ecf0f1; padding-bottom: 15px; margin-bottom: 15px;">
+                    <div style="font-weight: 600; color: #2c3e50; margin-bottom: 5px;">Subject:</div>
+                    <div style="color: #34495e;">${subject}</div>
+                </div>
+                ${body}
+            `;
         }
         
         
