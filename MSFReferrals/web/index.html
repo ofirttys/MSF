@@ -1331,7 +1331,7 @@
 
 		<!-- Contact Patient Modal -->
 		<div id="contactPatientModal" class="modal">
-			<div class="modal-content" style="max-width: 900px; max-height: 85vh;">
+			<div class="modal-content" style="max-width: 1100px; max-height: 85vh; width: 1100px;">
 				<div class="modal-header">
 					<h2 class="modal-title">Contact Patient</h2>
 					<button type="button" class="close-btn" onclick="closeModal('contactPatientModal')">&times;</button>
@@ -1340,8 +1340,8 @@
 				<div class="modal-body" style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto;">
 					<!-- Contact Method Selection -->
 					<div class="form-group">
-						<label>Contact Method</label>
-						<div style="display: flex; gap: 15px;">
+						<label style="display: block; margin-bottom: 8px; font-weight: 600;">Contact Method</label>
+						<div style="display: flex; flex-direction: column; gap: 8px;">
 							<label style="display: flex; align-items: center; cursor: pointer;">
 								<input type="radio" name="contactMethod" value="phone" checked onchange="switchContactMethod('phone')" style="margin-right: 8px;">
 								<span>📞 Phone Call</span>
@@ -1367,11 +1367,11 @@
 							<div id="partnerContactInfo" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
 						</div>
 						
-						<!-- Script Selection and Preview -->
-						<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+						<!-- Script Selection and Preview (2 columns) -->
+						<div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px;">
 							<!-- Left: Script Selection -->
 							<div>
-								<label for="phoneScriptSelect">Select Phone Script</label>
+								<label for="phoneScriptSelect" style="display: block; margin-bottom: 5px; font-weight: 600;">Select Phone Script</label>
 								<select id="phoneScriptSelect" onchange="updatePhoneScriptPreview()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
 									<option value="">-- Select Script --</option>
 									<option value="allInfoReceived">All information received</option>
@@ -1382,17 +1382,14 @@
 									<option value="voicemailAllInfo">Leaving voicemail about receipt of referral</option>
 									<option value="noFamilyPhysician">Referral with no family physician script</option>
 								</select>
-								
-								<div style="font-size: 13px; color: #666; margin-top: 10px;">
-									<strong>Script Preview:</strong>
-									<div style="font-style: italic; margin-top: 5px;">Select a script to see the preview on the right →</div>
-								</div>
 							</div>
 							
-							<!-- Right: Script Preview -->
+							<!-- Right: Script Preview (non-editable, formatted) -->
 							<div>
-								<label>Script Content (Editable)</label>
-								<textarea id="phoneScriptPreview" rows="16" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 13px; line-height: 1.5; resize: vertical;"></textarea>
+								<label style="display: block; margin-bottom: 5px; font-weight: 600;">Script Preview</label>
+								<div id="phoneScriptPreview" style="width: 100%; min-height: 400px; max-height: 500px; overflow-y: auto; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-family: inherit; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">
+									Select a script to see the preview
+								</div>
 							</div>
 						</div>
 					</div>
@@ -1405,36 +1402,49 @@
 							<div id="patientEmailInfo" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
 						</div>
 						
-						<!-- Email Template Selection -->
-						<div class="form-group">
-							<label for="emailTemplateSelect">Select Email Template</label>
-							<select id="emailTemplateSelect" onchange="updateEmailTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-								<option value="">-- Select Template --</option>
-								<option value="welcomeEmail">Welcome Email</option>
-								<option value="reminder">Reminder</option>
-								<option value="partialInfoReminder">Partial Information Reminder</option>
-								<option value="moreInfoRequired">More information required</option>
-								<option value="allInfoReceived">All information received</option>
-							</select>
-						</div>
-						
-						<!-- Email Subject -->
-						<div class="form-group">
-							<label for="emailSubject">Subject</label>
-							<input type="text" id="emailSubject" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-						</div>
-						
-						<!-- Email Body -->
-						<div class="form-group">
-							<label for="emailBody">Email Content</label>
-							<textarea id="emailBody" rows="12" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 13px; line-height: 1.5; resize: vertical;"></textarea>
+						<!-- Email Layout (2 columns) -->
+						<div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px;">
+							<!-- Left: Template Selection -->
+							<div>
+								<div class="form-group">
+									<label for="emailTemplateSelect">Select Email Template</label>
+									<select id="emailTemplateSelect" onchange="updateEmailTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+										<option value="">-- Select Template --</option>
+										<option value="welcomeEmail">Welcome Email</option>
+										<option value="reminder">Reminder</option>
+										<option value="partialInfoReminder">Partial Information Reminder</option>
+										<option value="moreInfoRequired">More information required</option>
+										<option value="allInfoReceived">All information received</option>
+									</select>
+								</div>
+								
+								<div class="form-group">
+									<label for="emailSubject">Subject</label>
+									<input type="text" id="emailSubject" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;">
+								</div>
+								
+								<div style="font-size: 13px; color: #666; margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 4px; border-left: 4px solid #3498db;">
+									<strong>Note:</strong> Email content cannot be edited here. To modify templates, edit the <code>DB/templates.json</code> file, or make changes in Outlook after generating the email.
+								</div>
+								
+								<!-- Hidden textarea to store body for backend -->
+								<textarea id="emailBody" style="display: none;"></textarea>
+							</div>
+							
+							<!-- Right: Email Preview (non-editable, formatted) -->
+							<div>
+								<label style="display: block; margin-bottom: 5px; font-weight: 600;">Email Preview</label>
+								<div id="emailPreview" style="width: 100%; min-height: 400px; max-height: 500px; overflow-y: auto; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: white; font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6;">
+									Select a template to see the preview
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
 				
 				<div class="modal-footer">
 					<button type="button" onclick="closeModal('contactPatientModal')" class="btn btn-secondary">Close</button>
-					<button type="button" id="generateEmailBtn" onclick="generateEmail()" class="btn btn-success" disabled>Generate Email (.eml)</button>
+					<button type="button" id="generateEmailBtn" onclick="generateEmail()" class="btn btn-success" disabled>Generate Email</button>
 					<button type="button" onclick="openRecordContactModal()" class="btn btn-primary">Record Contact Attempt</button>
 				</div>
 			</div>
@@ -2668,7 +2678,7 @@
             if (result.status === 'success' && result.history.length > 0) {
                 let html = '<div class="history-list">';
                 result.history.forEach(a => {
-                    const date = new Date(a.attemptDate * 1000).toLocaleDateString();
+                    const date = a.attemptDate; // Already in YYYY-MM-DD format
                     html += `
                         <div class="history-item">
                             <strong>${a.attemptMode}</strong> - ${date} ${a.attemptTime || ''}
@@ -2884,7 +2894,8 @@
                     return;
                 }
                 
-                alert('Contact attempt recorded successfully!');
+                // Professional success modal
+                showSuccessModal('Contact Attempt Recorded', 'The contact attempt has been recorded successfully.');
                 closeModal('recordContactModal');
                 closeModal('contactPatientModal');
                 
@@ -2970,8 +2981,10 @@ Have a great day.`
         
         function updatePhoneScriptPreview() {
             const scriptKey = document.getElementById('phoneScriptSelect').value;
+            const previewDiv = document.getElementById('phoneScriptPreview');
+            
             if (!scriptKey || !phoneScripts[scriptKey]) {
-                document.getElementById('phoneScriptPreview').value = '';
+                previewDiv.textContent = 'Select a script to see the preview';
                 return;
             }
             
@@ -2986,7 +2999,7 @@ Have a great day.`
             script = script.replace(/\[REFERRING_PHYSICIAN\]/g, referringPhysician);
             script = script.replace(/\[REQUESTED_PHYSICIAN\]/g, requestedPhysician);
             
-            document.getElementById('phoneScriptPreview').value = script;
+            previewDiv.textContent = script;
         }
         
         // Templates loaded from backend
@@ -3021,6 +3034,7 @@ Have a great day.`
             if (!templateKey || !emailTemplates[templateKey]) {
                 document.getElementById('emailSubject').value = '';
                 document.getElementById('emailBody').value = '';
+                document.getElementById('emailPreview').innerHTML = 'Select a template to see the preview';
                 return;
             }
             
@@ -3043,6 +3057,9 @@ Have a great day.`
             body = body.replace(/{{requestedPhysician}}/g, requestedPhysician);
             body = body.replace(/{{signature}}/g, templateSettings.signature || 'Mount Sinai Fertility');
             document.getElementById('emailBody').value = body;
+            
+            // Update preview with rendered HTML
+            document.getElementById('emailPreview').innerHTML = body;
         }
         
         
@@ -3366,6 +3383,21 @@ Have a great day.`
 					<h3 style="margin: 0 0 20px 0; color: #e74c3c;">⚠️ ${title}</h3>
 					<p style="margin: 0 0 20px 0; color: #2c3e50; line-height: 1.5;">${message}</p>
 					<button onclick="this.parentElement.parentElement.remove()" style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; float: right;">OK</button>
+					<div style="clear: both;"></div>
+				</div>
+			`;
+			document.body.appendChild(modal);
+			modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+		}
+		
+		function showSuccessModal(title, message) {
+			const modal = document.createElement('div');
+			modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+			modal.innerHTML = `
+				<div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; min-width: 400px;">
+					<h3 style="margin: 0 0 20px 0; color: #27ae60;">✓ ${title}</h3>
+					<p style="margin: 0 0 20px 0; color: #2c3e50; line-height: 1.5;">${message}</p>
+					<button onclick="this.parentElement.parentElement.remove()" style="background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; float: right;">OK</button>
 					<div style="clear: both;"></div>
 				</div>
 			`;
