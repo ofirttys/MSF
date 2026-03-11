@@ -80,32 +80,6 @@ def _simple_hash(s):
         hex_result = '0' + hex_result
     return hex_result[:8]
 
-def migrate_database():
-    """Add missing columns to referrals table if they don't exist"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Check if phoneCount column exists
-        cursor.execute("PRAGMA table_info(referrals)")
-        columns = [col[1] for col in cursor.fetchall()]
-        
-        if 'phoneCount' not in columns:
-            print("Adding phoneCount column...")
-            cursor.execute("ALTER TABLE referrals ADD COLUMN phoneCount INTEGER DEFAULT 0")
-        
-        if 'emailCount' not in columns:
-            print("Adding emailCount column...")
-            cursor.execute("ALTER TABLE referrals ADD COLUMN emailCount INTEGER DEFAULT 0")
-        
-        conn.commit()
-        conn.close()
-        print("Database migration completed successfully")
-        
-    except Exception as e:
-        print(f"Migration error: {e}")
-        traceback.print_exc()
-
 def get_db_connection():
     """Get database connection with WAL mode enabled"""
     conn = sqlite3.connect(DATABASE_FILE, timeout=30.0)
@@ -1299,16 +1273,18 @@ def record_contact_attempt(contact_data):
             # Get most recent attempt info
             last_mode = attempts[0][0]
             last_date = attempts[0][1]
+            last_time = attempts[0][2]
             
             # Update referrals table
             cursor.execute("""
                 UPDATE referrals
                 SET lastAttemptMode = ?,
                     lastAttemptDate = ?,
-                    phoneCount = ?,
-                    emailCount = ?
+                    lastAttemptTime = ?,
+                    phoneAttempts = ?,
+                    emailAttempts = ?
                 WHERE referralID = ?
-            """, (last_mode, last_date, phone_count, email_count, contact_data['referralID']))
+            """, (last_mode, last_date, last_time, phone_count, email_count, contact_data['referralID']))
         
         conn.commit()
         conn.close()
@@ -1494,9 +1470,6 @@ if __name__ == '__main__':
         print(f"Please run the CSV to SQLite converter first:")
         print(f"  python Convert-CSV-To-SQLite.py referral-status.csv DB/referrals.db")
         sys.exit(1)
-    
-    # Run database migration
-    migrate_database()
     
     # Initialize Eel
     eel.init('web')
