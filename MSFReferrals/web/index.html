@@ -2845,10 +2845,10 @@
         function generateEmail() {
             const subject = document.getElementById('emailSubject').value.trim();
             const body = document.getElementById('emailBody').value.trim();
-            const patientEmail = currentViewingReferral.patientEmail || '';
+            const patientEmail = document.getElementById('emailTo').value.trim();
             
             if (!subject || !body) {
-                showErrorModal('Email Content Required', 'Please fill in the email subject and body.');
+                showErrorModal('Email Content Required', 'Please select an email template first.');
                 return;
             }
             
@@ -2869,7 +2869,7 @@
                 if (result.status === 'error') {
                     showErrorModal('Save Error', result.message);
                 } else {
-                    alert('1 email(s) saved.\n\nIn Outlook, click the "Create Emails" button to open them.');
+                    showSuccessModal('Email Saved', '1 email(s) saved.\n\nIn Outlook, click the "Create Emails" button to open them.');
                 }
             });
         }
@@ -3049,7 +3049,7 @@ Have a great day.`
                 document.getElementById('emailSubject').value = '';
                 document.getElementById('emailTo').value = '';
                 document.getElementById('emailBody').value = '';
-                document.getElementById('emailPreview').innerHTML = 'Select a template to see the preview';
+                document.getElementById('emailPreview').innerHTML = '<p style="color: #999;">Select a template to see preview</p>';
                 return;
             }
             
@@ -3077,14 +3077,18 @@ Have a great day.`
             body = body.replace(/{{signature}}/g, templateSettings.signature || 'Mount Sinai Fertility');
             document.getElementById('emailBody').value = body;
             
-            // Update preview with To, Subject, and body (like HTA)
+            // Update preview exactly like HTA - white background with borders
             document.getElementById('emailPreview').innerHTML = `
-                <div style="background: #e8e8e8; border: 1px solid #ccc; padding: 10px; margin-bottom: 15px; border-radius: 4px;">
-                    <div style="margin-bottom: 8px;"><strong>To:</strong> ${patientEmail || '[No email address]'}</div>
-                    <div style="word-break: break-word;"><strong>Subject:</strong> ${subject}</div>
-                </div>
-                <div style="background: white; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
-                    ${body}
+                <div style="background: white; border: 1px solid #ddd; border-radius: 4px; padding: 15px;">
+                    <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                        <strong>To:</strong> <span>${patientEmail || '-'}</span>
+                    </div>
+                    <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                        <strong>Subject:</strong> <span>${subject}</span>
+                    </div>
+                    <div style="font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.5;">
+                        ${body}
+                    </div>
                 </div>
             `;
         }

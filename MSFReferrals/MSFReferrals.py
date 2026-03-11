@@ -80,9 +80,35 @@ def _simple_hash(s):
         hex_result = '0' + hex_result
     return hex_result[:8]
 
+def migrate_database():
+    """Add missing columns to referrals table if they don't exist"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if phoneCount column exists
+        cursor.execute("PRAGMA table_info(referrals)")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        if 'phoneCount' not in columns:
+            print("Adding phoneCount column...")
+            cursor.execute("ALTER TABLE referrals ADD COLUMN phoneCount INTEGER DEFAULT 0")
+        
+        if 'emailCount' not in columns:
+            print("Adding emailCount column...")
+            cursor.execute("ALTER TABLE referrals ADD COLUMN emailCount INTEGER DEFAULT 0")
+        
+        conn.commit()
+        conn.close()
+        print("Database migration completed successfully")
+        
+    except Exception as e:
+        print(f"Migration error: {e}")
+        traceback.print_exc()
+
 def get_db_connection():
     """Get database connection with WAL mode enabled"""
-    conn = sqlite3.connect(DATABASE_FILE)
+    conn = sqlite3.connect(DATABASE_FILE, timeout=30.0)
     conn.row_factory = sqlite3.Row  # Access columns by name
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA synchronous=NORMAL')
@@ -1468,6 +1494,9 @@ if __name__ == '__main__':
         print(f"Please run the CSV to SQLite converter first:")
         print(f"  python Convert-CSV-To-SQLite.py referral-status.csv DB/referrals.db")
         sys.exit(1)
+    
+    # Run database migration
+    migrate_database()
     
     # Initialize Eel
     eel.init('web')
