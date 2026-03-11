@@ -1129,6 +1129,203 @@ def copy_to_eivf(referral_id):
             'message': f'Error copying file: {str(e)}'
         }
 
+@eel.expose
+def defer_referral(referral_id, reason):
+    """Defer a referral and record the reason"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get current status
+        cursor.execute("SELECT referralStatus FROM referrals WHERE referralID = ?", (referral_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return {'status': 'error', 'message': 'Referral not found'}
+        
+        old_status = row[0]
+        
+        # Update status to Deferred
+        cursor.execute("""
+            UPDATE referrals 
+            SET referralStatus = 'Deferred'
+            WHERE referralID = ?
+        """, (referral_id,))
+        
+        # Add to status_history
+        cursor.execute("""
+            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+            VALUES (?, ?, 'Deferred', CURRENT_TIMESTAMP, 'System')
+        """, (referral_id, old_status))
+        
+        # Add reason to notes_history
+        cursor.execute("""
+            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+            VALUES (?, ?, CURRENT_TIMESTAMP, 'System')
+        """, (referral_id, f"Deferred - Reason: {reason}"))
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            'status': 'success',
+            'message': 'Referral deferred successfully'
+        }
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            'status': 'error',
+            'message': f'Error deferring referral: {str(e)}'
+        }
+
+@eel.expose
+def return_to_active(referral_id, reason):
+    """Return a deferred referral to active status"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get current status (should be Deferred)
+        cursor.execute("SELECT referralStatus FROM referrals WHERE referralID = ?", (referral_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return {'status': 'error', 'message': 'Referral not found'}
+        
+        old_status = row[0]
+        if old_status != 'Deferred':
+            conn.close()
+            return {'status': 'error', 'message': 'Referral is not deferred'}
+        
+        # Update status back to New
+        new_status = 'New'
+        cursor.execute("""
+            UPDATE referrals 
+            SET referralStatus = ?
+            WHERE referralID = ?
+        """, (new_status, referral_id))
+        
+        # Add to status_history
+        cursor.execute("""
+            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+            VALUES (?, 'Deferred', ?, CURRENT_TIMESTAMP, 'System')
+        """, (referral_id, new_status))
+        
+        # Add reason to notes_history
+        cursor.execute("""
+            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+            VALUES (?, ?, CURRENT_TIMESTAMP, 'System')
+        """, (referral_id, f"Returned to Active - Reason: {reason}"))
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            'status': 'success',
+            'message': 'Referral returned to active status',
+            'newStatus': new_status
+        }
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            'status': 'error',
+            'message': f'Error returning to active: {str(e)}'
+        }
+
+@eel.expose
+def record_contact_attempt(contact_data):
+    """Record a contact attempt in the attempt_history table"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO attempt_history (
+                referralID, attemptMode, attemptDate, attemptTime, attemptComment
+            )
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            contact_data['referralID'],
+            contact_data['attemptMode'],
+            contact_data['attemptDate'],
+            contact_data['attemptTime'],
+            contact_data['attemptComment']
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            'status': 'success',
+            'message': 'Contact attempt recorded successfully'
+        }
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            'status': 'error',
+            'message': f'Error recording contact attempt: {str(e)}'
+        }
+
+@eel.expose
+def save_emails_to_file(emails_array):
+    """Save emails to temp/pending-emails.json for Outlook VBA to process"""
+    try:
+        # Create temp directory if it doesn't exist
+        temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Save to pending-emails.json
+        file_path = os.path.join(temp_dir, 'pending-emails.json')
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(emails_array, f, indent=2, ensure_ascii=False)
+        
+        return {
+            'status': 'success',
+            'message': f'{len(emails_array)} email(s) saved to {file_path}'
+        }
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            'status': 'error',
+            'message': f'Error saving emails: {str(e)}'
+        }
+
+@eel.expose
+def load_templates():
+    """Load email and fax templates from DB/templates.json"""
+    try:
+        # Get path to templates.json in DB folder
+        db_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'DB')
+        templates_path = os.path.join(db_dir, 'templates.json')
+        
+        if not os.path.exists(templates_path):
+            return {
+                'status': 'error',
+                'message': f'Templates file not found at {templates_path}'
+            }
+        
+        with open(templates_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        return {
+            'status': 'success',
+            'emailTemplates': data.get('emailTemplates', {}),
+            'faxTemplates': data.get('faxTemplates', {}),
+            'settings': data.get('settings', {})
+        }
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            'status': 'error',
+            'message': f'Error loading templates: {str(e)}'
+        }
+
 def on_close(page, sockets):
     """Handle window close"""
     global _shutting_down

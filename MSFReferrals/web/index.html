@@ -1329,6 +1329,183 @@
 			</div>
 		</div>
 
+		<!-- Contact Patient Modal -->
+		<div id="contactPatientModal" class="modal">
+			<div class="modal-content" style="max-width: 900px; max-height: 85vh;">
+				<div class="modal-header">
+					<h2 class="modal-title">Contact Patient</h2>
+					<button type="button" class="close-btn" onclick="closeModal('contactPatientModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body" style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto;">
+					<!-- Contact Method Selection -->
+					<div class="form-group">
+						<label>Contact Method</label>
+						<div style="display: flex; gap: 15px;">
+							<label style="display: flex; align-items: center; cursor: pointer;">
+								<input type="radio" name="contactMethod" value="phone" checked onchange="switchContactMethod('phone')" style="margin-right: 8px;">
+								<span>📞 Phone Call</span>
+							</label>
+							<label style="display: flex; align-items: center; cursor: pointer;">
+								<input type="radio" name="contactMethod" value="email" onchange="switchContactMethod('email')" style="margin-right: 8px;">
+								<span>📧 Email</span>
+							</label>
+						</div>
+					</div>
+					
+					<!-- Phone Contact Section -->
+					<div id="phoneContactSection">
+						<!-- Patient Contact Info -->
+						<div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
+							<div style="font-weight: 600; margin-bottom: 8px;">Patient Contact Information:</div>
+							<div id="patientContactInfo" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
+						</div>
+						
+						<!-- Partner Contact Info -->
+						<div id="partnerContactSection" style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 15px; display: none;">
+							<div style="font-weight: 600; margin-bottom: 8px;">Partner Contact Information:</div>
+							<div id="partnerContactInfo" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
+						</div>
+						
+						<!-- Script Selection and Preview -->
+						<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+							<!-- Left: Script Selection -->
+							<div>
+								<label for="phoneScriptSelect">Select Phone Script</label>
+								<select id="phoneScriptSelect" onchange="updatePhoneScriptPreview()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+									<option value="">-- Select Script --</option>
+									<option value="allInfoReceived">All information received</option>
+									<option value="moreInfoRequired">More information required</option>
+									<option value="sameCellNumber">Patient Partner Same Cell Number</option>
+									<option value="refusingPartnerInfo">Patient Refusing to Provide Partner Information</option>
+									<option value="voicemailMoreInfo">Leaving voicemail for more information</option>
+									<option value="voicemailAllInfo">Leaving voicemail about receipt of referral</option>
+									<option value="noFamilyPhysician">Referral with no family physician script</option>
+								</select>
+								
+								<div style="font-size: 13px; color: #666; margin-top: 10px;">
+									<strong>Script Preview:</strong>
+									<div style="font-style: italic; margin-top: 5px;">Select a script to see the preview on the right →</div>
+								</div>
+							</div>
+							
+							<!-- Right: Script Preview -->
+							<div>
+								<label>Script Content (Editable)</label>
+								<textarea id="phoneScriptPreview" rows="16" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 13px; line-height: 1.5; resize: vertical;"></textarea>
+							</div>
+						</div>
+					</div>
+					
+					<!-- Email Contact Section -->
+					<div id="emailContactSection" style="display: none;">
+						<!-- Patient Email Info -->
+						<div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+							<div style="font-weight: 600; margin-bottom: 8px;">Patient Email Information:</div>
+							<div id="patientEmailInfo" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
+						</div>
+						
+						<!-- Email Template Selection -->
+						<div class="form-group">
+							<label for="emailTemplateSelect">Select Email Template</label>
+							<select id="emailTemplateSelect" onchange="updateEmailTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+								<option value="">-- Select Template --</option>
+								<option value="welcomeEmail">Welcome Email</option>
+								<option value="reminder">Reminder</option>
+								<option value="partialInfoReminder">Partial Information Reminder</option>
+								<option value="moreInfoRequired">More information required</option>
+								<option value="allInfoReceived">All information received</option>
+							</select>
+						</div>
+						
+						<!-- Email Subject -->
+						<div class="form-group">
+							<label for="emailSubject">Subject</label>
+							<input type="text" id="emailSubject" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+						</div>
+						
+						<!-- Email Body -->
+						<div class="form-group">
+							<label for="emailBody">Email Content</label>
+							<textarea id="emailBody" rows="12" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 13px; line-height: 1.5; resize: vertical;"></textarea>
+						</div>
+					</div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" onclick="closeModal('contactPatientModal')" class="btn btn-secondary">Close</button>
+					<button type="button" id="generateEmailBtn" onclick="generateEmail()" class="btn btn-success" disabled>Generate Email (.eml)</button>
+					<button type="button" onclick="openRecordContactModal()" class="btn btn-primary">Record Contact Attempt</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Record Contact Attempt Modal -->
+		<div id="recordContactModal" class="modal">
+			<div class="modal-content" style="max-width: 500px;">
+				<div class="modal-header">
+					<h2 class="modal-title">Record Contact Attempt</h2>
+					<button type="button" class="close-btn" onclick="closeModal('recordContactModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body">
+					<div class="form-group">
+						<label for="contactComment">Comment / Notes</label>
+						<textarea id="contactComment" rows="6" placeholder="Enter any notes or comments about this contact attempt..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical;"></textarea>
+					</div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" onclick="closeModal('recordContactModal')" class="btn btn-secondary">Cancel</button>
+					<button type="button" onclick="saveContactAttempt()" class="btn btn-primary">Save</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Defer Referral Modal -->
+		<div id="deferReferralModal" class="modal">
+			<div class="modal-content" style="max-width: 500px;">
+				<div class="modal-header">
+					<h2 class="modal-title">Defer Referral</h2>
+					<button type="button" class="close-btn" onclick="closeModal('deferReferralModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body">
+					<div class="form-group">
+						<label for="deferralReason">Deferral Reason</label>
+						<textarea id="deferralReason" rows="6" placeholder="Enter reason for deferring this referral..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical;"></textarea>
+					</div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" onclick="closeModal('deferReferralModal')" class="btn btn-secondary">Cancel</button>
+					<button type="button" onclick="saveDeferral()" class="btn btn-danger">Defer</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Return to Active Status Modal -->
+		<div id="returnToActiveModal" class="modal">
+			<div class="modal-content" style="max-width: 500px;">
+				<div class="modal-header">
+					<h2 class="modal-title">Return to Active Status</h2>
+					<button type="button" class="close-btn" onclick="closeModal('returnToActiveModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body">
+					<div class="form-group">
+						<label for="reactivationReason">Reason for Reactivating</label>
+						<textarea id="reactivationReason" rows="6" placeholder="Enter reason for returning this referral to active status..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical;"></textarea>
+					</div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" onclick="closeModal('returnToActiveModal')" class="btn btn-secondary">Cancel</button>
+					<button type="button" onclick="saveReturnToActive()" class="btn btn-success">Return to Active</button>
+				</div>
+			</div>
+		</div>
+
 		<!-- Add/Edit Referral Modal -->
 		<div id="referralModal" class="modal">
 			<div class="modal-content large">
@@ -1846,6 +2023,9 @@
 
         // Initialize app
         async function initializeApp() {
+            // Load templates first
+            await loadTemplates();
+            
             // Load from SQLite backend
             await loadSelectOptions();
             populateSelectOptions(); // Populate dropdown menus
@@ -2567,8 +2747,304 @@
         }
         
         function contactPatient() {
-            alert('Contact Patient modal - Coming soon');
+            if (!currentViewingReferral) return;
+            
+            // Populate patient contact info
+            const patientName = `${currentViewingReferral.patientFirstName || ''} ${currentViewingReferral.patientMiddleName || ''} ${currentViewingReferral.patientLastName || ''}`.trim();
+            const patientPhone = currentViewingReferral.patientPhone || 'Not provided';
+            const patientEmail = currentViewingReferral.patientEmail || 'Not provided';
+            
+            document.getElementById('patientContactInfo').innerHTML = `
+                <span style="color: #666;">Name:</span>
+                <span style="font-weight: 600;">${patientName}</span>
+                <span style="color: #666;">Phone:</span>
+                <span>${patientPhone}</span>
+            `;
+            
+            document.getElementById('patientEmailInfo').innerHTML = `
+                <span style="color: #666;">Name:</span>
+                <span style="font-weight: 600;">${patientName}</span>
+                <span style="color: #666;">Email:</span>
+                <span>${patientEmail}</span>
+            `;
+            
+            // Check if partner exists
+            const hasPartner = currentViewingReferral.partnerFirstName || currentViewingReferral.partnerLastName;
+            if (hasPartner) {
+                const partnerName = `${currentViewingReferral.partnerFirstName || ''} ${currentViewingReferral.partnerMiddleName || ''} ${currentViewingReferral.partnerLastName || ''}`.trim();
+                const partnerPhone = currentViewingReferral.partnerPhone || 'Not provided';
+                
+                document.getElementById('partnerContactInfo').innerHTML = `
+                    <span style="color: #666;">Name:</span>
+                    <span style="font-weight: 600;">${partnerName}</span>
+                    <span style="color: #666;">Phone:</span>
+                    <span>${partnerPhone}</span>
+                `;
+                document.getElementById('partnerContactSection').style.display = 'block';
+            } else {
+                document.getElementById('partnerContactSection').style.display = 'none';
+            }
+            
+            // Reset form
+            document.querySelector('input[name="contactMethod"][value="phone"]').checked = true;
+            switchContactMethod('phone');
+            document.getElementById('phoneScriptSelect').value = '';
+            document.getElementById('phoneScriptPreview').value = '';
+            document.getElementById('emailTemplateSelect').value = '';
+            document.getElementById('emailSubject').value = '';
+            document.getElementById('emailBody').value = '';
+            
+            openModal('contactPatientModal');
         }
+        
+        function switchContactMethod(method) {
+            if (method === 'phone') {
+                document.getElementById('phoneContactSection').style.display = 'block';
+                document.getElementById('emailContactSection').style.display = 'none';
+                document.getElementById('generateEmailBtn').disabled = true;
+            } else {
+                document.getElementById('phoneContactSection').style.display = 'none';
+                document.getElementById('emailContactSection').style.display = 'block';
+                
+                // Enable Generate Email button only if patient has email
+                const hasEmail = currentViewingReferral && currentViewingReferral.patientEmail;
+                document.getElementById('generateEmailBtn').disabled = !hasEmail;
+                
+                if (!hasEmail) {
+                    // Show message that email is not available
+                    document.getElementById('patientEmailInfo').innerHTML = `
+                        <span style="color: #666;">Name:</span>
+                        <span style="font-weight: 600;">${currentViewingReferral.patientFirstName || ''} ${currentViewingReferral.patientLastName || ''}</span>
+                        <span style="color: #666;">Email:</span>
+                        <span style="color: #e74c3c; font-weight: 600;">Not provided - Cannot generate email</span>
+                    `;
+                }
+            }
+        }
+        
+        function generateEmail() {
+            const subject = document.getElementById('emailSubject').value.trim();
+            const body = document.getElementById('emailBody').value.trim();
+            const patientEmail = currentViewingReferral.patientEmail || '';
+            
+            if (!subject || !body) {
+                showErrorModal('Email Content Required', 'Please fill in the email subject and body.');
+                return;
+            }
+            
+            if (!patientEmail) {
+                showErrorModal('Email Address Missing', 'Patient email address is not available in the referral.');
+                return;
+            }
+            
+            // Create email object matching HTA format
+            const emailsArray = [{
+                to: patientEmail,
+                subject: subject,
+                body: body
+            }];
+            
+            // Call backend to save to temp/pending-emails.json
+            eel.save_emails_to_file(emailsArray)(function(result) {
+                if (result.status === 'error') {
+                    showErrorModal('Save Error', result.message);
+                } else {
+                    alert('1 email(s) saved.\n\nIn Outlook, click the "Create Emails" button to open them.');
+                }
+            });
+        }
+        
+        function openRecordContactModal() {
+            document.getElementById('contactComment').value = '';
+            openModal('recordContactModal');
+        }
+        
+        async function saveContactAttempt() {
+            const method = document.querySelector('input[name="contactMethod"]:checked').value;
+            const comment = document.getElementById('contactComment').value.trim();
+            
+            if (!comment) {
+                showErrorModal('Comment Required', 'Please enter a comment about this contact attempt.');
+                return;
+            }
+            
+            try {
+                const contactData = {
+                    referralID: currentViewingReferral.referralID,
+                    attemptMode: method,
+                    attemptComment: comment,
+                    attemptDate: new Date().toISOString().split('T')[0],
+                    attemptTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+                };
+                
+                const result = await eel.record_contact_attempt(contactData)();
+                
+                if (result.status === 'error') {
+                    showErrorModal('Save Error', result.message);
+                    return;
+                }
+                
+                alert('Contact attempt recorded successfully!');
+                closeModal('recordContactModal');
+                closeModal('contactPatientModal');
+                
+                // Refresh the view modal to show updated contact history
+                await viewReferral(currentViewingReferral.referralID);
+                
+            } catch (error) {
+                showErrorModal('Save Error', 'Failed to save contact attempt: ' + error.message);
+            }
+        }
+        
+        // Phone script templates
+        const phoneScripts = {
+            allInfoReceived: `Hello may I please speak with [PATIENT_NAME].
+
+This is [YOUR_NAME] from Mount Sinai Fertility, how are you? I am calling because we have received your referral from Dr. [REFERRING_PHYSICIAN].
+
+Before we get started, can you please confirm your date of birth? Thank you.
+
+We have received all the information necessary to process the referral in our system and send it to Dr [REQUESTED_PHYSICIAN] office. Their secretary will be contacting you within 1 – 2 weeks with an appointment date and time. Dr. [REQUESTED_PHYSICIAN] is currently booking appointments for [TIMEFRAME] weeks from now. If you do not hear from their office within 2 weeks with your appointment date and time, please feel free to contact them at 416-586-4800 ext. [EXT] or at anytime you can follow-up with me at 416-586-4800 ext 2778.
+
+If you are looking for information to prepare for your upcoming appointment, you can visit our website at www.mountsinaifertility.com.
+
+Do you have any questions regarding next steps in your care or is there anything else I can help you with?`,
+
+            moreInfoRequired: `Hello may I please speak with [PATIENT_NAME].
+
+This is [YOUR_NAME] from Mount Sinai Fertility, how are you? I am calling because we have received your referral from Dr. [REFERRING_PHYSICIAN] and will need a little more information in order for us to be able to register you and process your referral. We want to make sure that Dr. [REQUESTED_PHYSICIAN]'s office has all the information to get you in as soon as possible.
+
+Before we get started, can you please confirm your date of birth? Thank you.
+
+To process your referral we need the following information: [LIST_MISSING_INFO]. Thank you.
+
+Do you have a partner?
+
+If yes: Fertility assessment and treatment will require your partner's health be reviewed as well, they may play in a role in your care and treatment. We will need their information to process the referral and in order to book your appointment.
+- If easier, I can contact your partner directly.
+
+I can also send you a follow-up e-mail with the information required, to process the referral, would that be ok with you?
+
+If no: Ok thank you.
+
+Once we have all of your information then we can process the referral in our system and send it to Dr. [REQUESTED_PHYSICIAN]'s office. Their secretary will be contacting you within 1 – 2 weeks with an appointment date and time. Dr. [REQUESTED_PHYSICIAN] is currently booking appointments for [TIMEFRAME] weeks from now. If you do not hear from their office within 2 weeks, please feel free to contact them at 416-586-4800 ext. [EXT] or at anytime you can follow-up with me at 416-586-4800 ext 2778.
+
+If you are looking for information to prepare for your upcoming appointment, you can visit our website at www.mountsinaifertility.com.
+
+Do you have any questions regarding next steps in your care or is there anything else I can help you with?`,
+
+            sameCellNumber: `We noticed in your referral/information provided that you and your partner share the same cell phone number. Do you each have your own mobile number?
+
+Yes: We do need both cell phones numbers as when we send out consent forms to sign through our online patient portal, we must authenticate each person individually using their cell phone number. If you prefer to use one phone number of calls from the clinic, we will be able to indicate that in your chart.
+
+No: Email Quality Manager and Administrative Supervisor that patient/partner share same cell phone number for alert to be added to patient chart.`,
+
+            refusingPartnerInfo: `Inform patient that the physician can see them for consultation but they will be unable to proceed with any investigations or treatments until the partner is registered.`,
+
+            voicemailMoreInfo: `Hi, this message is for [PATIENT_NAME]. This is [YOUR_NAME] calling from Mount Sinai Fertility in regards to a referral we have received from Dr. [REFERRING_PHYSICIAN].
+
+In order for us to register you as a patient and book an appointment at our clinic, we require some additional information. We cannot process your referral until we get this additional information, so we are hoping to hear from you as soon as possible.
+
+Please call us at 416-586-4800 ext. 2778, Monday-Friday between 7am and 3pm, or you can e-mail us at MSF.Referral@sinaihealth.ca. If English is not your first language and you require translation, please let us know by email.
+
+Look forward to hearing from you.`,
+
+            voicemailAllInfo: `Hi, this message is for [PATIENT_NAME]. This is [YOUR_NAME] calling from Mount Sinai Fertility in regards to a referral we have received from Dr. [REFERRING_PHYSICIAN].
+
+We have received all the required information and have registered you in our system. You can expect a phone call from Dr. [REQUESTED_PHYSICIAN]'s office within the next couple of weeks with an appointment date and time. If you do not hear from their office within 2 weeks, please feel free to contact them at 416-586-4800 ext. [EXT] or at anytime you can follow-up with me at 416-586-4800 ext 2778. If you are looking for information to prepare for your upcoming appointment, you can visit our website at www.mountsinaifertility.com.
+
+Have a nice day.`,
+
+            noFamilyPhysician: `Hello, Mount Sinai Fertility Referrals, how may I help you?
+
+If you do not have a family doctor or nurse practitioner, you can still be referred to our clinic. We ask you visit the Appletree clinic website and book a virtual care appointment. Appletree will get back to you with a virtual appointment time. At that appointment, request to be referred to Mount Sinai Fertility for fertility care.
+
+We expect to receive the referral from Appletree within 2 business days and will contact you once we receive the referral. To help us in processing your referral quickly, we can send you an e-mail with the information we require in order to process the referral.
+
+Once we have received all necessary information, your referral will be given to one of our physician offices and they will contact you to book an appointment.
+
+If you have any questions or would like to check the status of your referral, you can call or e-mail me at any time.
+
+Have a great day.`
+        };
+        
+        function updatePhoneScriptPreview() {
+            const scriptKey = document.getElementById('phoneScriptSelect').value;
+            if (!scriptKey || !phoneScripts[scriptKey]) {
+                document.getElementById('phoneScriptPreview').value = '';
+                return;
+            }
+            
+            let script = phoneScripts[scriptKey];
+            
+            // Replace placeholders with actual data
+            const patientName = `${currentViewingReferral.patientFirstName || ''} ${currentViewingReferral.patientLastName || ''}`.trim();
+            const referringPhysician = currentViewingReferral.referringPhysicianName || '[REFERRING_PHYSICIAN]';
+            const requestedPhysician = currentViewingReferral.requestedPhysician || '[REQUESTED_PHYSICIAN]';
+            
+            script = script.replace(/\[PATIENT_NAME\]/g, patientName);
+            script = script.replace(/\[REFERRING_PHYSICIAN\]/g, referringPhysician);
+            script = script.replace(/\[REQUESTED_PHYSICIAN\]/g, requestedPhysician);
+            
+            document.getElementById('phoneScriptPreview').value = script;
+        }
+        
+        // Templates loaded from backend
+        let emailTemplates = {};
+        let faxTemplates = {};
+        let templateSettings = {};
+        
+        // Load templates from backend
+        async function loadTemplates() {
+            try {
+                const data = await eel.load_templates()();
+                
+                if (data.status === 'error') {
+                    showErrorModal('Template Loading Error', data.message);
+                    return;
+                }
+                
+                emailTemplates = data.emailTemplates;
+                faxTemplates = data.faxTemplates;
+                templateSettings = data.settings;
+                
+                console.log('Templates loaded successfully');
+            } catch (error) {
+                console.error('Error loading templates:', error);
+                showErrorModal('Template Loading Error', 'Failed to load email templates: ' + error.message);
+            }
+        }
+        
+        function updateEmailTemplate() {
+            const templateKey = document.getElementById('emailTemplateSelect').value;
+            
+            if (!templateKey || !emailTemplates[templateKey]) {
+                document.getElementById('emailSubject').value = '';
+                document.getElementById('emailBody').value = '';
+                return;
+            }
+            
+            const template = emailTemplates[templateKey];
+            const patientName = `${currentViewingReferral.patientFirstName || ''} ${currentViewingReferral.patientLastName || ''}`.trim();
+            const referringPhysician = currentViewingReferral.referringPhysicianName || '[REFERRING_PHYSICIAN]';
+            const requestedPhysician = currentViewingReferral.requestedPhysician || '[REQUESTED_PHYSICIAN]';
+            
+            // Set subject
+            let subject = template.subject;
+            subject = subject.replace(/{{patientName}}/g, patientName);
+            subject = subject.replace(/{{referringPhysician}}/g, referringPhysician);
+            subject = subject.replace(/{{requestedPhysician}}/g, requestedPhysician);
+            document.getElementById('emailSubject').value = subject;
+            
+            // Set body
+            let body = template.body;
+            body = body.replace(/{{patientName}}/g, patientName);
+            body = body.replace(/{{referringPhysician}}/g, referringPhysician);
+            body = body.replace(/{{requestedPhysician}}/g, requestedPhysician);
+            body = body.replace(/{{signature}}/g, templateSettings.signature || 'Mount Sinai Fertility');
+            document.getElementById('emailBody').value = body;
+        }
+        
         
         function contactReferringPhysician() {
             alert('Contact Referring Physician modal - Coming soon');
@@ -2579,8 +3055,49 @@
             if (currentViewingReferral.referralStatus === 'Physician Assigned') {
                 // This will trigger copy to eIVF
                 await handleCernerTransition();
+            } else if (currentViewingReferral.referralStatus === 'Deferred') {
+                // Return to active status
+                returnToActive();
             } else {
                 alert('Next status transition modal - Coming soon');
+            }
+        }
+        
+        function returnToActive() {
+            // Clear previous reason
+            document.getElementById('reactivationReason').value = '';
+            openModal('returnToActiveModal');
+        }
+        
+        async function saveReturnToActive() {
+            const reason = document.getElementById('reactivationReason').value.trim();
+            
+            if (!reason) {
+                showErrorModal('Reason Required', 'Please enter a reason for returning this referral to active status.');
+                return;
+            }
+            
+            try {
+                const result = await eel.return_to_active(currentViewingReferral.referralID, reason)();
+                
+                if (result.status === 'error') {
+                    showErrorModal('Return to Active Error', result.message);
+                    return;
+                }
+                
+                // Success
+                alert('Referral returned to active status!\n\nNew Status: ' + result.newStatus + '\n\nReason: ' + reason);
+                
+                closeModal('returnToActiveModal');
+                
+                // Refresh the referral list
+                await loadReferrals();
+                
+                // Update the view modal to show new status
+                await viewReferral(currentViewingReferral.referralID);
+                
+            } catch (error) {
+                showErrorModal('Return to Active Error', 'Failed to return referral to active: ' + error.message);
             }
         }
         
@@ -2609,7 +3126,39 @@
         }
         
         function deferReferral() {
-            alert('Defer referral modal - Coming soon');
+            // Clear previous reason
+            document.getElementById('deferralReason').value = '';
+            openModal('deferReferralModal');
+        }
+        
+        async function saveDeferral() {
+            const reason = document.getElementById('deferralReason').value.trim();
+            
+            if (!reason) {
+                showErrorModal('Deferral Reason Required', 'Please enter a reason for deferring this referral.');
+                return;
+            }
+            
+            try {
+                const result = await eel.defer_referral(currentViewingReferral.referralID, reason)();
+                
+                if (result.status === 'error') {
+                    showErrorModal('Defer Error', result.message);
+                    return;
+                }
+                
+                // Success
+                alert('Referral deferred successfully!\n\nReason: ' + reason);
+                
+                closeModal('deferReferralModal');
+                closeModal('viewReferralModal');
+                
+                // Refresh the referral list to show updated status
+                await loadReferrals();
+                
+            } catch (error) {
+                showErrorModal('Defer Error', 'Failed to defer referral: ' + error.message);
+            }
         }
         
         function editCurrentReferral() {
