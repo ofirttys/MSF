@@ -20,16 +20,6 @@
       "name": "Partial Information Reminder",
       "subject": "Friendly Reminder – Additional Information Needed to Complete Your Referral",
       "body": "<p>Hello,</p>\n\n<p>Thank you for your response. We have received some of the information needed to complete your referral to Mount Sinai Fertility. To move forward, we still require the remaining details listed in our previous email.</p>\n\n<p>When you have a moment, please send the outstanding information so we can process your referral and forward it to our MD administrative team for appointment scheduling.</p>\n\n<p>If you believe you already sent everything, please let us know, and we will be happy to double-check.</p>\n\n<p>Thank you,<br>\n{{signature}}</p>"
-    },
-    "moreInfoRequired": {
-      "name": "More Information Required",
-      "subject": "Mount Sinai Fertility - Additional Information Required",
-      "body": "<p>Dear {{patientName}},</p>\n\n<p>Thank you for your referral to Mount Sinai Fertility from Dr. {{referringPhysician}}.</p>\n\n<p>In order to process your referral and book an appointment, we require some additional information:</p>\n\n<p>[Please list the missing information here]</p>\n\n<p>Please reply to this email with the requested information at your earliest convenience. If you have any questions, feel free to contact us at 416-586-4800 ext. 2778 (Monday-Friday, 7am-3pm) or reply to this email.</p>\n\n<p>Thank you,<br>\n{{signature}}</p>"
-    },
-    "allInfoReceived": {
-      "name": "All Information Received",
-      "subject": "Mount Sinai Fertility - Referral Received",
-      "body": "<p>Dear {{patientName}},</p>\n\n<p>Thank you for your referral to Mount Sinai Fertility from Dr. {{referringPhysician}}.</p>\n\n<p>We have received all the required information and have registered you in our system. You can expect a phone call from Dr. {{requestedPhysician}}'s office within the next couple of weeks with an appointment date and time.</p>\n\n<p>If you do not hear from their office within 2 weeks, please feel free to contact them at 416-586-4800 or you can follow-up with us at 416-586-4800 ext 2778.</p>\n\n<p>For information to prepare for your upcoming appointment, please visit www.mountsinaifertility.com.</p>\n\n<p>Thank you,<br>\n{{signature}}</p>"
     }
   },
   "faxTemplates": {

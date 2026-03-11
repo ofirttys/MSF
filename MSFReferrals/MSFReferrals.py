@@ -1241,6 +1241,7 @@ def record_contact_attempt(contact_data):
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # Insert contact attempt
         cursor.execute("""
             INSERT INTO attempt_history (
                 referralID, attemptMode, attemptDate, attemptTime, attemptComment
@@ -1253,6 +1254,35 @@ def record_contact_attempt(contact_data):
             contact_data['attemptTime'],
             contact_data['attemptComment']
         ))
+        
+        # Recalculate contact counts and last contact info
+        cursor.execute("""
+            SELECT attemptMode, attemptDate, attemptTime
+            FROM attempt_history
+            WHERE referralID = ?
+            ORDER BY attemptDate DESC, attemptTime DESC
+        """, (contact_data['referralID'],))
+        
+        attempts = cursor.fetchall()
+        
+        if attempts:
+            # Count phone and email attempts
+            phone_count = sum(1 for a in attempts if a[0] and a[0].lower() in ['phone', 'phone call'])
+            email_count = sum(1 for a in attempts if a[0] and a[0].lower() in ['e-mail', 'email'])
+            
+            # Get most recent attempt info
+            last_mode = attempts[0][0]
+            last_date = attempts[0][1]
+            
+            # Update referrals table
+            cursor.execute("""
+                UPDATE referrals
+                SET lastAttemptMode = ?,
+                    lastAttemptDate = ?,
+                    phoneCount = ?,
+                    emailCount = ?
+                WHERE referralID = ?
+            """, (last_mode, last_date, phone_count, email_count, contact_data['referralID']))
         
         conn.commit()
         conn.close()
