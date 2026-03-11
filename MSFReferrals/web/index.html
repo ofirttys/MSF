@@ -897,6 +897,11 @@
             font-weight: 500;
             font-size: 13px;
         }
+        
+        /* Override for radio button labels inside contact method */
+        #contactPatientModal .form-group label[style*="flex"] {
+            display: flex !important;
+        }
 
         .form-group input,
         .form-group select,
@@ -2492,7 +2497,15 @@
                 if (typeof value === 'number') {
                     date = new Date(value * 1000);
                 } else if (typeof value === 'string') {
-                    date = new Date(value);
+                    // Parse as local date to avoid timezone shift
+                    // '2025-03-14' should be March 14 in local time, not UTC
+                    const parts = value.split('-');
+                    if (parts.length === 3) {
+                        // Year, month (0-indexed), day
+                        date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    } else {
+                        date = new Date(value);
+                    }
                 } else {
                     return 'N/A';
                 }
@@ -2508,7 +2521,14 @@
                 if (typeof value === 'number') {
                     timestamp = value * 1000;
                 } else if (typeof value === 'string') {
-                    timestamp = new Date(value).getTime();
+                    // Parse as local date to avoid timezone shift
+                    const parts = value.split('-');
+                    if (parts.length === 3) {
+                        const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                        timestamp = date.getTime();
+                    } else {
+                        timestamp = new Date(value).getTime();
+                    }
                 } else {
                     return null;
                 }
@@ -2911,7 +2931,7 @@
                 closeModal('contactPatientModal');
                 
                 // Refresh the referrals list to show updated contact info
-                await loadReferrals();
+                await loadReferrals(true); // Use true to reset and reload from start
                 
                 // Refresh the view modal with updated data
                 await viewReferral(currentViewingReferral.referralID);
