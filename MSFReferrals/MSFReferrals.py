@@ -1130,7 +1130,7 @@ def copy_to_eivf(referral_id):
         }
 
 @eel.expose
-def defer_referral(referral_id, reason):
+def defer_referral(referral_id, reason, username='System'):
     """Defer a referral and record the reason"""
     try:
         conn = get_db_connection()
@@ -1144,6 +1144,7 @@ def defer_referral(referral_id, reason):
             return {'status': 'error', 'message': 'Referral not found'}
         
         old_status = row[0]
+        now_timestamp = int(datetime.now().timestamp())
         
         # Update status to Deferred
         cursor.execute("""
@@ -1155,14 +1156,14 @@ def defer_referral(referral_id, reason):
         # Add to status_history
         cursor.execute("""
             INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
-            VALUES (?, ?, 'Deferred', CURRENT_TIMESTAMP, 'System')
-        """, (referral_id, old_status))
+            VALUES (?, ?, 'Deferred', ?, ?)
+        """, (referral_id, old_status, now_timestamp, username))
         
         # Add reason to notes_history
         cursor.execute("""
             INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
-            VALUES (?, ?, CURRENT_TIMESTAMP, 'System')
-        """, (referral_id, f"Deferred - Reason: {reason}"))
+            VALUES (?, ?, ?, ?)
+        """, (referral_id, f"Deferred - Reason: {reason}", now_timestamp, username))
         
         conn.commit()
         conn.close()
@@ -1180,7 +1181,7 @@ def defer_referral(referral_id, reason):
         }
 
 @eel.expose
-def return_to_active(referral_id, reason):
+def return_to_active(referral_id, reason, username='System'):
     """Return a deferred referral to active status"""
     try:
         conn = get_db_connection()
@@ -1198,6 +1199,8 @@ def return_to_active(referral_id, reason):
             conn.close()
             return {'status': 'error', 'message': 'Referral is not deferred'}
         
+        now_timestamp = int(datetime.now().timestamp())
+        
         # Update status back to New
         new_status = 'New'
         cursor.execute("""
@@ -1209,14 +1212,14 @@ def return_to_active(referral_id, reason):
         # Add to status_history
         cursor.execute("""
             INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
-            VALUES (?, 'Deferred', ?, CURRENT_TIMESTAMP, 'System')
-        """, (referral_id, new_status))
+            VALUES (?, 'Deferred', ?, ?, ?)
+        """, (referral_id, new_status, now_timestamp, username))
         
         # Add reason to notes_history
         cursor.execute("""
             INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
-            VALUES (?, ?, CURRENT_TIMESTAMP, 'System')
-        """, (referral_id, f"Returned to Active - Reason: {reason}"))
+            VALUES (?, ?, ?, ?)
+        """, (referral_id, f"Returned to Active - Reason: {reason}", now_timestamp, username))
         
         conn.commit()
         conn.close()

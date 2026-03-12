@@ -902,6 +902,22 @@
         #contactPatientModal .form-group label[style*="flex"] {
             display: flex !important;
         }
+        
+        /* Force radio button container alignment */
+        #contactPatientModal .form-group > div[style*="flex-direction: column"] {
+            align-items: flex-start !important;
+        }
+        
+        /* Email preview bullet indentation */
+        #emailPreview ul,
+        #emailPreview ol {
+            margin-left: 20px;
+            padding-left: 20px;
+        }
+        
+        #emailPreview li {
+            margin-bottom: 4px;
+        }
 
         .form-group input,
         .form-group select,
@@ -972,8 +988,7 @@
 
         /* History List */
         .history-list {
-            max-height: 300px;
-            overflow-y: auto;
+            /* Let the tab content handle scrolling */
         }
 
         .history-item {
@@ -1032,7 +1047,7 @@
 		.modal-separator {
 			border: 0;
 			border-top: 2px solid #ecf0f1;
-			margin: 20px 0;
+			margin: 10px 0 20px 0;
 		}
 
         /* Empty State */
@@ -1151,7 +1166,6 @@
                     </div>
                     <div class="header-center">
                         <button onclick="openAddReferralModal()" class="btn btn-primary" id="addReferralBtn">+ Add Referral</button>
-                        <button onclick="saveDatabase()" class="btn btn-success" id="saveButton">Save</button>
                         <button onclick="exportToCSV()" class="btn btn-info" id="exportButton">Export</button>
                     </div>
                     <div class="filters">
@@ -1319,8 +1333,8 @@
 							<button class="btn btn-danger" id="deferBtn" onclick="deferReferral()">Defer</button>
 						</div>
 						<div style="display: flex; flex-direction: column; gap: 10px;">
-							<button class="btn" style="background: #9b59b6; color: white;" onclick="contactPatient()">Contact Patient</button>
-							<button class="btn" style="background: #17a2b8; color: white;" onclick="contactReferringPhysician()">Contact Referring Physician</button>
+							<button class="btn" id="contactPatientBtn" style="background: #9b59b6; color: white;" onclick="contactPatient()">Contact Patient</button>
+							<button class="btn" id="contactReferringPhysicianBtn" style="background: #17a2b8; color: white;" onclick="contactReferringPhysician()">Contact Referring Physician</button>
 						</div>
 					</div>
 					
@@ -2484,6 +2498,23 @@
             populateContactsTab(ref);
             populateNotesTab(ref);
             
+            // Disable contact buttons for deferred referrals
+            const isDeferred = ref.referralStatus === 'Deferred';
+            const contactPatientBtn = document.getElementById('contactPatientBtn');
+            const contactReferringBtn = document.getElementById('contactReferringPhysicianBtn');
+            
+            if (contactPatientBtn) {
+                contactPatientBtn.disabled = isDeferred;
+                contactPatientBtn.style.opacity = isDeferred ? '0.5' : '1';
+                contactPatientBtn.style.cursor = isDeferred ? 'not-allowed' : 'pointer';
+            }
+            
+            if (contactReferringBtn) {
+                contactReferringBtn.disabled = isDeferred;
+                contactReferringBtn.style.opacity = isDeferred ? '0.5' : '1';
+                contactReferringBtn.style.cursor = isDeferred ? 'not-allowed' : 'pointer';
+            }
+            
             // Set up next status button
             updateNextStatusButton(ref.referralStatus);
         }
@@ -3146,20 +3177,20 @@ Have a great day.`
             }
             
             try {
-                const result = await eel.return_to_active(currentViewingReferral.referralID, reason)();
+                const result = await eel.return_to_active(currentViewingReferral.referralID, reason, currentUser || 'System')();
                 
                 if (result.status === 'error') {
                     showErrorModal('Return to Active Error', result.message);
                     return;
                 }
                 
-                // Success
-                alert('Referral returned to active status!\n\nNew Status: ' + result.newStatus + '\n\nReason: ' + reason);
+                // Success modal
+                showSuccessModal('Returned to Active', 'The referral has been returned to active status.');
                 
                 closeModal('returnToActiveModal');
                 
-                // Refresh the referral list
-                await loadReferrals();
+                // Refresh the referral list with reset
+                await loadReferrals(true);
                 
                 // Update the view modal to show new status
                 await viewReferral(currentViewingReferral.referralID);
@@ -3208,21 +3239,21 @@ Have a great day.`
             }
             
             try {
-                const result = await eel.defer_referral(currentViewingReferral.referralID, reason)();
+                const result = await eel.defer_referral(currentViewingReferral.referralID, reason, currentUser || 'System')();
                 
                 if (result.status === 'error') {
                     showErrorModal('Defer Error', result.message);
                     return;
                 }
                 
-                // Success
-                alert('Referral deferred successfully!\n\nReason: ' + reason);
+                // Success modal
+                showSuccessModal('Referral Deferred', 'The referral has been deferred successfully.');
                 
                 closeModal('deferReferralModal');
                 closeModal('viewReferralModal');
                 
-                // Refresh the referral list to show updated status
-                await loadReferrals();
+                // Refresh the referral list with reset
+                await loadReferrals(true);
                 
             } catch (error) {
                 showErrorModal('Defer Error', 'Failed to defer referral: ' + error.message);
