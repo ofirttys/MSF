@@ -1377,6 +1377,60 @@ def on_close(page, sockets):
     os._exit(0)
 
 @eel.expose
+def update_referral_status(referral_id, new_status, note='', username='System'):
+    """Update referral status and record the change"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get current status
+        cursor.execute("SELECT referralStatus FROM referrals WHERE referralID = ?", (referral_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return {'status': 'error', 'message': 'Referral not found'}
+        
+        old_status = row[0]
+        now_timestamp = int(datetime.now().timestamp())
+        
+        # Update status
+        cursor.execute("""
+            UPDATE referrals 
+            SET referralStatus = ?
+            WHERE referralID = ?
+        """, (new_status, referral_id))
+        
+        # Add to status_history
+        cursor.execute("""
+            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+            VALUES (?, ?, ?, ?, ?)
+        """, (referral_id, old_status, new_status, now_timestamp, username))
+        
+        # Add note if provided
+        if note:
+            cursor.execute("""
+                INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+                VALUES (?, ?, ?, ?)
+            """, (referral_id, note, now_timestamp, username))
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            'status': 'success',
+            'message': 'Status updated successfully',
+            'oldStatus': old_status,
+            'newStatus': new_status
+        }
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            'status': 'error',
+            'message': f'Error updating status: {str(e)}'
+        }
+
+@eel.expose
 def export_to_csv():
     """Export database to CSV file in application folder"""
     try:

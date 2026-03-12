@@ -1545,6 +1545,28 @@
 			</div>
 		</div>
 
+		<!-- Information Completed Modal -->
+		<div id="informationCompletedModal" class="modal">
+			<div class="modal-content" style="max-width: 500px;">
+				<div class="modal-header">
+					<h2 class="modal-title">Mark Information as Completed</h2>
+					<button type="button" class="close-btn" onclick="closeModal('informationCompletedModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body">
+					<div class="form-group">
+						<label for="infoCompletedComment">Comment (optional)</label>
+						<textarea id="infoCompletedComment" rows="4" placeholder="Add any notes about the completed information..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical;"></textarea>
+					</div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" onclick="closeModal('informationCompletedModal')" class="btn btn-secondary">Cancel</button>
+					<button type="button" onclick="saveInformationCompleted()" class="btn btn-success">Mark as Completed</button>
+				</div>
+			</div>
+		</div>
+
 		<!-- Add/Edit Referral Modal -->
 		<div id="referralModal" class="modal">
 			<div class="modal-content large">
@@ -2983,6 +3005,20 @@
                     return;
                 }
                 
+                // Auto-transition New → Pending on first contact
+                if (currentViewingReferral.referralStatus === 'New') {
+                    const transitionResult = await eel.update_referral_status(
+                        currentViewingReferral.referralID, 
+                        'Pending', 
+                        'First contact made',
+                        currentUser || 'System'
+                    )();
+                    
+                    if (transitionResult.status === 'error') {
+                        showErrorModal('Status Update Error', transitionResult.message);
+                    }
+                }
+                
                 // Professional success modal
                 showSuccessModal('Contact Attempt Recorded', 'The contact attempt has been recorded successfully.');
                 closeModal('recordContactModal');
@@ -3177,15 +3213,62 @@ Have a great day.`
         }
         
         async function nextStatus() {
+            const status = currentViewingReferral.referralStatus;
+            
             // Check if this is the Cerner Entry transition (from Physician Assigned to Cerner Done)
-            if (currentViewingReferral.referralStatus === 'Physician Assigned') {
+            if (status === 'Physician Assigned') {
                 // This will trigger copy to eIVF
                 await handleCernerTransition();
-            } else if (currentViewingReferral.referralStatus === 'Deferred') {
+            } else if (status === 'Deferred') {
                 // Return to active status
                 returnToActive();
+            } else if (status === 'New' || status === 'Pending') {
+                // Information Completed transition
+                openInformationCompletedModal();
             } else {
                 alert('Next status transition modal - Coming soon');
+            }
+        }
+        
+        function openInformationCompletedModal() {
+            // Clear previous comment
+            document.getElementById('infoCompletedComment').value = '';
+            openModal('informationCompletedModal');
+        }
+        
+        async function saveInformationCompleted() {
+            const comment = document.getElementById('infoCompletedComment').value.trim();
+            
+            try {
+                // Prepare note text
+                let noteText = 'Information completed';
+                if (comment) {
+                    noteText += ' - ' + comment;
+                }
+                
+                const result = await eel.update_referral_status(
+                    currentViewingReferral.referralID,
+                    'Information Completed',
+                    noteText,
+                    currentUser || 'System'
+                )();
+                
+                if (result.status === 'error') {
+                    showErrorModal('Status Update Error', result.message);
+                    return;
+                }
+                
+                // Success modal
+                showSuccessModal('Information Completed', 'The referral status has been updated to Information Completed.');
+                
+                closeModal('informationCompletedModal');
+                closeModal('viewReferralModal');
+                
+                // Refresh list
+                await loadReferrals(true);
+                
+            } catch (error) {
+                showErrorModal('Status Update Error', 'Failed to update status: ' + error.message);
             }
         }
         
