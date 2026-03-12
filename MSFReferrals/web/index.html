@@ -908,6 +908,32 @@
             align-items: flex-start !important;
         }
         
+        /* Hide radio buttons and style labels as clickable options */
+        #contactPatientModal input[type="radio"] {
+            display: none;
+        }
+        
+        #contactPatientModal input[type="radio"] + span {
+            display: inline-block;
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+        
+        #contactPatientModal input[type="radio"]:checked + span {
+            border-color: #667eea;
+            background: #f0f3ff;
+            font-weight: 600;
+        }
+        
+        #contactPatientModal input[type="radio"] + span:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
         /* Email preview bullet indentation */
         #emailPreview ul,
         #emailPreview ol {
@@ -1359,20 +1385,21 @@
 				<div class="modal-body" style="display: grid; grid-template-columns: 400px 1fr; gap: 20px; flex: 1; overflow: hidden;">
 					<!-- LEFT SIDE - CONTROLS -->
 					<div style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto; padding-right: 10px;">
-						<!-- Contact Method Selection -->
-						<div class="form-group">
-							<label style="display: block; margin-bottom: 8px; font-weight: 600;">Contact Method</label>
-							<div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
-								<label style="display: flex; align-items: center; cursor: pointer;">
-									<input type="radio" name="contactMethod" value="phone" checked onchange="switchContactMethod('phone')" style="margin-right: 8px; flex-shrink: 0;">
-									<span style="white-space: nowrap;">📞 Phone Call</span>
-								</label>
-								<label style="display: flex; align-items: center; cursor: pointer;">
-									<input type="radio" name="contactMethod" value="email" onchange="switchContactMethod('email')" style="margin-right: 8px; flex-shrink: 0;">
-									<span style="white-space: nowrap;">📧 Email</span>
-								</label>
-							</div>
+					<!-- Contact Method Selection -->
+					<div class="form-group">
+						<label style="display: block; margin-bottom: 8px; font-weight: 600;">Contact Method</label>
+						<div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+							<label style="cursor: pointer;">
+								<input type="radio" name="contactMethod" value="phone" checked onchange="switchContactMethod('phone')">
+								<span>📞 Phone Call</span>
+							</label>
+							<label style="cursor: pointer;">
+								<input type="radio" name="contactMethod" value="email" onchange="switchContactMethod('email')">
+								<span>📧 Email</span>
+							</label>
 						</div>
+					</div>
+					
 						
 						<!-- Patient Phone Info (shown for phone only) -->
 						<div id="patientPhoneInfo" style="background: #f8f9fa; padding: 12px; border-radius: 6px;">
