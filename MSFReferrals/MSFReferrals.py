@@ -1516,6 +1516,177 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
         }
 
 @eel.expose
+def assign_physician(referral_id, physician, username='System'):
+    """Assign physician and update status to Physician Assigned"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        now_timestamp = int(datetime.now().timestamp())
+        
+        # Update assigned physician and status
+        cursor.execute("""
+            UPDATE referrals
+            SET assignedPhysician = ?,
+                referralStatus = 'Physician Assigned'
+            WHERE referralID = ?
+        """, (physician, referral_id))
+        
+        # Add to status history
+        cursor.execute("""
+            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+            VALUES (?, 'Information Completed', 'Physician Assigned', ?, ?)
+        """, (referral_id, now_timestamp, username))
+        
+        # Add note
+        cursor.execute("""
+            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+            VALUES (?, ?, ?, ?)
+        """, (referral_id, f"Physician assigned: {physician}", now_timestamp, username))
+        
+        conn.commit()
+        conn.close()
+        
+        return {'status': 'success', 'message': 'Physician assigned successfully'}
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {'status': 'error', 'message': f'Error assigning physician: {str(e)}'}
+
+@eel.expose
+def save_cerner_entry(referral_id, mrn, original_filename, username='System'):
+    """Save MRN, copy file to eIVF, update status to Cerner Done"""
+    try:
+        import shutil
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        now_timestamp = int(datetime.now().timestamp())
+        
+        # Update MRN and status
+        cursor.execute("""
+            UPDATE referrals
+            SET patientMRN = ?,
+                referralStatus = 'Cerner Done'
+            WHERE referralID = ?
+        """, (mrn, referral_id))
+        
+        # Add to status history
+        cursor.execute("""
+            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+            VALUES (?, 'Physician Assigned', 'Cerner Done', ?, ?)
+        """, (referral_id, now_timestamp, username))
+        
+        # Add note
+        cursor.execute("""
+            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+            VALUES (?, ?, ?, ?)
+        """, (referral_id, f"Cerner entry created - MRN: {mrn}", now_timestamp, username))
+        
+        conn.commit()
+        conn.close()
+        
+        # Copy file to eIVF if it exists
+        if original_filename:
+            linked_path = os.path.join(os.path.dirname(__file__), 'Referrals', 'Linked', original_filename)
+            eivf_dir = os.path.join(os.path.dirname(__file__), 'Referrals', 'eIVF')
+            os.makedirs(eivf_dir, exist_ok=True)
+            eivf_path = os.path.join(eivf_dir, original_filename)
+            
+            if os.path.exists(linked_path):
+                shutil.copy2(linked_path, eivf_path)
+        
+        return {'status': 'success', 'message': 'Cerner entry saved and file copied'}
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {'status': 'error', 'message': f'Error saving Cerner entry: {str(e)}'}
+
+@eel.expose
+def check_file_exists(filepath):
+    """Check if a file exists"""
+    try:
+        full_path = os.path.join(os.path.dirname(__file__), filepath)
+        exists = os.path.exists(full_path)
+        return {'exists': exists, 'path': full_path}
+    except Exception as e:
+        return {'exists': False, 'error': str(e)}
+
+@eel.expose
+def save_eivf_entry(referral_id, pid, username='System'):
+    """Save PID and update status to eIVF Done"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        now_timestamp = int(datetime.now().timestamp())
+        
+        # Update PID and status
+        cursor.execute("""
+            UPDATE referrals
+            SET patientPID = ?,
+                referralStatus = 'eIVF Done'
+            WHERE referralID = ?
+        """, (pid, referral_id))
+        
+        # Add to status history
+        cursor.execute("""
+            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+            VALUES (?, 'Cerner Done', 'eIVF Done', ?, ?)
+        """, (referral_id, now_timestamp, username))
+        
+        # Add note
+        cursor.execute("""
+            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+            VALUES (?, ?, ?, ?)
+        """, (referral_id, f"eIVF entry created - PID: {pid}", now_timestamp, username))
+        
+        conn.commit()
+        conn.close()
+        
+        return {'status': 'success', 'message': 'eIVF entry saved successfully'}
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {'status': 'error', 'message': f'Error saving eIVF entry: {str(e)}'}
+
+@eel.expose
+def assign_md_admin(referral_id, md_admin, username='System'):
+    """Assign MD Admin and update status to Completed"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        now_timestamp = int(datetime.now().timestamp())
+        
+        # Update MD Admin and status
+        cursor.execute("""
+            UPDATE referrals
+            SET taskedToPhysicianAdmin = ?,
+                referralStatus = 'Completed',
+                referralCompleteDate = ?
+            WHERE referralID = ?
+        """, (md_admin, now_timestamp, referral_id))
+        
+        # Add to status history
+        cursor.execute("""
+            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+            VALUES (?, 'eIVF Done', 'Completed', ?, ?)
+        """, (referral_id, now_timestamp, username))
+        
+        # Add note
+        cursor.execute("""
+            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+            VALUES (?, ?, ?, ?)
+        """, (referral_id, f"MD Admin assigned: {md_admin} - Referral completed", now_timestamp, username))
+        
+        conn.commit()
+        conn.close()
+        
+        return {'status': 'success', 'message': 'MD Admin assigned and referral completed'}
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {'status': 'error', 'message': f'Error assigning MD Admin: {str(e)}'}
+
+@eel.expose
 def export_to_csv():
     """Export database to CSV file in application folder"""
     try:
