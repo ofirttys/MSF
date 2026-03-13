@@ -1676,6 +1676,111 @@
 			</div>
 		</div>
 
+		<!-- Assign Physician Modal -->
+		<div id="assignPhysicianModal" class="modal">
+			<div class="modal-content" style="max-width: 500px;">
+				<div class="modal-header">
+					<h2 class="modal-title">Assign Physician</h2>
+					<button type="button" class="close-btn" onclick="closeModal('assignPhysicianModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body">
+					<div class="form-group">
+						<label for="assignedPhysicianSelect">Select Physician</label>
+						<select id="assignedPhysicianSelect" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+							<option value="">-- Select Physician --</option>
+						</select>
+					</div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" onclick="closeModal('assignPhysicianModal')" class="btn btn-secondary">Cancel</button>
+					<button type="button" onclick="saveAssignedPhysician()" class="btn btn-success">Assign Physician</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Create Cerner Entry Modal -->
+		<div id="createCernerEntryModal" class="modal">
+			<div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
+				<div class="modal-header">
+					<h2 class="modal-title">Create Cerner Entry</h2>
+					<button type="button" class="close-btn" onclick="closeModal('createCernerEntryModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body" style="flex: 1; overflow-y: auto;">
+					<div id="cernerFieldsList" style="display: flex; flex-direction: column; gap: 10px;">
+						<!-- Fields will be populated dynamically -->
+					</div>
+					
+					<div class="form-group" style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #ecf0f1;">
+						<label for="cernerMRN">Enter MRN</label>
+						<input type="text" id="cernerMRN" placeholder="Enter patient MRN" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+					</div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" onclick="closeModal('createCernerEntryModal')" class="btn btn-secondary">Cancel</button>
+					<button type="button" onclick="saveCernerEntry()" class="btn btn-success">Submit</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Create eIVF Entry Modal -->
+		<div id="createEivfEntryModal" class="modal">
+			<div class="modal-content" style="max-width: 600px;">
+				<div class="modal-header">
+					<h2 class="modal-title">Create eIVF Entry</h2>
+					<button type="button" class="close-btn" onclick="closeModal('createEivfEntryModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body">
+					<div class="form-group">
+						<label>eIVF PDF Path</label>
+						<div style="display: flex; gap: 10px; align-items: center;">
+							<input type="text" id="eivfFilePath" readonly style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-family: 'Courier New', monospace; font-size: 12px;">
+							<button type="button" onclick="copyEivfPath()" class="btn btn-secondary" style="white-space: nowrap;">Copy Path</button>
+						</div>
+					</div>
+					
+					<div class="form-group" style="margin-top: 20px;">
+						<label for="eivfPID">Enter PID</label>
+						<input type="text" id="eivfPID" placeholder="Enter patient PID" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+					</div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" onclick="closeModal('createEivfEntryModal')" class="btn btn-secondary">Cancel</button>
+					<button type="button" onclick="saveEivfEntry()" class="btn btn-success">Submit</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Assign MD Admin Modal -->
+		<div id="assignMdAdminModal" class="modal">
+			<div class="modal-content" style="max-width: 500px;">
+				<div class="modal-header">
+					<h2 class="modal-title">Assign MD Admin</h2>
+					<button type="button" class="close-btn" onclick="closeModal('assignMdAdminModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body">
+					<div class="form-group">
+						<label for="assignedMdAdminSelect">Select MD Admin</label>
+						<select id="assignedMdAdminSelect" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+							<option value="">-- Select MD Admin --</option>
+						</select>
+					</div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" onclick="closeModal('assignMdAdminModal')" class="btn btn-secondary">Cancel</button>
+					<button type="button" onclick="saveMdAdmin()" class="btn btn-success">Assign MD Admin</button>
+				</div>
+			</div>
+		</div>
+
+
 		<!-- Information Completed Modal -->
 		<div id="informationCompletedModal" class="modal">
 			<div class="modal-content" style="max-width: 500px;">
@@ -2941,9 +3046,9 @@
                 'New': 'Information Completed',
                 'Pending': 'Information Completed',
                 'Information Completed': 'Assign Physician',
-                'Physician Assigned': 'Cerner Entry',
-                'Cerner Done': 'eIVF Entry',
-                'eIVF Done': 'Complete',
+                'Physician Assigned': 'Create Cerner Entry',
+                'Cerner Done': 'Create eIVF Entry',
+                'eIVF Done': 'Assign MD Admin',
                 'Completed': null,
                 'Deferred': 'Return to Active Status'
             };
@@ -2957,8 +3062,8 @@
                 btn.style.display = 'none';
             }
             
-            // Hide Defer button if already deferred
-            if (currentStatus === 'Deferred') {
+            // Hide Defer button if already deferred or completed
+            if (currentStatus === 'Deferred' || currentStatus === 'Completed') {
                 deferBtn.style.display = 'none';
             } else {
                 deferBtn.style.display = 'block';
@@ -3624,18 +3729,24 @@ Have a great day.`
         async function nextStatus() {
             const status = currentViewingReferral.referralStatus;
             
-            // Check if this is the Cerner Entry transition (from Physician Assigned to Cerner Done)
-            if (status === 'Physician Assigned') {
-                // This will trigger copy to eIVF
-                await handleCernerTransition();
-            } else if (status === 'Deferred') {
+            if (status === 'Deferred') {
                 // Return to active status
                 returnToActive();
             } else if (status === 'New' || status === 'Pending') {
                 // Information Completed transition
                 openInformationCompletedModal();
-            } else {
-                alert('Next status transition modal - Coming soon');
+            } else if (status === 'Information Completed') {
+                // Assign Physician
+                openAssignPhysicianModal();
+            } else if (status === 'Physician Assigned') {
+                // Create Cerner Entry
+                openCreateCernerEntryModal();
+            } else if (status === 'Cerner Done') {
+                // Create eIVF Entry
+                openCreateEivfEntryModal();
+            } else if (status === 'eIVF Done') {
+                // Assign MD Admin
+                openAssignMdAdminModal();
             }
         }
         
@@ -3676,6 +3787,279 @@ Have a great day.`
                 // Refresh list
                 await loadReferrals(true);
                 
+
+        // ============ WORKFLOW FUNCTIONS ============
+        
+        function openAssignPhysicianModal() {
+            // Populate physician dropdown
+            const select = document.getElementById('assignedPhysicianSelect');
+            select.innerHTML = '<option value="">-- Select Physician --</option>';
+            
+            if (selectOptions.assignedPhysicians) {
+                selectOptions.assignedPhysicians.forEach(physician => {
+                    const option = document.createElement('option');
+                    option.value = physician;
+                    option.textContent = physician;
+                    select.appendChild(option);
+                });
+            }
+            
+            openModal('assignPhysicianModal');
+        }
+        
+        async function saveAssignedPhysician() {
+            const physician = document.getElementById('assignedPhysicianSelect').value;
+            
+            if (!physician) {
+                showErrorModal('Physician Required', 'Please select a physician.');
+                return;
+            }
+            
+            try {
+                const result = await eel.assign_physician(
+                    currentViewingReferral.referralID,
+                    physician,
+                    currentUser || 'System'
+                )();
+                
+                if (result.status === 'error') {
+                    showErrorModal('Assign Error', result.message);
+                    return;
+                }
+                
+                showSuccessModal('Physician Assigned', `Physician ${physician} has been assigned successfully.`);
+                closeModal('assignPhysicianModal');
+                closeModal('viewReferralModal');
+                await loadReferrals(true);
+                
+            } catch (error) {
+                showErrorModal('Assign Error', 'Failed to assign physician: ' + error.message);
+            }
+        }
+        
+        function openCreateCernerEntryModal() {
+            // Populate all referral fields
+            const fields = [];
+            const ref = currentViewingReferral;
+            
+            // Patient Information
+            fields.push({ label: 'Patient First Name', value: ref.patientFirstName || '' });
+            fields.push({ label: 'Patient Middle Name', value: ref.patientMiddleName || '' });
+            fields.push({ label: 'Patient Last Name', value: ref.patientLastName || '' });
+            fields.push({ label: 'Patient DOB', value: ref.patientDOB || '' });
+            fields.push({ label: 'Patient Phone', value: ref.patientPhone || '' });
+            fields.push({ label: 'Patient Email', value: ref.patientEmail || '' });
+            fields.push({ label: 'Patient Address', value: ref.patientAddress || '' });
+            fields.push({ label: 'Patient HC', value: ref.patientHC || '' });
+            fields.push({ label: 'Patient Gender at Birth', value: ref.patientGenderAtBirth || '' });
+            fields.push({ label: 'Emergency Contact', value: ref.emergencyContact || '' });
+            fields.push({ label: 'Emergency Contact Relationship', value: ref.emergencyContactRelationship || '' });
+            
+            // Partner Information
+            fields.push({ label: 'Partner First Name', value: ref.partnerFirstName || '' });
+            fields.push({ label: 'Partner Middle Name', value: ref.partnerMiddleName || '' });
+            fields.push({ label: 'Partner Last Name', value: ref.partnerLastName || '' });
+            fields.push({ label: 'Partner DOB', value: ref.partnerDOB || '' });
+            fields.push({ label: 'Partner Phone', value: ref.partnerPhone || '' });
+            fields.push({ label: 'Partner Email', value: ref.partnerEmail || '' });
+            fields.push({ label: 'Partner Address', value: ref.partnerAddress || '' });
+            fields.push({ label: 'Partner HC', value: ref.partnerHC || '' });
+            fields.push({ label: 'Partner Gender at Birth', value: ref.partnerGenderAtBirth || '' });
+            fields.push({ label: 'Partner Emergency Contact', value: ref.partnerEmergencyContact || '' });
+            fields.push({ label: 'Partner Emergency Contact Relationship', value: ref.partnerEmergencyContactRelationship || '' });
+            
+            // Referring Physician
+            fields.push({ label: 'Referring Physician Name', value: ref.referringPhysicianName || '' });
+            fields.push({ label: 'Referring Physician Phone', value: ref.referringPhysicianPhone || '' });
+            fields.push({ label: 'Referring Physician Fax', value: ref.referringPhysicianFax || '' });
+            fields.push({ label: 'Referring Physician Email', value: ref.referringPhysicianEmail || '' });
+            
+            // Service Information
+            fields.push({ label: 'Requested Location', value: ref.requestedLocation || '' });
+            fields.push({ label: 'Requested Physician', value: ref.requestedPhysician || '' });
+            fields.push({ label: 'Service Requested', value: ref.serviceRequested || '' });
+            fields.push({ label: 'Sub Service Requested', value: ref.subServiceRequested || '' });
+            fields.push({ label: 'Referral Type', value: ref.referralType || '' });
+            fields.push({ label: 'Assigned Physician', value: ref.assignedPhysician || '' });
+            
+            // Generate HTML
+            let html = '';
+            fields.forEach(field => {
+                if (field.value) {  // Only show fields with values
+                    html += `
+                        <div style="display: flex; align-items: center; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;">
+                            <div style="flex: 1;">
+                                <strong style="font-size: 12px; color: #666;">${field.label}:</strong>
+                                <div style="font-size: 14px; margin-top: 2px;">${field.value}</div>
+                            </div>
+                            <button type="button" onclick="copyCernerField('${field.value.replace(/'/g, "\\'")}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; white-space: nowrap;">Copy</button>
+                        </div>
+                    `;
+                }
+            });
+            
+            document.getElementById('cernerFieldsList').innerHTML = html;
+            document.getElementById('cernerMRN').value = ref.patientMRN || '';
+            
+            openModal('createCernerEntryModal');
+        }
+        
+        function copyCernerField(value) {
+            navigator.clipboard.writeText(value).then(() => {
+                // Show brief success indicator
+                showSuccessModal('Copied', 'Value copied to clipboard');
+            }).catch(err => {
+                showErrorModal('Copy Error', 'Failed to copy to clipboard');
+            });
+        }
+        
+        async function saveCernerEntry() {
+            const mrn = document.getElementById('cernerMRN').value.trim();
+            
+            if (!mrn) {
+                showErrorModal('MRN Required', 'Please enter the patient MRN.');
+                return;
+            }
+            
+            try {
+                // Save MRN and copy file to eIVF
+                const result = await eel.save_cerner_entry(
+                    currentViewingReferral.referralID,
+                    mrn,
+                    currentViewingReferral.fileName || '',
+                    currentUser || 'System'
+                )();
+                
+                if (result.status === 'error') {
+                    showErrorModal('Save Error', result.message);
+                    return;
+                }
+                
+                showSuccessModal('Cerner Entry Created', 'MRN saved and file copied to eIVF folder.');
+                closeModal('createCernerEntryModal');
+                closeModal('viewReferralModal');
+                await loadReferrals(true);
+                
+            } catch (error) {
+                showErrorModal('Save Error', 'Failed to save Cerner entry: ' + error.message);
+            }
+        }
+        
+        async function openCreateEivfEntryModal() {
+            // Check if file exists
+            const fileName = currentViewingReferral.fileName;
+            
+            if (!fileName) {
+                showErrorModal('File Missing', 'No referral file is associated with this record.');
+                return;
+            }
+            
+            const eivfPath = `Referrals\\eIVF\\${fileName}`;
+            
+            try {
+                const result = await eel.check_file_exists(eivfPath)();
+                
+                if (!result.exists) {
+                    showErrorModal('File Not Found', `The eIVF file does not exist:\n${eivfPath}\n\nPlease ensure the Cerner entry was created successfully.`);
+                    return;
+                }
+                
+                document.getElementById('eivfFilePath').value = eivfPath;
+                document.getElementById('eivfPID').value = currentViewingReferral.patientPID || '';
+                
+                openModal('createEivfEntryModal');
+                
+            } catch (error) {
+                showErrorModal('File Check Error', 'Failed to verify eIVF file: ' + error.message);
+            }
+        }
+        
+        function copyEivfPath() {
+            const path = document.getElementById('eivfFilePath').value;
+            navigator.clipboard.writeText(path).then(() => {
+                showSuccessModal('Copied', 'eIVF path copied to clipboard');
+            }).catch(err => {
+                showErrorModal('Copy Error', 'Failed to copy to clipboard');
+            });
+        }
+        
+        async function saveEivfEntry() {
+            const pid = document.getElementById('eivfPID').value.trim();
+            
+            if (!pid) {
+                showErrorModal('PID Required', 'Please enter the patient PID.');
+                return;
+            }
+            
+            try {
+                const result = await eel.save_eivf_entry(
+                    currentViewingReferral.referralID,
+                    pid,
+                    currentUser || 'System'
+                )();
+                
+                if (result.status === 'error') {
+                    showErrorModal('Save Error', result.message);
+                    return;
+                }
+                
+                showSuccessModal('eIVF Entry Created', 'PID saved successfully.');
+                closeModal('createEivfEntryModal');
+                closeModal('viewReferralModal');
+                await loadReferrals(true);
+                
+            } catch (error) {
+                showErrorModal('Save Error', 'Failed to save eIVF entry: ' + error.message);
+            }
+        }
+        
+        function openAssignMdAdminModal() {
+            // Populate MD Admin dropdown
+            const select = document.getElementById('assignedMdAdminSelect');
+            select.innerHTML = '<option value="">-- Select MD Admin --</option>';
+            
+            if (selectOptions.physicianAdmins) {
+                selectOptions.physicianAdmins.forEach(admin => {
+                    const option = document.createElement('option');
+                    option.value = admin;
+                    option.textContent = admin;
+                    select.appendChild(option);
+                });
+            }
+            
+            openModal('assignMdAdminModal');
+        }
+        
+        async function saveMdAdmin() {
+            const mdAdmin = document.getElementById('assignedMdAdminSelect').value;
+            
+            if (!mdAdmin) {
+                showErrorModal('MD Admin Required', 'Please select an MD Admin.');
+                return;
+            }
+            
+            try {
+                const result = await eel.assign_md_admin(
+                    currentViewingReferral.referralID,
+                    mdAdmin,
+                    currentUser || 'System'
+                )();
+                
+                if (result.status === 'error') {
+                    showErrorModal('Assign Error', result.message);
+                    return;
+                }
+                
+                showSuccessModal('MD Admin Assigned', `MD Admin ${mdAdmin} has been assigned and referral is now Complete.`);
+                closeModal('assignMdAdminModal');
+                closeModal('viewReferralModal');
+                await loadReferrals(true);
+                
+            } catch (error) {
+                showErrorModal('Assign Error', 'Failed to assign MD Admin: ' + error.message);
+            }
+        }
+
             } catch (error) {
                 showErrorModal('Status Update Error', 'Failed to update status: ' + error.message);
             }
