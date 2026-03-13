@@ -3726,68 +3726,6 @@ Have a great day.`
         }
 
         
-        async function nextStatus() {
-            const status = currentViewingReferral.referralStatus;
-            
-            if (status === 'Deferred') {
-                // Return to active status
-                returnToActive();
-            } else if (status === 'New' || status === 'Pending') {
-                // Information Completed transition
-                openInformationCompletedModal();
-            } else if (status === 'Information Completed') {
-                // Assign Physician
-                openAssignPhysicianModal();
-            } else if (status === 'Physician Assigned') {
-                // Create Cerner Entry
-                openCreateCernerEntryModal();
-            } else if (status === 'Cerner Done') {
-                // Create eIVF Entry
-                openCreateEivfEntryModal();
-            } else if (status === 'eIVF Done') {
-                // Assign MD Admin
-                openAssignMdAdminModal();
-            }
-        }
-        
-        function openInformationCompletedModal() {
-            // Clear previous comment
-            document.getElementById('infoCompletedComment').value = '';
-            openModal('informationCompletedModal');
-        }
-        
-        async function saveInformationCompleted() {
-            const comment = document.getElementById('infoCompletedComment').value.trim();
-            
-            try {
-                // Prepare note text
-                let noteText = 'Information completed';
-                if (comment) {
-                    noteText += ' - ' + comment;
-                }
-                
-                const result = await eel.update_referral_status(
-                    currentViewingReferral.referralID,
-                    'Information Completed',
-                    noteText,
-                    currentUser || 'System'
-                )();
-                
-                if (result.status === 'error') {
-                    showErrorModal('Status Update Error', result.message);
-                    return;
-                }
-                
-                // Success modal
-                showSuccessModal('Information Completed', 'The referral status has been updated to Information Completed.');
-                
-                closeModal('informationCompletedModal');
-                closeModal('viewReferralModal');
-                
-                // Refresh list
-                await loadReferrals(true);
-                
-
         // ============ WORKFLOW FUNCTIONS ============
         
         function openAssignPhysicianModal() {
@@ -4060,11 +3998,72 @@ Have a great day.`
             }
         }
 
+        async function nextStatus() {
+            const status = currentViewingReferral.referralStatus;
+            
+            if (status === 'Deferred') {
+                // Return to active status
+                returnToActive();
+            } else if (status === 'New' || status === 'Pending') {
+                // Information Completed transition
+                openInformationCompletedModal();
+            } else if (status === 'Information Completed') {
+                // Assign Physician
+                openAssignPhysicianModal();
+            } else if (status === 'Physician Assigned') {
+                // Create Cerner Entry
+                openCreateCernerEntryModal();
+            } else if (status === 'Cerner Done') {
+                // Create eIVF Entry
+                openCreateEivfEntryModal();
+            } else if (status === 'eIVF Done') {
+                // Assign MD Admin
+                openAssignMdAdminModal();
+            }
+        }
+        
+        function openInformationCompletedModal() {
+            // Clear previous comment
+            document.getElementById('infoCompletedComment').value = '';
+            openModal('informationCompletedModal');
+        }
+        
+        async function saveInformationCompleted() {
+            const comment = document.getElementById('infoCompletedComment').value.trim();
+            
+            try {
+                // Prepare note text
+                let noteText = 'Information completed';
+                if (comment) {
+                    noteText += ' - ' + comment;
+                }
+                
+                const result = await eel.update_referral_status(
+                    currentViewingReferral.referralID,
+                    'Information Completed',
+                    noteText,
+                    currentUser || 'System'
+                )();
+                
+                if (result.status === 'error') {
+                    showErrorModal('Status Update Error', result.message);
+                    return;
+                }
+                
+                // Success modal
+                showSuccessModal('Information Completed', 'The referral status has been updated to Information Completed.');
+                
+                closeModal('informationCompletedModal');
+                closeModal('viewReferralModal');
+                
+                // Refresh list
+                await loadReferrals(true);
+                
             } catch (error) {
                 showErrorModal('Status Update Error', 'Failed to update status: ' + error.message);
             }
         }
-        
+
         function returnToActive() {
             // Clear previous reason
             document.getElementById('reactivationReason').value = '';
