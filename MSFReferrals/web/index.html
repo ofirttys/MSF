@@ -1365,6 +1365,7 @@
 						<div style="display: flex; flex-direction: column; gap: 10px;">
 							<button class="btn" id="contactPatientBtn" style="background: #9b59b6; color: white;" onclick="contactPatient()">Contact Patient</button>
 							<button class="btn" id="contactReferringPhysicianBtn" style="background: #17a2b8; color: white;" onclick="contactReferringPhysician()">Contact Referring Physician</button>
+							<button class="btn" id="contactIntakeMdBtn" style="background: #8e44ad; color: white; display: none;" onclick="contactIntakeMd()">Contact Intake MD</button>
 						</div>
 					</div>
 					
@@ -1539,6 +1540,7 @@
 								<option value="oldReferralForm">Old referral form</option>
 								<option value="unreadableReferral">Unreadable referral</option>
 								<option value="missingInformation">Missing information</option>
+								<option value="multipleAttempts">Multiple attempts</option>
 								<option value="ara">ARA</option>
 								<option value="gyne">Gyne</option>
 							</select>
@@ -2787,6 +2789,7 @@
             const isDeferred = ref.referralStatus === 'Deferred';
             const contactPatientBtn = document.getElementById('contactPatientBtn');
             const contactReferringBtn = document.getElementById('contactReferringPhysicianBtn');
+            const contactIntakeMdBtn = document.getElementById('contactIntakeMdBtn');
             
             if (contactPatientBtn) {
                 contactPatientBtn.disabled = isDeferred;
@@ -2798,6 +2801,12 @@
                 contactReferringBtn.disabled = isDeferred;
                 contactReferringBtn.style.opacity = isDeferred ? '0.5' : '1';
                 contactReferringBtn.style.cursor = isDeferred ? 'not-allowed' : 'pointer';
+            }
+            
+            // Show Contact Intake MD button for urgent referrals in New/Pending state
+            if (contactIntakeMdBtn) {
+                const showIntakeMdBtn = ref.urgent === 1 && (ref.referralStatus === 'New' || ref.referralStatus === 'Pending');
+                contactIntakeMdBtn.style.display = showIntakeMdBtn ? 'block' : 'none';
             }
             
             // Set up next status button
@@ -2881,7 +2890,7 @@
             const statusColor = statusColors[ref.referralStatus] || '#667eea';
             
             const html = `
-                <div class="info-grid" style="display: grid; grid-template-columns: 200px 1fr; gap: 15px; line-height: 1.8;">
+                <div class="info-grid" style="display: grid; grid-template-columns: 200px 1fr; gap: 8px; line-height: 1.6;">
                     <strong>Status:</strong><span style="color: ${statusColor}; font-weight: bold;">${ref.referralStatus || 'N/A'}</span>
                     <strong>Received:</strong><span>${formatDate(ref.receivedDate)}</span>
                     <strong>Added:</strong><span>${formatDate(ref.addedToDBDate)}</span>
@@ -2889,6 +2898,8 @@
                     <strong>Requested Location:</strong><span>${ref.requestedLocation || 'N/A'}</span>
                     <strong>Requested Physician:</strong><span>${ref.requestedPhysician || 'N/A'}</span>
                     <strong>Requested Service:</strong><span>${ref.serviceRequested || 'N/A'}${subService}</span>
+                    <strong>Assigned Physician:</strong><span>${ref.assignedPhysician || 'N/A'}</span>
+                    <strong>Assigned MD Admin:</strong><span>${ref.taskedToPhysicianAdmin || 'N/A'}</span>
                 </div>
             `;
             
@@ -3710,6 +3721,11 @@ Have a great day.`
                     showSuccessModal('Email Saved', '1 email(s) saved.\n\nIn Outlook, click the "Create Emails" button to open them.');
                 }
             });
+        }
+        
+        function contactIntakeMd() {
+            // Placeholder - Coming soon
+            alert('Contact Intake MD - Coming soon');
         }
         
         function openRecordReferringContactModal() {

@@ -38,6 +38,11 @@
       "subject": "Mount Sinai Fertility - Missing Information",
       "body": "TO: Dr. {{referringPhysician}}\nFROM: Mount Sinai Fertility Referrals\nDATE: {{currentDate}}\nRE: {{patientName}} (DOB: {{patientDOB}})\n\nDear Dr. {{referringPhysician}},\n\n[PLACEHOLDER - Missing information content to be provided]\n\nSincerely,\n{{signature}}"
     },
+    "multipleAttempts": {
+      "name": "Multiple attempts",
+      "subject": "Mount Sinai Fertility - Unable to Reach Patient",
+      "body": "TO: Dr. {{referringPhysician}}\nFROM: Mount Sinai Fertility Referrals\nDATE: {{currentDate}}\nRE: {{patientName}} (DOB: {{patientDOB}})\n\nDear Dr. {{referringPhysician}},\n\nWe have made multiple attempts to contact your patient regarding their referral to Mount Sinai Fertility, but have been unsuccessful in reaching them.\n\nCould you please assist us in contacting the patient or provide updated contact information?\n\nThank you for your assistance.\n\nSincerely,\n{{signature}}"
+    },
     "ara": {
       "name": "ARA",
       "subject": "Mount Sinai Fertility - ARA",
