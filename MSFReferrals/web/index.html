@@ -2975,6 +2975,8 @@
             
             const html = `
                 <div class="info-grid" style="display: grid; grid-template-columns: 200px 1fr; gap: 15px; line-height: 1.8;">
+                    <strong>MRN:</strong><span>${ref.partnerMRN || 'N/A'}</span>
+                    <strong>PID:</strong><span>${ref.partnerPID || 'N/A'}</span>
                     <strong>Date of Birth:</strong><span>${ref.partnerDOB || 'N/A'}<span style="${ageColor}">${ageText}</span></span>
                     <strong>Phone:</strong><span>${ref.partnerPhone || 'N/A'}</span>
                     <strong>Email:</strong><span>${ref.partnerEmail || 'N/A'}</span>
