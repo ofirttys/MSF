@@ -1334,9 +1334,8 @@ def save_emails_to_file(emails_array):
 def load_templates():
     """Load email and fax templates from DB/templates.json"""
     try:
-        # Get path to templates.json in DB folder
-        db_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'DB')
-        templates_path = os.path.join(db_dir, 'templates.json')
+        # Use the same path resolution as database - DB folder next to exe or script
+        templates_path = os.path.join(DB_FOLDER, 'templates.json')
         
         if not os.path.exists(templates_path):
             return {
@@ -1486,7 +1485,7 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
         
         # Add original referral if it exists
         if original_filename:
-            referral_path = os.path.join(os.path.dirname(__file__), 'Referrals', 'Linked', original_filename)
+            referral_path = os.path.join(exe_dir, 'Referrals', 'Linked', original_filename)
             
             if os.path.exists(referral_path):
                 try:
@@ -1587,8 +1586,8 @@ def save_cerner_entry(referral_id, mrn, original_filename, username='System'):
         
         # Copy file to eIVF if it exists
         if original_filename:
-            linked_path = os.path.join(os.path.dirname(__file__), 'Referrals', 'Linked', original_filename)
-            eivf_dir = os.path.join(os.path.dirname(__file__), 'Referrals', 'eIVF')
+            linked_path = os.path.join(exe_dir, 'Referrals', 'Linked', original_filename)
+            eivf_dir = os.path.join(exe_dir, 'Referrals', 'eIVF')
             os.makedirs(eivf_dir, exist_ok=True)
             eivf_path = os.path.join(eivf_dir, original_filename)
             

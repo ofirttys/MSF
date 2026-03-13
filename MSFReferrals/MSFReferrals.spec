@@ -13,6 +13,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('web', 'web'),
+        # DB folder will be copied manually in post-build to root level
     ],
     hiddenimports=[
         'bottle_websocket',
@@ -21,11 +22,11 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # GUI toolkits - definitely not needed
-        'tkinter',
-        '_tkinter',
-        'tcl',
-        'tk',
+        # GUI toolkits - not needed (except tkinter for file dialogs)
+        # 'tkinter',  # NEEDED for file dialogs
+        # '_tkinter', # NEEDED for file dialogs  
+        # 'tcl',      # NEEDED for tkinter
+        # 'tk',       # NEEDED for tkinter
         'PyQt5',
         'PyQt6',
         'PySide2',
@@ -101,7 +102,6 @@ coll = COLLECT(
     upx_exclude=[],
     name='MSFReferrals',
 )
-
 
 # ── Post-build cleanup ────────────────────────────────────────────────────────
 
