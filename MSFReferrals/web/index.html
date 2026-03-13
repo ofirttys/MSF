@@ -1270,6 +1270,9 @@
                     <button class="filter-btn" onclick="filterByStatus('new-referral')">New<br>Referral</button>
                     <button class="filter-btn" onclick="filterByStatus('pending')">Pending</button>
                     <button class="filter-btn" onclick="filterByStatus('info-received')">Information<br>Completed</button>
+                    <button class="filter-btn" onclick="filterByStatus('physician-assigned')">Physician<br>Assigned</button>
+                    <button class="filter-btn" onclick="filterByStatus('cerner-done')">Cerner<br>Done</button>
+                    <button class="filter-btn" onclick="filterByStatus('eivf-done')">eIVF<br>Done</button>
                     <button class="filter-btn" onclick="filterByStatus('completed')">Completed</button>
                     <button class="filter-btn" onclick="filterByStatus('deferred')">Deferred</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-2days')">Contact<br>> 2 days</button>
@@ -1687,6 +1690,11 @@
 				</div>
 				
 				<div class="modal-body">
+					<div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+						<div style="font-weight: 600; margin-bottom: 8px;">Referral Information:</div>
+						<div id="assignPhysicianInfo" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
+					</div>
+					
 					<div class="form-group">
 						<label for="assignedPhysicianSelect">Select Physician</label>
 						<select id="assignedPhysicianSelect" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
@@ -2634,7 +2642,7 @@
 			// Define mutually exclusive groups
 			const urgentGroup = ['urgent'];
 			const typeGroup = ['new', 'previous', 'partner'];
-			const statusGroup = ['new-referral', 'pending', 'info-received', 'completed', 'deferred'];
+			const statusGroup = ['new-referral', 'pending', 'info-received', 'physician-assigned', 'cerner-done', 'eivf-done', 'completed', 'deferred'];
 			const contactGroup = ['contact-2days', 'contact-3days', 'contact-7days', 'no-contact'];
 			const emailGroup = ['no-email'];
 			const fileGroup = ['no-file'];
@@ -3757,6 +3765,17 @@ Have a great day.`
                     select.appendChild(option);
                 });
             }
+            
+            // Populate referral information
+            const info = document.getElementById('assignPhysicianInfo');
+            info.innerHTML = `
+                <span style="color: #666;">Requested Location:</span>
+                <span style="font-weight: 600;">${currentViewingReferral.requestedLocation || 'N/A'}</span>
+                <span style="color: #666;">Requested Physician:</span>
+                <span style="font-weight: 600;">${currentViewingReferral.requestedPhysician || 'N/A'}</span>
+                <span style="color: #666;">Requested Service:</span>
+                <span style="font-weight: 600;">${currentViewingReferral.serviceRequested || 'N/A'}</span>
+            `;
             
             openModal('assignPhysicianModal');
         }
