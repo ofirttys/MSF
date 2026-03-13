@@ -909,11 +909,13 @@
         }
         
         /* Hide radio buttons and style labels as clickable options */
-        #contactPatientModal input[type="radio"] {
+        #contactPatientModal input[type="radio"],
+        #contactReferringPhysicianModal input[type="radio"] {
             display: none;
         }
         
-        #contactPatientModal input[type="radio"] + span {
+        #contactPatientModal input[type="radio"] + span,
+        #contactReferringPhysicianModal input[type="radio"] + span {
             display: inline-block;
             padding: 8px 16px;
             border: 2px solid #ddd;
@@ -923,13 +925,15 @@
             background: white;
         }
         
-        #contactPatientModal input[type="radio"]:checked + span {
+        #contactPatientModal input[type="radio"]:checked + span,
+        #contactReferringPhysicianModal input[type="radio"]:checked + span {
             border-color: #667eea;
             background: #f0f3ff;
             font-weight: 600;
         }
         
-        #contactPatientModal input[type="radio"] + span:hover {
+        #contactPatientModal input[type="radio"] + span:hover,
+        #contactReferringPhysicianModal input[type="radio"] + span:hover {
             border-color: #667eea;
             background: #f8f9ff;
         }
@@ -1478,6 +1482,133 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- Contact Referring Physician Modal -->
+		<div id="contactReferringPhysicianModal" class="modal">
+			<div class="modal-content" style="max-width: 1100px; width: 1100px; height: 85vh; display: flex; flex-direction: column;">
+				<div class="modal-header">
+					<h2 class="modal-title">Contact Referring Physician</h2>
+					<button type="button" class="close-btn" onclick="closeModal('contactReferringPhysicianModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body" style="display: grid; grid-template-columns: 400px 1fr; gap: 20px; flex: 1; overflow: hidden;">
+					<!-- LEFT SIDE - CONTROLS -->
+					<div style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto; padding-right: 10px;">
+						<!-- Contact Method Selection -->
+						<div class="form-group">
+							<label style="display: block; margin-bottom: 8px; font-weight: 600;">Contact Method</label>
+							<div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+								<label style="cursor: pointer;">
+									<input type="radio" name="referringContactMethod" value="fax" checked onchange="switchReferringContactMethod('fax')">
+									<span>📠 Fax</span>
+								</label>
+								<label style="cursor: pointer;">
+									<input type="radio" name="referringContactMethod" value="phone" onchange="switchReferringContactMethod('phone')">
+									<span>📞 Phone</span>
+								</label>
+								<label style="cursor: pointer;">
+									<input type="radio" name="referringContactMethod" value="email" onchange="switchReferringContactMethod('email')">
+									<span>📧 Email</span>
+								</label>
+							</div>
+						</div>
+						
+						<!-- Referring Physician Fax Info -->
+						<div id="referringFaxInfo" style="background: #f8f9fa; padding: 12px; border-radius: 6px;">
+							<div style="font-weight: 600; margin-bottom: 8px;">Referring Physician:</div>
+							<div id="referringFaxContent" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
+						</div>
+						
+						<!-- Referring Physician Phone Info -->
+						<div id="referringPhoneInfo" style="background: #f8f9fa; padding: 12px; border-radius: 6px; display: none;">
+							<div style="font-weight: 600; margin-bottom: 8px;">Referring Physician:</div>
+							<div id="referringPhoneContent" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
+						</div>
+						
+						<!-- Referring Physician Email Info -->
+						<div id="referringEmailInfo" style="background: #f8f9fa; padding: 12px; border-radius: 6px; display: none;">
+							<div style="font-weight: 600; margin-bottom: 8px;">Referring Physician:</div>
+							<div id="referringEmailContent" style="display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: 14px;"></div>
+						</div>
+						
+						<!-- Fax Template Selection -->
+						<div id="faxTemplateSection">
+							<label for="faxTemplateSelect" style="display: block; margin-bottom: 5px; font-weight: 600;">Select Fax Template</label>
+							<select id="faxTemplateSelect" onchange="updateFaxTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+								<option value="">-- Select Template --</option>
+								<option value="oldReferralForm">Old referral form</option>
+								<option value="unreadableReferral">Unreadable referral</option>
+								<option value="missingInformation">Missing information</option>
+								<option value="ara">ARA</option>
+								<option value="gyne">Gyne</option>
+							</select>
+						</div>
+						
+						<!-- Phone Script Selection -->
+						<div id="referringPhoneScriptSection" style="display: none;">
+							<label for="referringPhoneScriptSelect" style="display: block; margin-bottom: 5px; font-weight: 600;">Select Phone Script</label>
+							<select id="referringPhoneScriptSelect" onchange="updateReferringPhoneScript()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+								<option value="">-- Select Script --</option>
+								<option value="script1">Script 1 (Placeholder)</option>
+								<option value="script2">Script 2 (Placeholder)</option>
+								<option value="script3">Script 3 (Placeholder)</option>
+							</select>
+						</div>
+						
+						<!-- Email Template Selection -->
+						<div id="referringEmailTemplateSection" style="display: none;">
+							<label for="referringEmailTemplateSelect" style="display: block; margin-bottom: 5px; font-weight: 600;">Select Email Template</label>
+							<select id="referringEmailTemplateSelect" onchange="updateReferringEmailTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+								<option value="">-- Select Template --</option>
+								<option value="template1">Template 1 (Placeholder)</option>
+								<option value="template2">Template 2 (Placeholder)</option>
+								<option value="template3">Template 3 (Placeholder)</option>
+							</select>
+						</div>
+						
+						<!-- Hidden fields -->
+						<input type="text" id="referringEmailSubject" style="display: none;">
+						<input type="text" id="referringEmailTo" style="display: none;">
+						<textarea id="referringEmailBody" style="display: none;"></textarea>
+						<textarea id="faxTemplateBody" style="display: none;"></textarea>
+					</div>
+					
+					<!-- RIGHT SIDE - PREVIEW PANE -->
+					<div style="border-left: 2px solid #ecf0f1; padding-left: 20px; display: flex; flex-direction: column; overflow: hidden;">
+						<label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px; flex-shrink: 0;">Preview</label>
+						
+						<!-- Fax Preview -->
+						<div id="faxPreviewPane" style="flex: 1; overflow-y: auto;">
+							<div id="faxPreview" style="padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; min-height: 100%;">
+								Select a fax template to see the preview
+							</div>
+						</div>
+						
+						<!-- Phone Script Preview -->
+						<div id="referringPhonePreviewPane" style="display: none; flex: 1; overflow-y: auto;">
+							<div id="referringPhoneScriptPreview" style="padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-family: inherit; font-size: 13px; line-height: 1.6; white-space: pre-wrap; min-height: 100%;">
+								Select a script to see the preview
+							</div>
+						</div>
+						
+						<!-- Email Preview -->
+						<div id="referringEmailPreviewPane" style="display: none; flex: 1; overflow-y: auto;">
+							<div id="referringEmailPreview" style="padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; min-height: 100%;">
+								Select a template to see the preview
+							</div>
+						</div>
+					</div>
+				</div>
+				
+				<div class="modal-footer" style="flex-shrink: 0;">
+					<button type="button" onclick="closeModal('contactReferringPhysicianModal')" class="btn btn-secondary">Close</button>
+					<button type="button" id="generateFaxBtn" onclick="generateFax()" class="btn btn-success">Generate Fax</button>
+					<button type="button" id="generateReferringEmailBtn" onclick="generateReferringEmail()" class="btn btn-success" style="display: none;">Generate Email</button>
+					<button type="button" onclick="openRecordReferringContactModal()" class="btn btn-primary">Record Contact Attempt</button>
+				</div>
+			</div>
+		</div>
+		
 
 		<!-- Record Contact Attempt Modal -->
 		<div id="recordContactModal" class="modal">
@@ -3209,8 +3340,286 @@ Have a great day.`
         
         
         function contactReferringPhysician() {
-            alert('Contact Referring Physician modal - Coming soon');
+            if (!currentViewingReferral) return;
+            
+            const physicianName = currentViewingReferral.referringPhysicianName || 'Not provided';
+            const physicianFax = currentViewingReferral.referringPhysicianFax || 'Not provided';
+            const physicianPhone = currentViewingReferral.referringPhysicianPhone || 'Not provided';
+            const physicianEmail = currentViewingReferral.referringPhysicianEmail || 'Not provided';
+            
+            // Populate fax info
+            document.getElementById('referringFaxContent').innerHTML = `
+                <span style="color: #666;">Name:</span>
+                <span style="font-weight: 600;">${physicianName}</span>
+                <span style="color: #666;">Fax:</span>
+                <span>${physicianFax}</span>
+            `;
+            
+            // Populate phone info
+            document.getElementById('referringPhoneContent').innerHTML = `
+                <span style="color: #666;">Name:</span>
+                <span style="font-weight: 600;">${physicianName}</span>
+                <span style="color: #666;">Phone:</span>
+                <span>${physicianPhone}</span>
+            `;
+            
+            // Populate email info
+            document.getElementById('referringEmailContent').innerHTML = `
+                <span style="color: #666;">Name:</span>
+                <span style="font-weight: 600;">${physicianName}</span>
+                <span style="color: #666;">Email:</span>
+                <span>${physicianEmail}</span>
+            `;
+            
+            // Reset form
+            document.querySelector('input[name="referringContactMethod"][value="fax"]').checked = true;
+            switchReferringContactMethod('fax');
+            document.getElementById('faxTemplateSelect').value = '';
+            document.getElementById('faxPreview').textContent = 'Select a fax template to see the preview';
+            document.getElementById('referringPhoneScriptSelect').value = '';
+            document.getElementById('referringEmailTemplateSelect').value = '';
+            document.getElementById('faxTemplateBody').value = '';
+            
+            openModal('contactReferringPhysicianModal');
         }
+        
+        function switchReferringContactMethod(method) {
+            const hasFax = currentViewingReferral && currentViewingReferral.referringPhysicianFax;
+            const hasEmail = currentViewingReferral && currentViewingReferral.referringPhysicianEmail;
+            
+            if (method === 'fax') {
+                // Show fax sections
+                document.getElementById('referringFaxInfo').style.display = 'block';
+                document.getElementById('faxTemplateSection').style.display = 'block';
+                document.getElementById('faxPreviewPane').style.display = 'block';
+                document.getElementById('generateFaxBtn').style.display = 'inline-block';
+                
+                // Hide phone/email sections
+                document.getElementById('referringPhoneInfo').style.display = 'none';
+                document.getElementById('referringPhoneScriptSection').style.display = 'none';
+                document.getElementById('referringPhonePreviewPane').style.display = 'none';
+                document.getElementById('referringEmailInfo').style.display = 'none';
+                document.getElementById('referringEmailTemplateSection').style.display = 'none';
+                document.getElementById('referringEmailPreviewPane').style.display = 'none';
+                document.getElementById('generateReferringEmailBtn').style.display = 'none';
+                
+            } else if (method === 'phone') {
+                // Show phone sections
+                document.getElementById('referringPhoneInfo').style.display = 'block';
+                document.getElementById('referringPhoneScriptSection').style.display = 'block';
+                document.getElementById('referringPhonePreviewPane').style.display = 'block';
+                
+                // Hide fax/email sections
+                document.getElementById('referringFaxInfo').style.display = 'none';
+                document.getElementById('faxTemplateSection').style.display = 'none';
+                document.getElementById('faxPreviewPane').style.display = 'none';
+                document.getElementById('generateFaxBtn').style.display = 'none';
+                document.getElementById('referringEmailInfo').style.display = 'none';
+                document.getElementById('referringEmailTemplateSection').style.display = 'none';
+                document.getElementById('referringEmailPreviewPane').style.display = 'none';
+                document.getElementById('generateReferringEmailBtn').style.display = 'none';
+                
+            } else {  // email
+                // Show email sections
+                document.getElementById('referringEmailInfo').style.display = 'block';
+                document.getElementById('referringEmailTemplateSection').style.display = 'block';
+                document.getElementById('referringEmailPreviewPane').style.display = 'block';
+                
+                // Show/enable Generate Email button
+                const generateBtn = document.getElementById('generateReferringEmailBtn');
+                generateBtn.style.display = 'inline-block';
+                
+                if (hasEmail) {
+                    generateBtn.disabled = false;
+                    generateBtn.classList.remove('btn-secondary');
+                    generateBtn.classList.add('btn-success');
+                } else {
+                    generateBtn.disabled = true;
+                    generateBtn.classList.remove('btn-success');
+                    generateBtn.classList.add('btn-secondary');
+                }
+                
+                // Hide fax/phone sections
+                document.getElementById('referringFaxInfo').style.display = 'none';
+                document.getElementById('faxTemplateSection').style.display = 'none';
+                document.getElementById('faxPreviewPane').style.display = 'none';
+                document.getElementById('generateFaxBtn').style.display = 'none';
+                document.getElementById('referringPhoneInfo').style.display = 'none';
+                document.getElementById('referringPhoneScriptSection').style.display = 'none';
+                document.getElementById('referringPhonePreviewPane').style.display = 'none';
+            }
+        }
+        
+        function updateFaxTemplate() {
+            const templateKey = document.getElementById('faxTemplateSelect').value;
+            
+            if (!templateKey || !faxTemplates[templateKey]) {
+                document.getElementById('faxTemplateBody').value = '';
+                document.getElementById('faxPreview').textContent = 'Select a fax template to see the preview';
+                return;
+            }
+            
+            const template = faxTemplates[templateKey];
+            const patientName = `${currentViewingReferral.patientFirstName || ''} ${currentViewingReferral.patientLastName || ''}`.trim();
+            const patientDOB = currentViewingReferral.patientDOB || '[DOB]';
+            const referringPhysician = currentViewingReferral.referringPhysicianName || '[REFERRING_PHYSICIAN]';
+            const requestedPhysician = currentViewingReferral.requestedPhysician || '[REQUESTED_PHYSICIAN]';
+            const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            // Replace placeholders
+            let body = template.body;
+            body = body.replace(/{{patientName}}/g, patientName);
+            body = body.replace(/{{patientDOB}}/g, patientDOB);
+            body = body.replace(/{{referringPhysician}}/g, referringPhysician);
+            body = body.replace(/{{requestedPhysician}}/g, requestedPhysician);
+            body = body.replace(/{{currentDate}}/g, currentDate);
+            body = body.replace(/{{signature}}/g, templateSettings.signature || 'Mount Sinai Fertility');
+            
+            document.getElementById('faxTemplateBody').value = body;
+            document.getElementById('faxPreview').textContent = body;
+        }
+        
+        function updateReferringPhoneScript() {
+            const scriptKey = document.getElementById('referringPhoneScriptSelect').value;
+            
+            if (!scriptKey) {
+                document.getElementById('referringPhoneScriptPreview').textContent = 'Select a script to see the preview';
+                return;
+            }
+            
+            // Placeholder content
+            const placeholderScripts = {
+                'script1': 'Phone Script 1 - Placeholder\n\n[Content to be provided]',
+                'script2': 'Phone Script 2 - Placeholder\n\n[Content to be provided]',
+                'script3': 'Phone Script 3 - Placeholder\n\n[Content to be provided]'
+            };
+            
+            document.getElementById('referringPhoneScriptPreview').textContent = placeholderScripts[scriptKey] || 'Script content not available';
+        }
+        
+        function updateReferringEmailTemplate() {
+            const templateKey = document.getElementById('referringEmailTemplateSelect').value;
+            
+            if (!templateKey) {
+                document.getElementById('referringEmailSubject').value = '';
+                document.getElementById('referringEmailTo').value = '';
+                document.getElementById('referringEmailBody').value = '';
+                document.getElementById('referringEmailPreview').innerHTML = '<p style="color: #999;">Select a template to see preview</p>';
+                return;
+            }
+            
+            // Placeholder content
+            const placeholderTemplates = {
+                'template1': {
+                    subject: 'Template 1 Subject - Placeholder',
+                    body: '<p>Email Template 1 - Placeholder</p><p>[Content to be provided]</p>'
+                },
+                'template2': {
+                    subject: 'Template 2 Subject - Placeholder',
+                    body: '<p>Email Template 2 - Placeholder</p><p>[Content to be provided]</p>'
+                },
+                'template3': {
+                    subject: 'Template 3 Subject - Placeholder',
+                    body: '<p>Email Template 3 - Placeholder</p><p>[Content to be provided]</p>'
+                }
+            };
+            
+            const template = placeholderTemplates[templateKey];
+            const physicianEmail = currentViewingReferral.referringPhysicianEmail || '';
+            
+            document.getElementById('referringEmailTo').value = physicianEmail;
+            document.getElementById('referringEmailSubject').value = template.subject;
+            document.getElementById('referringEmailBody').value = template.body;
+            
+            // Update preview like HTA
+            document.getElementById('referringEmailPreview').innerHTML = `
+                <div style="background: white; border: 1px solid #ddd; border-radius: 4px; padding: 15px;">
+                    <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                        <strong>To:</strong> <span>${physicianEmail || '-'}</span>
+                    </div>
+                    <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                        <strong>Subject:</strong> <span>${template.subject}</span>
+                    </div>
+                    <div style="font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.5;">
+                        ${template.body}
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function generateFax() {
+            const templateKey = document.getElementById('faxTemplateSelect').value;
+            const faxBody = document.getElementById('faxTemplateBody').value.trim();
+            
+            if (!templateKey || !faxBody) {
+                showErrorModal('Template Required', 'Please select a fax template first.');
+                return;
+            }
+            
+            try {
+                const result = await eel.generate_fax_pdf(
+                    currentViewingReferral.referralID,
+                    faxBody,
+                    currentViewingReferral.fileName || ''
+                )();
+                
+                if (result.status === 'error') {
+                    showErrorModal('Generate Fax Error', result.message);
+                    return;
+                }
+                
+                showSuccessModal('Fax Generated', `Fax PDF created successfully:\n\n${result.filename}`);
+                
+            } catch (error) {
+                showErrorModal('Generate Fax Error', 'Failed to generate fax: ' + error.message);
+            }
+        }
+        
+        function generateReferringEmail() {
+            const subject = document.getElementById('referringEmailSubject').value.trim();
+            const body = document.getElementById('referringEmailBody').value.trim();
+            const physicianEmail = document.getElementById('referringEmailTo').value.trim();
+            
+            if (!subject || !body) {
+                showErrorModal('Email Content Required', 'Please select an email template first.');
+                return;
+            }
+            
+            if (!physicianEmail) {
+                showErrorModal('Email Address Missing', 'Referring physician email address is not available.');
+                return;
+            }
+            
+            // Create email object
+            const emailsArray = [{
+                to: physicianEmail,
+                subject: subject,
+                body: body
+            }];
+            
+            // Save to pending emails
+            eel.save_emails_to_file(emailsArray)(function(result) {
+                if (result.status === 'error') {
+                    showErrorModal('Save Error', result.message);
+                } else {
+                    showSuccessModal('Email Saved', '1 email(s) saved.\n\nIn Outlook, click the "Create Emails" button to open them.');
+                }
+            });
+        }
+        
+        function openRecordReferringContactModal() {
+            // Clear comment
+            document.getElementById('contactComment').value = '';
+            
+            // Set the contact method from the selected radio
+            const method = document.querySelector('input[name="referringContactMethod"]:checked').value;
+            
+            // Store for later use
+            window.currentReferringContactMethod = method;
+            
+            openModal('recordContactModal');
+        }
+
         
         async function nextStatus() {
             const status = currentViewingReferral.referralStatus;

@@ -1431,6 +1431,91 @@ def update_referral_status(referral_id, new_status, note='', username='System'):
         }
 
 @eel.expose
+def generate_fax_pdf(referral_id, fax_content, original_filename):
+    """Generate a fax PDF with template on page 1 and original referral on pages 2-n"""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.units import inch
+        from pypdf import PdfWriter, PdfReader
+        import io
+        from datetime import datetime
+        
+        # Create temp directory if it doesn't exist
+        temp_dir = os.path.join(os.path.dirname(__file__), 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Generate filename: referralID-date-time.pdf
+        now = datetime.now()
+        timestamp = now.strftime('%Y%m%d-%H%M%S')
+        output_filename = f"{referral_id}-{timestamp}.pdf"
+        output_path = os.path.join(temp_dir, output_filename)
+        
+        # Create page 1 with fax content using reportlab
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+        
+        # Set up text
+        c.setFont("Courier", 10)
+        
+        # Split content into lines and write
+        lines = fax_content.split('\n')
+        y_position = height - inch  # Start 1 inch from top
+        line_height = 12
+        
+        for line in lines:
+            if y_position < inch:  # If we're too close to bottom, start new page
+                c.showPage()
+                c.setFont("Courier", 10)
+                y_position = height - inch
+            
+            c.drawString(inch, y_position, line[:90])  # Limit line length
+            y_position -= line_height
+        
+        c.save()
+        buffer.seek(0)
+        
+        # Create PDF writer
+        pdf_writer = PdfWriter()
+        
+        # Add page 1 (fax template)
+        template_pdf = PdfReader(buffer)
+        for page in template_pdf.pages:
+            pdf_writer.add_page(page)
+        
+        # Add original referral if it exists
+        if original_filename:
+            referral_path = os.path.join(os.path.dirname(__file__), 'Referrals', 'Linked', original_filename)
+            
+            if os.path.exists(referral_path):
+                try:
+                    original_pdf = PdfReader(referral_path)
+                    for page in original_pdf.pages:
+                        pdf_writer.add_page(page)
+                except Exception as e:
+                    print(f"Warning: Could not add original referral: {e}")
+                    # Continue anyway, just have the fax template
+        
+        # Write final PDF
+        with open(output_path, 'wb') as output_file:
+            pdf_writer.write(output_file)
+        
+        return {
+            'status': 'success',
+            'message': 'Fax PDF generated successfully',
+            'filename': output_filename,
+            'path': output_path
+        }
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            'status': 'error',
+            'message': f'Error generating fax PDF: {str(e)}'
+        }
+
+@eel.expose
 def export_to_csv():
     """Export database to CSV file in application folder"""
     try:

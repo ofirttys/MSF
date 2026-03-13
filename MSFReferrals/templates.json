@@ -23,20 +23,30 @@
     }
   },
   "faxTemplates": {
-    "referralReceived": {
-      "name": "Referral Received - Acknowledgment",
-      "subject": "Mount Sinai Fertility - Referral Received for {{patientName}}",
-      "body": "TO: Dr. {{referringPhysician}}\nFROM: Mount Sinai Fertility Referrals\nDATE: {{currentDate}}\nRE: {{patientName}} (DOB: {{patientDOB}})\n\nDear Dr. {{referringPhysician}},\n\nThank you for your referral of the above-named patient to Mount Sinai Fertility.\n\nWe have received the referral and are currently processing it. The patient will be contacted by one of our MD administrative coordinators to schedule an appointment.\n\nIf you have any questions or require additional information, please contact us at 416-586-4800 ext. 2778.\n\nSincerely,\n{{signature}}"
+    "oldReferralForm": {
+      "name": "Old referral form",
+      "subject": "Mount Sinai Fertility - Old Referral Form",
+      "body": "TO: Dr. {{referringPhysician}}\nFROM: Mount Sinai Fertility Referrals\nDATE: {{currentDate}}\nRE: {{patientName}} (DOB: {{patientDOB}})\n\nDear Dr. {{referringPhysician}},\n\n[PLACEHOLDER - Old referral form content to be provided]\n\nSincerely,\n{{signature}}"
     },
-    "moreInfoNeeded": {
-      "name": "More Information Needed from Referring Physician",
-      "subject": "Mount Sinai Fertility - Additional Information Required for {{patientName}}",
-      "body": "TO: Dr. {{referringPhysician}}\nFROM: Mount Sinai Fertility Referrals\nDATE: {{currentDate}}\nRE: {{patientName}} (DOB: {{patientDOB}})\n\nDear Dr. {{referringPhysician}},\n\nThank you for your referral of the above-named patient to Mount Sinai Fertility.\n\nIn order to process this referral, we require the following additional information:\n\n[Please specify missing information]\n\nPlease fax the requested information to 416-586-8775 at your earliest convenience.\n\nIf you have any questions, please contact us at 416-586-4800 ext. 2778.\n\nSincerely,\n{{signature}}"
+    "unreadableReferral": {
+      "name": "Unreadable referral",
+      "subject": "Mount Sinai Fertility - Unreadable Referral",
+      "body": "TO: Dr. {{referringPhysician}}\nFROM: Mount Sinai Fertility Referrals\nDATE: {{currentDate}}\nRE: {{patientName}} (DOB: {{patientDOB}})\n\nDear Dr. {{referringPhysician}},\n\n[PLACEHOLDER - Unreadable referral content to be provided]\n\nSincerely,\n{{signature}}"
     },
-    "appointmentScheduled": {
-      "name": "Appointment Scheduled - Notification to Referring MD",
-      "subject": "Mount Sinai Fertility - Appointment Scheduled for {{patientName}}",
-      "body": "TO: Dr. {{referringPhysician}}\nFROM: Mount Sinai Fertility\nDATE: {{currentDate}}\nRE: {{patientName}} (DOB: {{patientDOB}})\n\nDear Dr. {{referringPhysician}},\n\nWe are writing to inform you that your patient has been scheduled for an appointment at Mount Sinai Fertility.\n\nAppointment Details:\nPhysician: Dr. {{requestedPhysician}}\nDate: {{appointmentDate}}\nTime: {{appointmentTime}}\nLocation: {{appointmentLocation}}\n\nThank you for your referral.\n\nSincerely,\n{{signature}}"
+    "missingInformation": {
+      "name": "Missing information",
+      "subject": "Mount Sinai Fertility - Missing Information",
+      "body": "TO: Dr. {{referringPhysician}}\nFROM: Mount Sinai Fertility Referrals\nDATE: {{currentDate}}\nRE: {{patientName}} (DOB: {{patientDOB}})\n\nDear Dr. {{referringPhysician}},\n\n[PLACEHOLDER - Missing information content to be provided]\n\nSincerely,\n{{signature}}"
+    },
+    "ara": {
+      "name": "ARA",
+      "subject": "Mount Sinai Fertility - ARA",
+      "body": "TO: Dr. {{referringPhysician}}\nFROM: Mount Sinai Fertility Referrals\nDATE: {{currentDate}}\nRE: {{patientName}} (DOB: {{patientDOB}})\n\nDear Dr. {{referringPhysician}},\n\n[PLACEHOLDER - ARA content to be provided]\n\nSincerely,\n{{signature}}"
+    },
+    "gyne": {
+      "name": "Gyne",
+      "subject": "Mount Sinai Fertility - Gyne",
+      "body": "TO: Dr. {{referringPhysician}}\nFROM: Mount Sinai Fertility Referrals\nDATE: {{currentDate}}\nRE: {{patientName}} (DOB: {{patientDOB}})\n\nDear Dr. {{referringPhysician}},\n\n[PLACEHOLDER - Gyne content to be provided]\n\nSincerely,\n{{signature}}"
     }
   }
 }
