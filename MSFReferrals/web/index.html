@@ -2933,6 +2933,8 @@
             
             const html = `
                 <div class="info-grid" style="display: grid; grid-template-columns: 200px 1fr; gap: 15px; line-height: 1.8;">
+                    <strong>MRN:</strong><span>${ref.patientMRN || 'N/A'}</span>
+                    <strong>PID:</strong><span>${ref.patientPID || 'N/A'}</span>
                     <strong>Date of Birth:</strong><span>${ref.patientDOB || 'N/A'}<span style="${ageColor}">${ageText}</span></span>
                     <strong>Phone:</strong><span>${ref.patientPhone || 'N/A'}</span>
                     <strong>Email:</strong><span>${ref.patientEmail || 'N/A'}</span>
@@ -3802,8 +3804,10 @@ Have a great day.`
                 
                 showSuccessModal('Physician Assigned', `Physician ${physician} has been assigned successfully.`);
                 closeModal('assignPhysicianModal');
-                closeModal('viewReferralModal');
                 await loadReferrals(true);
+                
+                // Refresh the view modal with updated data
+                await viewReferral(currentViewingReferral.referralID);
                 
             } catch (error) {
                 showErrorModal('Assign Error', 'Failed to assign physician: ' + error.message);
@@ -3812,64 +3816,72 @@ Have a great day.`
         
         function openCreateCernerEntryModal() {
             // Populate all referral fields
-            const fields = [];
             const ref = currentViewingReferral;
             
-            // Patient Information
-            fields.push({ label: 'Patient First Name', value: ref.patientFirstName || '' });
-            fields.push({ label: 'Patient Middle Name', value: ref.patientMiddleName || '' });
-            fields.push({ label: 'Patient Last Name', value: ref.patientLastName || '' });
-            fields.push({ label: 'Patient DOB', value: ref.patientDOB || '' });
-            fields.push({ label: 'Patient Phone', value: ref.patientPhone || '' });
-            fields.push({ label: 'Patient Email', value: ref.patientEmail || '' });
-            fields.push({ label: 'Patient Address', value: ref.patientAddress || '' });
-            fields.push({ label: 'Patient HC', value: ref.patientHC || '' });
-            fields.push({ label: 'Patient Gender at Birth', value: ref.patientGenderAtBirth || '' });
-            fields.push({ label: 'Emergency Contact', value: ref.emergencyContact || '' });
-            fields.push({ label: 'Emergency Contact Relationship', value: ref.emergencyContactRelationship || '' });
+            // Build field list with sections
+            let previewText = '';
             
-            // Partner Information
-            fields.push({ label: 'Partner First Name', value: ref.partnerFirstName || '' });
-            fields.push({ label: 'Partner Middle Name', value: ref.partnerMiddleName || '' });
-            fields.push({ label: 'Partner Last Name', value: ref.partnerLastName || '' });
-            fields.push({ label: 'Partner DOB', value: ref.partnerDOB || '' });
-            fields.push({ label: 'Partner Phone', value: ref.partnerPhone || '' });
-            fields.push({ label: 'Partner Email', value: ref.partnerEmail || '' });
-            fields.push({ label: 'Partner Address', value: ref.partnerAddress || '' });
-            fields.push({ label: 'Partner HC', value: ref.partnerHC || '' });
-            fields.push({ label: 'Partner Gender at Birth', value: ref.partnerGenderAtBirth || '' });
-            fields.push({ label: 'Partner Emergency Contact', value: ref.partnerEmergencyContact || '' });
-            fields.push({ label: 'Partner Emergency Contact Relationship', value: ref.partnerEmergencyContactRelationship || '' });
+            // Patient Information Section
+            previewText += '=== PATIENT INFORMATION ===\n';
+            if (ref.patientFirstName) previewText += `First Name: ${ref.patientFirstName}\n`;
+            if (ref.patientMiddleName) previewText += `Middle Name: ${ref.patientMiddleName}\n`;
+            if (ref.patientLastName) previewText += `Last Name: ${ref.patientLastName}\n`;
+            if (ref.patientDOB) previewText += `Date of Birth: ${ref.patientDOB}\n`;
+            if (ref.patientMRN) previewText += `MRN: ${ref.patientMRN}\n`;
+            if (ref.patientPID) previewText += `PID: ${ref.patientPID}\n`;
+            if (ref.patientPhone) previewText += `Phone: ${ref.patientPhone}\n`;
+            if (ref.patientEmail) previewText += `Email: ${ref.patientEmail}\n`;
+            if (ref.patientAddress) previewText += `Address: ${ref.patientAddress}\n`;
+            if (ref.patientHC) previewText += `Health Card: ${ref.patientHC}\n`;
+            if (ref.patientGenderAtBirth) previewText += `Gender at Birth: ${ref.patientGenderAtBirth}\n`;
+            if (ref.emergencyContact) previewText += `Emergency Contact: ${ref.emergencyContact}\n`;
+            if (ref.emergencyContactRelationship) previewText += `Emergency Contact Relationship: ${ref.emergencyContactRelationship}\n`;
             
-            // Referring Physician
-            fields.push({ label: 'Referring Physician Name', value: ref.referringPhysicianName || '' });
-            fields.push({ label: 'Referring Physician Phone', value: ref.referringPhysicianPhone || '' });
-            fields.push({ label: 'Referring Physician Fax', value: ref.referringPhysicianFax || '' });
-            fields.push({ label: 'Referring Physician Email', value: ref.referringPhysicianEmail || '' });
+            // Partner Information Section
+            if (ref.partnerFirstName || ref.partnerLastName) {
+                previewText += '\n=== PARTNER INFORMATION ===\n';
+                if (ref.partnerFirstName) previewText += `First Name: ${ref.partnerFirstName}\n`;
+                if (ref.partnerMiddleName) previewText += `Middle Name: ${ref.partnerMiddleName}\n`;
+                if (ref.partnerLastName) previewText += `Last Name: ${ref.partnerLastName}\n`;
+                if (ref.partnerDOB) previewText += `Date of Birth: ${ref.partnerDOB}\n`;
+                if (ref.partnerMRN) previewText += `MRN: ${ref.partnerMRN}\n`;
+                if (ref.partnerPID) previewText += `PID: ${ref.partnerPID}\n`;
+                if (ref.partnerPhone) previewText += `Phone: ${ref.partnerPhone}\n`;
+                if (ref.partnerEmail) previewText += `Email: ${ref.partnerEmail}\n`;
+                if (ref.partnerAddress) previewText += `Address: ${ref.partnerAddress}\n`;
+                if (ref.partnerHC) previewText += `Health Card: ${ref.partnerHC}\n`;
+                if (ref.partnerGenderAtBirth) previewText += `Gender at Birth: ${ref.partnerGenderAtBirth}\n`;
+                if (ref.partnerEmergencyContact) previewText += `Emergency Contact: ${ref.partnerEmergencyContact}\n`;
+                if (ref.partnerEmergencyContactRelationship) previewText += `Emergency Contact Relationship: ${ref.partnerEmergencyContactRelationship}\n`;
+            }
             
-            // Service Information
-            fields.push({ label: 'Requested Location', value: ref.requestedLocation || '' });
-            fields.push({ label: 'Requested Physician', value: ref.requestedPhysician || '' });
-            fields.push({ label: 'Service Requested', value: ref.serviceRequested || '' });
-            fields.push({ label: 'Sub Service Requested', value: ref.subServiceRequested || '' });
-            fields.push({ label: 'Referral Type', value: ref.referralType || '' });
-            fields.push({ label: 'Assigned Physician', value: ref.assignedPhysician || '' });
+            // Referring Physician Section
+            previewText += '\n=== REFERRING PHYSICIAN ===\n';
+            if (ref.referringPhysicianName) previewText += `Name: ${ref.referringPhysicianName}\n`;
+            if (ref.referringPhysicianPhone) previewText += `Phone: ${ref.referringPhysicianPhone}\n`;
+            if (ref.referringPhysicianFax) previewText += `Fax: ${ref.referringPhysicianFax}\n`;
+            if (ref.referringPhysicianEmail) previewText += `Email: ${ref.referringPhysicianEmail}\n`;
             
-            // Generate HTML
-            let html = '';
-            fields.forEach(field => {
-                if (field.value) {  // Only show fields with values
-                    html += `
-                        <div style="display: flex; align-items: center; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;">
-                            <div style="flex: 1;">
-                                <strong style="font-size: 12px; color: #666;">${field.label}:</strong>
-                                <div style="font-size: 14px; margin-top: 2px;">${field.value}</div>
-                            </div>
-                            <button type="button" onclick="copyCernerField('${field.value.replace(/'/g, "\\'")}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; white-space: nowrap;">Copy</button>
-                        </div>
-                    `;
-                }
-            });
+            // Assigned Physician
+            if (ref.assignedPhysician) {
+                previewText += '\n=== ASSIGNED PHYSICIAN ===\n';
+                previewText += `Physician: ${ref.assignedPhysician}\n`;
+            }
+            
+            // Create HTML with one big preview box and copy buttons
+            const html = `
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <textarea id="cernerPreviewText" readonly style="flex: 1; min-height: 400px; padding: 12px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; resize: vertical;">${previewText}</textarea>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button type="button" onclick="copyCernerField('patientFirstName')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Copy First</button>
+                        <button type="button" onclick="copyCernerField('patientLastName')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Copy Last</button>
+                        <button type="button" onclick="copyCernerField('patientDOB')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Copy DOB</button>
+                        <button type="button" onclick="copyCernerField('patientPhone')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Copy Phone</button>
+                        <button type="button" onclick="copyCernerField('patientHC')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Copy HC</button>
+                        <button type="button" onclick="copyCernerAll()" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap; margin-top: 10px;">Copy All</button>
+                    </div>
+                </div>
+            `;
             
             document.getElementById('cernerFieldsList').innerHTML = html;
             document.getElementById('cernerMRN').value = ref.patientMRN || '';
@@ -3877,13 +3889,28 @@ Have a great day.`
             openModal('createCernerEntryModal');
         }
         
-        function copyCernerField(value) {
-            navigator.clipboard.writeText(value).then(() => {
-                // Show brief success indicator
-                showSuccessModal('Copied', 'Value copied to clipboard');
-            }).catch(err => {
-                showErrorModal('Copy Error', 'Failed to copy to clipboard');
-            });
+        function copyCernerField(fieldName) {
+            const ref = currentViewingReferral;
+            let value = '';
+            
+            switch(fieldName) {
+                case 'patientFirstName': value = ref.patientFirstName || ''; break;
+                case 'patientLastName': value = ref.patientLastName || ''; break;
+                case 'patientDOB': value = ref.patientDOB || ''; break;
+                case 'patientPhone': value = ref.patientPhone || ''; break;
+                case 'patientHC': value = ref.patientHC || ''; break;
+            }
+            
+            if (value) {
+                navigator.clipboard.writeText(value);
+                // Silent copy - no modal
+            }
+        }
+        
+        function copyCernerAll() {
+            const text = document.getElementById('cernerPreviewText').value;
+            navigator.clipboard.writeText(text);
+            // Silent copy - no modal
         }
         
         async function saveCernerEntry() {
@@ -3910,8 +3937,10 @@ Have a great day.`
                 
                 showSuccessModal('Cerner Entry Created', 'MRN saved and file copied to eIVF folder.');
                 closeModal('createCernerEntryModal');
-                closeModal('viewReferralModal');
                 await loadReferrals(true);
+                
+                // Refresh the view modal with updated data
+                await viewReferral(currentViewingReferral.referralID);
                 
             } catch (error) {
                 showErrorModal('Save Error', 'Failed to save Cerner entry: ' + error.message);
