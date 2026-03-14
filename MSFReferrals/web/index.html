@@ -1361,14 +1361,16 @@
 
 				<div class="modal-actions">
 					<div style="display: flex; justify-content: space-between; align-items: flex-start;">
-						<div style="display: flex; gap: 10px;">
-							<button class="btn btn-success" id="nextStatusBtn" onclick="nextStatus()"></button>
-							<button class="btn btn-danger" id="deferBtn" onclick="deferReferral()">Defer</button>
+						<div style="display: flex; flex-direction: column; gap: 10px;">
+							<div style="display: flex; gap: 10px;">
+								<button class="btn btn-success" id="nextStatusBtn" onclick="nextStatus()"></button>
+								<button class="btn btn-danger" id="deferBtn" onclick="deferReferral()">Defer</button>
+							</div>
+							<button class="btn" id="contactIntakeMdBtn" style="background: #8e44ad; color: white; display: none;" onclick="contactIntakeMd()">Contact Intake MD</button>
 						</div>
 						<div style="display: flex; flex-direction: column; gap: 10px;">
 							<button class="btn" id="contactPatientBtn" style="background: #9b59b6; color: white;" onclick="contactPatient()">Contact Patient</button>
 							<button class="btn" id="contactReferringPhysicianBtn" style="background: #17a2b8; color: white;" onclick="contactReferringPhysician()">Contact Referring Physician</button>
-							<button class="btn" id="contactIntakeMdBtn" style="background: #8e44ad; color: white; display: none;" onclick="contactIntakeMd()">Contact Intake MD</button>
 						</div>
 					</div>
 					
@@ -2745,19 +2747,13 @@
 		}
 
         async function viewReferral(id) {
-            // Find referral in loaded data
-            const referral = allLoadedReferrals.find(r => r.referralID === id);
-            if (!referral) {
-                // If not in current view, fetch from backend
-                const result = await eel.get_referral_details(id)();
-                if (result.status === 'success') {
-                    currentViewingReferral = result.referral;
-                } else {
-                    showErrorModal('Load Referral Error', 'Could not load referral details');
-                    return;
-                }
+            // Always fetch full referral details from backend (list data only has 17 fields)
+            const result = await eel.get_referral_details(id)();
+            if (result.status === 'success') {
+                currentViewingReferral = result.referral;
             } else {
-                currentViewingReferral = referral;
+                showErrorModal('Load Referral Error', 'Could not load referral details');
+                return;
             }
             
             populateViewModal(currentViewingReferral);
@@ -2932,7 +2928,7 @@
             const ageText = age ? ` (${age} years)` : '';
             
             const html = `
-                <div class="info-grid" style="display: grid; grid-template-columns: 200px 1fr; gap: 15px; line-height: 1.8;">
+                <div class="info-grid" style="display: grid; grid-template-columns: 200px 1fr; gap: 8px; line-height: 1.6;">
                     <strong>MRN:</strong><span>${ref.patientMRN || 'N/A'}</span>
                     <strong>PID:</strong><span>${ref.patientPID || 'N/A'}</span>
                     <strong>Date of Birth:</strong><span>${ref.patientDOB || 'N/A'}<span style="${ageColor}">${ageText}</span></span>
@@ -2974,7 +2970,7 @@
             const ageText = age ? ` (${age} years)` : '';
             
             const html = `
-                <div class="info-grid" style="display: grid; grid-template-columns: 200px 1fr; gap: 15px; line-height: 1.8;">
+                <div class="info-grid" style="display: grid; grid-template-columns: 200px 1fr; gap: 8px; line-height: 1.6;">
                     <strong>MRN:</strong><span>${ref.partnerMRN || 'N/A'}</span>
                     <strong>PID:</strong><span>${ref.partnerPID || 'N/A'}</span>
                     <strong>Date of Birth:</strong><span>${ref.partnerDOB || 'N/A'}<span style="${ageColor}">${ageText}</span></span>
@@ -3871,16 +3867,33 @@ Have a great day.`
             }
             
             // Create HTML with one big preview box and copy buttons
+            const hasPartner = ref.partnerFirstName || ref.partnerLastName;
+            
+            let buttonsHTML = `
+                <button type="button" onclick="copyCernerField('patientHC')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Patient HC</button>
+                <button type="button" onclick="copyCernerField('patientFirstName')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Patient First</button>
+                <button type="button" onclick="copyCernerField('patientLastName')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Patient Last</button>
+                <button type="button" onclick="copyCernerField('patientDOB')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Patient DOB</button>
+                <button type="button" onclick="copyCernerField('patientPhone')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Patient Phone</button>
+            `;
+            
+            if (hasPartner) {
+                buttonsHTML += `
+                <button type="button" onclick="copyCernerField('partnerHC')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap; margin-top: 10px;">Partner HC</button>
+                <button type="button" onclick="copyCernerField('partnerFirstName')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Partner First</button>
+                <button type="button" onclick="copyCernerField('partnerLastName')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Partner Last</button>
+                <button type="button" onclick="copyCernerField('partnerDOB')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Partner DOB</button>
+                <button type="button" onclick="copyCernerField('partnerPhone')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Partner Phone</button>
+                `;
+            }
+            
+            buttonsHTML += `<button type="button" onclick="copyCernerAll()" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap; margin-top: 10px;">Copy All</button>`;
+            
             const html = `
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <textarea id="cernerPreviewText" readonly style="flex: 1; min-height: 400px; padding: 12px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; resize: vertical;">${previewText}</textarea>
                     <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <button type="button" onclick="copyCernerField('patientFirstName')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Copy First</button>
-                        <button type="button" onclick="copyCernerField('patientLastName')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Copy Last</button>
-                        <button type="button" onclick="copyCernerField('patientDOB')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Copy DOB</button>
-                        <button type="button" onclick="copyCernerField('patientPhone')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Copy Phone</button>
-                        <button type="button" onclick="copyCernerField('patientHC')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">Copy HC</button>
-                        <button type="button" onclick="copyCernerAll()" class="btn btn-primary" style="padding: 4px 8px; font-size: 11px; white-space: nowrap; margin-top: 10px;">Copy All</button>
+                        ${buttonsHTML}
                     </div>
                 </div>
             `;
@@ -3896,11 +3909,16 @@ Have a great day.`
             let value = '';
             
             switch(fieldName) {
+                case 'patientHC': value = ref.patientHC || ''; break;
                 case 'patientFirstName': value = ref.patientFirstName || ''; break;
                 case 'patientLastName': value = ref.patientLastName || ''; break;
                 case 'patientDOB': value = ref.patientDOB || ''; break;
                 case 'patientPhone': value = ref.patientPhone || ''; break;
-                case 'patientHC': value = ref.patientHC || ''; break;
+                case 'partnerHC': value = ref.partnerHC || ''; break;
+                case 'partnerFirstName': value = ref.partnerFirstName || ''; break;
+                case 'partnerLastName': value = ref.partnerLastName || ''; break;
+                case 'partnerDOB': value = ref.partnerDOB || ''; break;
+                case 'partnerPhone': value = ref.partnerPhone || ''; break;
             }
             
             if (value) {
@@ -4120,10 +4138,10 @@ Have a great day.`
                 showSuccessModal('Information Completed', 'The referral status has been updated to Information Completed.');
                 
                 closeModal('informationCompletedModal');
-                closeModal('viewReferralModal');
-                
-                // Refresh list
                 await loadReferrals(true);
+                
+                // Refresh the view modal with updated data
+                await viewReferral(currentViewingReferral.referralID);
                 
             } catch (error) {
                 showErrorModal('Status Update Error', 'Failed to update status: ' + error.message);
