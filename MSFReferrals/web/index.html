@@ -1449,7 +1449,10 @@
 							<label for="emailTemplateSelect" style="display: block; margin-bottom: 5px; font-weight: 600;">Select Email Template</label>
 							<select id="emailTemplateSelect" onchange="updateEmailTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
 								<option value="">-- Select Template --</option>
-								<option value="welcomeEmail">Welcome Email</option>
+								<option value="welcomeEmail">Welcome Email (New Patient Referral)</option>
+								<option value="eefSelfReferralInfoRequest">EEF Self-Referral Info Request</option>
+								<option value="eefAgeOver40Patient">EEF Patient Age > 40</option>
+								<option value="araPatient">ARA Patient</option>
 								<option value="reminder">Reminder</option>
 								<option value="partialInfoReminder">Partial Information Reminder</option>
 							</select>
@@ -1542,12 +1545,20 @@
 							<label for="faxTemplateSelect" style="display: block; margin-bottom: 5px; font-weight: 600;">Select Fax Template</label>
 							<select id="faxTemplateSelect" onchange="updateFaxTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
 								<option value="">-- Select Template --</option>
-								<option value="oldReferralForm">Old referral form</option>
-								<option value="unreadableReferral">Unreadable referral</option>
-								<option value="missingInformation">Missing information</option>
-								<option value="multipleAttempts">Multiple attempts</option>
-								<option value="ara">ARA</option>
-								<option value="gyne">Gyne</option>
+								<option value="eefAgeOver40Physician">EEF Patient Age > 40</option>
+								<option value="eefPedsPhysician">EEF Patient Age < 18</option>
+								<option value="araPhysician">ARA Patient</option>
+								<option value="semenAnalysis">Semen Analysis</option>
+								<option value="spermBanking">Sperm Banking/Freezing</option>
+								<option value="gyneReferral">Gyne Referral</option>
+								<option value="obReferral">OB Referral</option>
+								<option value="iudInsertion">IUD Insertion</option>
+								<option value="multipleAttempts">Multiple Attempts to Contact</option>
+								<option value="cancellationPregnant">Cancellation - Pregnant</option>
+								<option value="cancellationNotNeeded">Cancellation - Not Needed</option>
+								<option value="missingInformation">Missing Information</option>
+								<option value="oldReferralForm">Old Referral Form</option>
+								<option value="unreadableReferral">Unreadable Referral</option>
 							</select>
 						</div>
 						
