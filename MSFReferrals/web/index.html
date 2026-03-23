@@ -381,6 +381,15 @@
             color: white;
             border-color: #3498db;
         }
+        
+        .filter-separator {
+            display: inline-block;
+            width: 1px;
+            height: 24px;
+            background: #d0d0d0;
+            margin: 0 8px 4px 5px;
+            vertical-align: middle;
+        }
 
         .sort-btn {
             padding: 6px 10px;
@@ -1263,10 +1272,13 @@
                 </div>
                 <div class="filter-buttons" id="filterButtons">
                     <button class="filter-btn active" onclick="filterByStatus('all')">All</button>
+                    <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('urgent')">Urgent</button>
+                    <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('new')">New<br>Patient</button>
                     <button class="filter-btn" onclick="filterByStatus('previous')">Previous<br>Patient</button>
                     <button class="filter-btn" onclick="filterByStatus('partner')">Partner</button>
+                    <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('new-referral')">New<br>Referral</button>
                     <button class="filter-btn" onclick="filterByStatus('pending')">Pending</button>
                     <button class="filter-btn" onclick="filterByStatus('info-received')">Information<br>Completed</button>
@@ -1275,10 +1287,12 @@
                     <button class="filter-btn" onclick="filterByStatus('eivf-done')">eIVF<br>Done</button>
                     <button class="filter-btn" onclick="filterByStatus('completed')">Completed</button>
                     <button class="filter-btn" onclick="filterByStatus('deferred')">Deferred</button>
+                    <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('contact-2days')">Contact<br>> 2 days</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-3days')">Contact<br>> 3 days</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-7days')">Contact<br>> 7 days</button>
                     <button class="filter-btn" onclick="filterByStatus('no-contact')">No<br>Contact</button>
+                    <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('no-email')">No<br>Email</button>
                     <button class="filter-btn" onclick="filterByStatus('no-file')">No<br>File</button>
                 </div>
@@ -1597,7 +1611,7 @@
 						
 						<!-- Fax Preview -->
 						<div id="faxPreviewPane" style="flex: 1; overflow-y: auto;">
-							<div id="faxPreview" style="padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; min-height: 100%;">
+							<div id="faxPreview" style="padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; white-space: pre-wrap; min-height: 100%;">
 								Select a fax template to see the preview
 							</div>
 						</div>

@@ -933,6 +933,15 @@ def get_file_content(file_path):
     """Read a file and return as base64 for display"""
     try:
         import base64
+        
+        # If file_path is just a filename (no directory separators), 
+        # assume it's in Referrals/Linked/
+        if file_path and (not os.path.dirname(file_path) or not os.path.isabs(file_path)):
+            # Construct full path assuming it's in Referrals/Linked/
+            full_path = os.path.join(exe_dir, 'Referrals', 'Linked', file_path)
+            if os.path.exists(full_path):
+                file_path = full_path
+        
         if not file_path or not os.path.exists(file_path):
             return {'status': 'error', 'message': 'File not found: ' + str(file_path)}
         
@@ -1460,19 +1469,24 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
         # === HEADER SECTION ===
         y_position = height - 0.4 * inch
         
-        # Add logo if exists
+        # Add logo if exists (upper left, original size)
         logo_path = os.path.join(exe_dir, 'msf_logo.png')
         if os.path.exists(logo_path):
             try:
                 img = ImageReader(logo_path)
-                # Scale logo to fit nicely (max 4 inches wide, proportional height)
-                img_width = 4 * inch
-                img_height = img_width * (101.0 / 1535.0)  # Maintain aspect ratio
-                x_position = (width - img_width) / 2  # Center horizontally
-                c.drawImage(img, x_position, y_position - img_height, width=img_width, height=img_height, mask='auto')
-                y_position -= (img_height + 15)
+                # Get original image dimensions
+                img_width_px, img_height_px = img.getSize()
+                # Use original size (no scaling)
+                # Position in upper left with small margin
+                x_position = 0.5 * inch  # Left margin
+                c.drawImage(img, x_position, y_position - (img_height_px), 
+                           width=img_width_px, height=img_height_px, 
+                           mask='auto', preserveAspectRatio=True)
             except Exception as e:
                 print(f"Could not add logo: {e}")
+        
+        # Move y_position down to after logo space
+        y_position -= 0.8 * inch
         
         # Organization name (large, bold, centered)
         c.setFont("Helvetica-Bold", 16)
