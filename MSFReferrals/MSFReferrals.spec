@@ -13,6 +13,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('web', 'web'),
+        ('msf_logo.png', '.'),
         # DB folder will be copied manually in post-build to root level
     ],
     hiddenimports=[
