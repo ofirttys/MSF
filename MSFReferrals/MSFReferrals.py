@@ -992,11 +992,10 @@ def select_file():
         
         # Check if file is already in Linked/ folder
         if os.path.dirname(filepath) == linked_folder:
-            # File already in Linked/, just return the relative path
-            relative_path = f"Referrals/Linked/{filename}"
+            # File already in Linked/, just return the filename
             return {
                 'status': 'success',
-                'fileName': relative_path,
+                'fileName': filename,  # Store just the filename
                 'message': f'File already in Linked folder: {filename}'
             }
         
@@ -1013,12 +1012,10 @@ def select_file():
         # Move file to Linked/
         shutil.move(filepath, dest_path)
         
-        # Return relative path for DB storage
-        relative_path = f"Referrals/Linked/{filename}"
-        
+        # Return just the filename for DB storage
         return {
             'status': 'success',
-            'fileName': relative_path,
+            'fileName': filename,  # Store just the filename
             'message': f'File moved to Linked folder: {filename}'
         }
         
@@ -1431,17 +1428,15 @@ def update_referral_status(referral_id, new_status, note='', username='System'):
 
 @eel.expose
 def generate_fax_pdf(referral_id, fax_content, original_filename):
-    """Generate a fax PDF with template on page 1 and original referral on pages 2-n"""
+    """Generate a professional HTML-based fax PDF with logo and auto-open"""
     try:
-        from reportlab.lib.pagesizes import letter
-        from reportlab.pdfgen import canvas
-        from reportlab.lib.units import inch
+        from weasyprint import HTML, CSS
         from pypdf import PdfWriter, PdfReader
-        import io
         from datetime import datetime
+        import base64
         
         # Create temp directory if it doesn't exist
-        temp_dir = os.path.join(os.path.dirname(__file__), 'temp')
+        temp_dir = os.path.join(exe_dir, 'temp')
         os.makedirs(temp_dir, exist_ok=True)
         
         # Generate filename: referralID-date-time.pdf
@@ -1450,37 +1445,123 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
         output_filename = f"{referral_id}-{timestamp}.pdf"
         output_path = os.path.join(temp_dir, output_filename)
         
-        # Create page 1 with fax content using reportlab
-        buffer = io.BytesIO()
-        c = canvas.Canvas(buffer, pagesize=letter)
-        width, height = letter
+        # Get settings from templates
+        templates = load_templates()
+        settings = templates.get('settings', {})
         
-        # Set up text
-        c.setFont("Courier", 10)
+        # Load and encode logo as base64
+        logo_path = os.path.join(exe_dir, 'msf_logo.png')
+        logo_base64 = ""
+        if os.path.exists(logo_path):
+            with open(logo_path, 'rb') as logo_file:
+                logo_base64 = base64.b64encode(logo_file.read()).decode('utf-8')
         
-        # Split content into lines and write
-        lines = fax_content.split('\n')
-        y_position = height - inch  # Start 1 inch from top
-        line_height = 12
+        # Create professional HTML with embedded logo and styling
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {{
+            size: letter;
+            margin: 0.5in 0.75in;
+        }}
         
-        for line in lines:
-            if y_position < inch:  # If we're too close to bottom, start new page
-                c.showPage()
-                c.setFont("Courier", 10)
-                y_position = height - inch
-            
-            c.drawString(inch, y_position, line[:90])  # Limit line length
-            y_position -= line_height
+        body {{
+            font-family: 'Calibri', 'Arial', sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #000000;
+        }}
         
-        c.save()
-        buffer.seek(0)
+        .header {{
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #003366;
+        }}
         
-        # Create PDF writer
+        .logo {{
+            max-width: 400px;
+            height: auto;
+            margin-bottom: 10px;
+        }}
+        
+        .org-name {{
+            font-size: 18pt;
+            font-weight: bold;
+            color: #003366;
+            margin: 10px 0 5px 0;
+        }}
+        
+        .address-block {{
+            font-size: 10pt;
+            color: #333333;
+            margin: 5px 0;
+        }}
+        
+        .contact-info {{
+            font-size: 10pt;
+            color: #555555;
+            margin-top: 8px;
+            border-top: 1px solid #cccccc;
+            padding-top: 8px;
+        }}
+        
+        .content {{
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }}
+        
+        .separator {{
+            border-top: 1px solid #999999;
+            margin: 20px 0;
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        {f'<img src="data:image/png;base64,{logo_base64}" class="logo" />' if logo_base64 else ''}
+        <div class="org-name">{settings.get('headerText', 'MOUNT SINAI FERTILITY')}</div>
+        <div class="address-block">
+            {settings.get('addressLine1', 'Mount Sinai Hospital')}<br>
+            {settings.get('addressLine2', '700 University Avenue, 3rd Floor')}<br>
+            {settings.get('addressLine3', 'Toronto, ON M5G 1Z5')}
+        </div>
+        <div class="contact-info">
+            {settings.get('phone', 'T: 416-586-4800 x 2778')} &nbsp;|&nbsp; 
+            {settings.get('fax', 'F: 416-586-4686')} &nbsp;|&nbsp; 
+            {settings.get('email', 'MSF.Referral@sinaihealth.ca')}
+        </div>
+    </div>
+    
+    <div class="content">{fax_content.replace(chr(10), '<br>')}</div>
+</body>
+</html>
+"""
+        
+        # Generate PDF from HTML
+        temp_html_path = os.path.join(temp_dir, f"{referral_id}-{timestamp}.html")
+        fax_pdf_path = os.path.join(temp_dir, f"{referral_id}-{timestamp}-fax.pdf")
+        
+        # Write HTML to temp file
+        with open(temp_html_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        # Convert HTML to PDF
+        HTML(temp_html_path).write_pdf(fax_pdf_path)
+        
+        # Clean up temp HTML
+        if os.path.exists(temp_html_path):
+            os.remove(temp_html_path)
+        
+        # Create final PDF with original referral attached
         pdf_writer = PdfWriter()
         
-        # Add page 1 (fax template)
-        template_pdf = PdfReader(buffer)
-        for page in template_pdf.pages:
+        # Add fax template page(s)
+        fax_pdf = PdfReader(fax_pdf_path)
+        for page in fax_pdf.pages:
             pdf_writer.add_page(page)
         
         # Add original referral if it exists
@@ -1494,15 +1575,35 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
                         pdf_writer.add_page(page)
                 except Exception as e:
                     print(f"Warning: Could not add original referral: {e}")
-                    # Continue anyway, just have the fax template
         
         # Write final PDF
         with open(output_path, 'wb') as output_file:
             pdf_writer.write(output_file)
         
+        # Clean up temp fax PDF
+        if os.path.exists(fax_pdf_path):
+            os.remove(fax_pdf_path)
+        
+        # Auto-open the PDF
+        try:
+            import platform
+            system = platform.system()
+            
+            if system == 'Windows':
+                os.startfile(output_path)
+            elif system == 'Darwin':  # macOS
+                import subprocess
+                subprocess.call(['open', output_path])
+            else:  # Linux
+                import subprocess
+                subprocess.call(['xdg-open', output_path])
+        except Exception as e:
+            print(f"Note: Could not auto-open PDF: {e}")
+            # Continue anyway - PDF was still generated
+        
         return {
             'status': 'success',
-            'message': 'Fax PDF generated successfully',
+            'message': 'Fax PDF generated and opened successfully',
             'filename': output_filename,
             'path': output_path
         }
@@ -1604,7 +1705,7 @@ def save_cerner_entry(referral_id, mrn, original_filename, username='System'):
 def check_file_exists(filepath):
     """Check if a file exists"""
     try:
-        full_path = os.path.join(os.path.dirname(__file__), filepath)
+        full_path = os.path.join(exe_dir, filepath)
         exists = os.path.exists(full_path)
         return {'exists': exists, 'path': full_path}
     except Exception as e:
