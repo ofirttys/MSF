@@ -75,6 +75,7 @@ def create_database(db_path):
         referringPhysicianFax TEXT,
         referringPhysicianPhone TEXT,
         referringPhysicianEmail TEXT,
+        selfReferral INTEGER DEFAULT 0,
         
         -- Service Info
         urgent INTEGER,
@@ -382,7 +383,7 @@ def convert_csv_to_sqlite(csv_path, db_path):
             INSERT INTO referrals (
                 addedToDBDate, referralDate, receivedDate, fileName,
                 referringPhysicianName, referringPhysicianBilling, referringPhysicianFax,
-                referringPhysicianPhone, referringPhysicianEmail,
+                referringPhysicianPhone, referringPhysicianEmail, selfReferral,
                 urgent, requestedLocation, requestedPhysician, serviceRequested,
                 subServiceRequested, referralType,
                 patientPID, patientMRN, patientFirstName, patientMiddleName, patientLastName,
@@ -395,7 +396,7 @@ def convert_csv_to_sqlite(csv_path, db_path):
                 phoneAttempts, emailAttempts, assignedPhysician,
                 faxedBackDate, completeInfoReceivedDate, taskedToPhysicianAdmin,
                 referralCompleteDate, notes, notesDate
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             now_timestamp,
             parse_date_to_timestamp(row.get('Date Referral Received', '')),
@@ -406,6 +407,7 @@ def convert_csv_to_sqlite(csv_path, db_path):
             '',  # referringPhysicianFax
             '',  # referringPhysicianPhone
             '',  # referringPhysicianEmail
+            0,   # selfReferral (default to False)
             0,   # urgent
             '',  # requestedLocation
             row.get('Requested Physician', '').strip() or 'First Available',
