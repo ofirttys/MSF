@@ -1428,12 +1428,15 @@ def update_referral_status(referral_id, new_status, note='', username='System'):
 
 @eel.expose
 def generate_fax_pdf(referral_id, fax_content, original_filename):
-    """Generate a professional HTML-based fax PDF with logo and auto-open"""
+    """Generate a professional fax PDF with logo using reportlab and auto-open"""
     try:
-        from weasyprint import HTML, CSS
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.units import inch
+        from reportlab.lib.utils import ImageReader
         from pypdf import PdfWriter, PdfReader
+        import io
         from datetime import datetime
-        import base64
         
         # Create temp directory if it doesn't exist
         temp_dir = os.path.join(exe_dir, 'temp')
@@ -1445,123 +1448,124 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
         output_filename = f"{referral_id}-{timestamp}.pdf"
         output_path = os.path.join(temp_dir, output_filename)
         
+        # Create page 1 with professional fax content using reportlab
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+        
         # Get settings from templates
         templates = load_templates()
         settings = templates.get('settings', {})
         
-        # Load and encode logo as base64
+        # === HEADER SECTION ===
+        y_position = height - 0.4 * inch
+        
+        # Add logo if exists
         logo_path = os.path.join(exe_dir, 'msf_logo.png')
-        logo_base64 = ""
         if os.path.exists(logo_path):
-            with open(logo_path, 'rb') as logo_file:
-                logo_base64 = base64.b64encode(logo_file.read()).decode('utf-8')
+            try:
+                img = ImageReader(logo_path)
+                # Scale logo to fit nicely (max 4 inches wide, proportional height)
+                img_width = 4 * inch
+                img_height = img_width * (101.0 / 1535.0)  # Maintain aspect ratio
+                x_position = (width - img_width) / 2  # Center horizontally
+                c.drawImage(img, x_position, y_position - img_height, width=img_width, height=img_height, mask='auto')
+                y_position -= (img_height + 15)
+            except Exception as e:
+                print(f"Could not add logo: {e}")
         
-        # Create professional HTML with embedded logo and styling
-        html_content = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        @page {{
-            size: letter;
-            margin: 0.5in 0.75in;
-        }}
+        # Organization name (large, bold, centered)
+        c.setFont("Helvetica-Bold", 16)
+        c.setFillColorRGB(0, 0.2, 0.4)  # Navy blue
+        header_text = settings.get('headerText', 'MOUNT SINAI FERTILITY')
+        c.drawCentredString(width / 2, y_position, header_text)
+        y_position -= 18
         
-        body {{
-            font-family: 'Calibri', 'Arial', sans-serif;
-            font-size: 11pt;
-            line-height: 1.5;
-            color: #000000;
-        }}
+        # Address lines (centered, smaller)
+        c.setFont("Helvetica", 10)
+        c.setFillColorRGB(0.2, 0.2, 0.2)  # Dark gray
+        address_line1 = settings.get('addressLine1', 'Mount Sinai Hospital')
+        address_line2 = settings.get('addressLine2', '700 University Avenue, 3rd Floor')
+        address_line3 = settings.get('addressLine3', 'Toronto, ON M5G 1Z5')
         
-        .header {{
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #003366;
-        }}
+        c.drawCentredString(width / 2, y_position, address_line1)
+        y_position -= 12
+        c.drawCentredString(width / 2, y_position, address_line2)
+        y_position -= 12
+        c.drawCentredString(width / 2, y_position, address_line3)
+        y_position -= 16
         
-        .logo {{
-            max-width: 400px;
-            height: auto;
-            margin-bottom: 10px;
-        }}
+        # Contact info line (centered, with separators)
+        c.setFont("Helvetica", 9)
+        c.setFillColorRGB(0.3, 0.3, 0.3)
+        phone = settings.get('phone', 'T: 416-586-4800 x 2778')
+        fax = settings.get('fax', 'F: 416-586-4686')
+        email = settings.get('email', 'MSF.Referral@sinaihealth.ca')
         
-        .org-name {{
-            font-size: 18pt;
-            font-weight: bold;
-            color: #003366;
-            margin: 10px 0 5px 0;
-        }}
+        contact_line = f"{phone}  |  {fax}  |  {email}"
+        c.drawCentredString(width / 2, y_position, contact_line)
+        y_position -= 8
         
-        .address-block {{
-            font-size: 10pt;
-            color: #333333;
-            margin: 5px 0;
-        }}
+        # Horizontal line separator (navy blue)
+        c.setStrokeColorRGB(0, 0.2, 0.4)
+        c.setLineWidth(2)
+        c.line(0.75 * inch, y_position, width - 0.75 * inch, y_position)
+        y_position -= 30
         
-        .contact-info {{
-            font-size: 10pt;
-            color: #555555;
-            margin-top: 8px;
-            border-top: 1px solid #cccccc;
-            padding-top: 8px;
-        }}
+        # === CONTENT SECTION ===
+        c.setFont("Helvetica", 11)
+        c.setFillColorRGB(0, 0, 0)  # Black text
         
-        .content {{
-            white-space: pre-wrap;
-            line-height: 1.6;
-        }}
+        # Split content into lines and write with proper formatting
+        lines = fax_content.split('\n')
+        line_height = 15
+        left_margin = 0.75 * inch
+        right_margin = width - 0.75 * inch
         
-        .separator {{
-            border-top: 1px solid #999999;
-            margin: 20px 0;
-        }}
-    </style>
-</head>
-<body>
-    <div class="header">
-        {f'<img src="data:image/png;base64,{logo_base64}" class="logo" />' if logo_base64 else ''}
-        <div class="org-name">{settings.get('headerText', 'MOUNT SINAI FERTILITY')}</div>
-        <div class="address-block">
-            {settings.get('addressLine1', 'Mount Sinai Hospital')}<br>
-            {settings.get('addressLine2', '700 University Avenue, 3rd Floor')}<br>
-            {settings.get('addressLine3', 'Toronto, ON M5G 1Z5')}
-        </div>
-        <div class="contact-info">
-            {settings.get('phone', 'T: 416-586-4800 x 2778')} &nbsp;|&nbsp; 
-            {settings.get('fax', 'F: 416-586-4686')} &nbsp;|&nbsp; 
-            {settings.get('email', 'MSF.Referral@sinaihealth.ca')}
-        </div>
-    </div>
-    
-    <div class="content">{fax_content.replace(chr(10), '<br>')}</div>
-</body>
-</html>
-"""
+        for line in lines:
+            # Check if we need a new page
+            if y_position < inch:
+                c.showPage()
+                c.setFont("Helvetica", 11)
+                c.setFillColorRGB(0, 0, 0)
+                y_position = height - inch
+            
+            # Handle empty lines
+            if not line.strip():
+                y_position -= line_height * 0.5
+                continue
+            
+            # Check for separator lines
+            if line.strip().startswith('────'):
+                c.setStrokeColorRGB(0.6, 0.6, 0.6)
+                c.setLineWidth(0.5)
+                c.line(left_margin, y_position + 4, right_margin, y_position + 4)
+                y_position -= line_height
+                continue
+            
+            # Wrap long lines
+            from textwrap import wrap
+            wrapped_lines = wrap(line, width=95, break_long_words=False, break_on_hyphens=False)
+            
+            for wrapped_line in wrapped_lines:
+                if y_position < inch:
+                    c.showPage()
+                    c.setFont("Helvetica", 11)
+                    c.setFillColorRGB(0, 0, 0)
+                    y_position = height - inch
+                
+                c.drawString(left_margin, y_position, wrapped_line)
+                y_position -= line_height
         
-        # Generate PDF from HTML
-        temp_html_path = os.path.join(temp_dir, f"{referral_id}-{timestamp}.html")
-        fax_pdf_path = os.path.join(temp_dir, f"{referral_id}-{timestamp}-fax.pdf")
+        c.save()
+        buffer.seek(0)
         
-        # Write HTML to temp file
-        with open(temp_html_path, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        
-        # Convert HTML to PDF
-        HTML(temp_html_path).write_pdf(fax_pdf_path)
-        
-        # Clean up temp HTML
-        if os.path.exists(temp_html_path):
-            os.remove(temp_html_path)
-        
-        # Create final PDF with original referral attached
+        # Create PDF writer
         pdf_writer = PdfWriter()
         
-        # Add fax template page(s)
-        fax_pdf = PdfReader(fax_pdf_path)
-        for page in fax_pdf.pages:
+        # Add page 1 (fax template)
+        template_pdf = PdfReader(buffer)
+        for page in template_pdf.pages:
             pdf_writer.add_page(page)
         
         # Add original referral if it exists
@@ -1580,10 +1584,6 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
         with open(output_path, 'wb') as output_file:
             pdf_writer.write(output_file)
         
-        # Clean up temp fax PDF
-        if os.path.exists(fax_pdf_path):
-            os.remove(fax_pdf_path)
-        
         # Auto-open the PDF
         try:
             import platform
@@ -1599,7 +1599,6 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
                 subprocess.call(['xdg-open', output_path])
         except Exception as e:
             print(f"Note: Could not auto-open PDF: {e}")
-            # Continue anyway - PDF was still generated
         
         return {
             'status': 'success',
