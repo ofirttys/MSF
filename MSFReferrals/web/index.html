@@ -3022,9 +3022,9 @@
                 contactReferringBtn.style.cursor = isDeferred ? 'not-allowed' : 'pointer';
             }
             
-            // Show Contact Intake MD button always (no longer just urgent/new/pending)
+            // Show Contact Intake MD button for urgent referrals only (all stages)
             if (contactIntakeMdBtn) {
-                contactIntakeMdBtn.style.display = 'block';
+                contactIntakeMdBtn.style.display = ref.urgent === 1 ? 'block' : 'none';
             }
             
             // Set up next status button
