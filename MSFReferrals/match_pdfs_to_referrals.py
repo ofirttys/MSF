@@ -104,7 +104,7 @@ def main():
     
     # Get all referrals with first and last names
     cursor.execute("""
-        SELECT id, patientFirstName, patientLastName 
+        SELECT referralID, patientFirstName, patientLastName 
         FROM referrals 
         WHERE patientFirstName IS NOT NULL 
         AND patientLastName IS NOT NULL
