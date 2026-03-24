@@ -2040,6 +2040,15 @@ if __name__ == '__main__':
     # Initialize Eel
     eel.init('web')
     
+    # Set Windows taskbar icon (Windows only)
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            myappid = 'michaeli.msfreferrals.dashboard.1.0'
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception as e:
+            print(f"Warning: Could not set taskbar icon: {e}")
+    
     # Register cleanup
     import atexit
     atexit.register(shutdown)
@@ -2061,8 +2070,7 @@ if __name__ == '__main__':
             mode='edge',
             size=(screen_width, screen_height),
             position=(0, 0),
-            close_callback=on_close,
-            icon='MSFReferrals.ico'
+            close_callback=on_close
         )
     except Exception as e:
         print(f"Error starting dashboard: {e}")
