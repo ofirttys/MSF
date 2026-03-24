@@ -1490,6 +1490,7 @@
 									<option value="araPatient">ARA Patient (Patient Letter)</option>
 									<option value="eefAgeOver40Patient">EEF Patient Age > 40 (Patient Letter)</option>
 									<option value="eefSelfReferralInfoRequest">EEF Self-Referral Info Request</option>
+								</select>
 						</div>
 						
 						<!-- Hidden fields for email -->
@@ -5060,25 +5061,6 @@ Have a great day.`
 	}
 		
 		// Reset and open add referral modal  
-		function openAddReferralModal() {
-			if (isReadOnly) {
-				document.getElementById('currentFile').textContent = 'Error: Cannot add referrals in read-only mode';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				return;
-			}
-			
-			currentEditingReferral = null;
-			currentFilePath = null;
-			currentFileObjectURL = null;
-			
-			document.getElementById('referralModalTitle').textContent = 'Add New Referral';
-			document.getElementById('referralForm').reset();
-			document.getElementById('viewFileBtn').style.display = 'none';
-			closePdfViewer();
-			
-			initializeDatePickers();
-			openModal('referralModal');
-		}
 		
 		function togglePartnerFields() {
 			const enabled = document.getElementById('enablePartner').checked;
