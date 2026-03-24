@@ -1267,8 +1267,8 @@
                     <div class="kpi-label">Deferred</div>
                     <div class="kpi-value" id="kpiDeferred">-</div>
                 </div>
-                <div class="kpi-card" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
-                    <div class="kpi-label">Urgent</div>
+                <div class="kpi-card" style="border-left-color: #e67e22;">
+                    <div class="kpi-label" style="color: #e67e22;">Urgent</div>
                     <div class="kpi-value" id="kpiUrgent">-</div>
                 </div>
             </div>
@@ -1312,7 +1312,7 @@
                     <button class="filter-btn" onclick="filterByStatus('no-email')">No<br>Email</button>
                     <button class="filter-btn" onclick="filterByStatus('no-file')">No<br>File</button>
                     <span class="filter-separator"></span>
-                    <select id="serviceFilter" onchange="filterReferrals()" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; background: white; cursor: pointer; font-size: 12px; font-weight: 500; min-width: 120px;">
+                    <select id="serviceFilter" onchange="filterReferrals()" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; background: white; cursor: pointer; font-size: 12px; font-weight: 500; min-width: 120px; vertical-align: middle;">
                         <option value="all">All Services</option>
                         <!-- Options populated dynamically from database -->
                     </select>
@@ -5132,7 +5132,7 @@ Have a great day.`
 
     
         // Infinite scroll for referral list
-        document.getElementById('referralList')?.addEventListener('scroll', async function(e) {
+        document.querySelector('.referral-list')?.addEventListener('scroll', async function(e) {
             const container = e.target;
             const scrollTop = container.scrollTop;
             const scrollHeight = container.scrollHeight;
