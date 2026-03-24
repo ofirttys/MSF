@@ -4581,12 +4581,17 @@ Have a great day.`
 			const modalElement = document.getElementById(id);
 			console.log('Modal element:', modalElement); // DEBUG
 			if (modalElement) {
+				console.log('BEFORE - inline style:', modalElement.style.cssText); // DEBUG
+				console.log('BEFORE - display:', modalElement.style.display); // DEBUG
 				modalElement.classList.add('active');
 				console.log('Added active class to modal'); // DEBUG
 				console.log('Modal classes:', modalElement.className); // DEBUG
+				console.log('AFTER - inline style:', modalElement.style.cssText); // DEBUG
 				const computedStyle = window.getComputedStyle(modalElement);
 				console.log('Modal display style:', computedStyle.display); // DEBUG
 				console.log('Modal z-index:', computedStyle.zIndex); // DEBUG
+				console.log('Modal position:', computedStyle.position); // DEBUG
+				console.log('Modal visibility:', computedStyle.visibility); // DEBUG
 			} else {
 				console.error('Modal element not found:', id); // DEBUG
 			}
