@@ -2061,7 +2061,8 @@ if __name__ == '__main__':
             mode='edge',
             size=(screen_width, screen_height),
             position=(0, 0),
-            close_callback=on_close
+            close_callback=on_close,
+            icon='MSFReferrals.ico'
         )
     except Exception as e:
         print(f"Error starting dashboard: {e}")

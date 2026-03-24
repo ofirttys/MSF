@@ -14,6 +14,7 @@ a = Analysis(
     datas=[
         ('web', 'web'),
         ('msf_logo.png', '.'),
+        ('MSFReferrals.ico', '.'),
         # DB folder will be copied manually in post-build to root level
     ],
     hiddenimports=[
