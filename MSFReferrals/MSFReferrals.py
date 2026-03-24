@@ -1604,26 +1604,8 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
                     # Check if file is a PDF
                     if original_filename.lower().endswith('.pdf'):
                         original_pdf = PdfReader(referral_path)
-                        # Add separator page before original referral
-                        separator_buffer = io.BytesIO()
-                        separator_canvas = canvas.Canvas(separator_buffer, pagesize=letter)
-                        sep_width, sep_height = letter
                         
-                        # Draw separator text
-                        separator_canvas.setFont("Helvetica-Bold", 14)
-                        separator_canvas.drawCentredString(sep_width / 2, sep_height / 2, "Original Referral Attached Below")
-                        separator_canvas.setFont("Helvetica", 10)
-                        separator_canvas.drawCentredString(sep_width / 2, sep_height / 2 - 30, f"File: {original_filename}")
-                        
-                        separator_canvas.save()
-                        separator_buffer.seek(0)
-                        
-                        # Add separator page
-                        separator_pdf = PdfReader(separator_buffer)
-                        for page in separator_pdf.pages:
-                            pdf_writer.add_page(page)
-                        
-                        # Add all pages from original referral
+                        # Add all pages from original referral directly (no separator)
                         for page in original_pdf.pages:
                             pdf_writer.add_page(page)
                     else:
