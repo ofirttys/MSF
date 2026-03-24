@@ -20,6 +20,10 @@ a = Analysis(
     ],
     hiddenimports=[
         'bottle_websocket',
+        'PIL',
+        'PIL.Image',
+        'PIL.PngImagePlugin',
+        'PIL.JpegImagePlugin',
     ],
     hookspath=[],
     hooksconfig={},
@@ -41,8 +45,8 @@ a = Analysis(
         'scipy',
         'sklearn',
         'matplotlib',
-        'PIL',
-        'Pillow',
+        # 'PIL',      # REMOVED - needed by reportlab
+        # 'Pillow',   # REMOVED - needed by reportlab
         'cv2',
         'tensorflow',
         'torch',
