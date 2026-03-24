@@ -1392,6 +1392,16 @@ def load_intake_config():
                     {"name": "Khan, Sarah", "email": "Sarah.Khan@sinaihealth.ca"},
                     {"name": "MSF Admin Support", "email": "MSF.adminsupport@sinaihealth.ca"}
                 ],
+                "physicians": [
+                    {"name": "Bacal, Vanessa", "email": "Vanessa.Bacal@sinaihealth.ca"},
+                    {"name": "Greenblatt, Ellen", "email": "Ellen.Greenblatt@sinaihealth.ca"},
+                    {"name": "Jones, Claire", "email": "Claire.Jones@sinaihealth.ca"},
+                    {"name": "Liu, Kimberly", "email": "Kimberly.Liu@sinaihealth.ca"},
+                    {"name": "Michaeli, Jennia", "email": "Jennia.Michaeli@sinaihealth.ca"},
+                    {"name": "Pereira, Nigel", "email": "Nigel.Pereira@sinaihealth.ca"},
+                    {"name": "Russo, Miguel", "email": "Miguel.Russo@sinaihealth.ca"},
+                    {"name": "Shapiro, Heather", "email": "Heather.Shapiro@sinaihealth.ca"}
+                ],
                 "fellows": [
                     {"name": "Nathoo, Sahra", "email": "Sahra.Nathoo@sinaihealth.ca"},
                     {"name": "Hasan, Ahmad", "email": "Ahmad.Hasan@sinaihealth.ca"},

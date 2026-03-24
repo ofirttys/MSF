@@ -1813,72 +1813,77 @@
 
 		<!-- Contact Intake Team Modal -->
 		<div id="contactIntakeModal" class="modal">
-			<div class="modal-content" style="max-width: 700px;">
+			<div class="modal-content" style="max-width: 1100px; width: 1100px; height: 85vh; display: flex; flex-direction: column;">
 				<div class="modal-header">
 					<h2 class="modal-title">Contact Intake Team</h2>
 					<button type="button" class="close-btn" onclick="closeModal('contactIntakeModal')">&times;</button>
 				</div>
 				
-				<div class="modal-body">
-					<!-- Intake MD Selection -->
-					<div class="form-group">
-						<label for="intakeMdSelect">Intake MD</label>
-						<select id="intakeMdSelect" onchange="updateIntakeMdSelection()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-							<option value="">-- Select Intake MD --</option>
-						</select>
-					</div>
-					
-					<!-- Intake Fellow Selection -->
-					<div class="form-group">
-						<label for="intakeFellowSelect">Intake Fellow</label>
-						<select id="intakeFellowSelect" onchange="updateIntakeFellowSelection()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-							<option value="">-- Select Intake Fellow --</option>
-						</select>
-					</div>
-					
-					<!-- Recipients Checkboxes -->
-					<div class="form-group" style="margin-top: 20px;">
-						<label style="font-weight: 600; margin-bottom: 10px; display: block;">Include in Email:</label>
-						<div style="display: flex; flex-direction: column; gap: 8px;">
-							<label style="cursor: pointer;">
-								<input type="checkbox" id="includeIntakeMd" checked>
-								<span id="intakeMdLabel">Intake MD</span>
-							</label>
-							<label style="cursor: pointer;">
-								<input type="checkbox" id="includeIntakeFellow" checked>
-								<span id="intakeFellowLabel">Intake Fellow</span>
-							</label>
-							<label style="cursor: pointer;">
-								<input type="checkbox" id="includeGreenblatt">
-								<span>Dr. Greenblatt</span>
-							</label>
-							<label style="cursor: pointer;">
-								<input type="checkbox" id="includeMichaeli">
-								<span>Dr. Michaeli</span>
-							</label>
-							<label style="cursor: pointer;">
-								<input type="checkbox" id="includeNP">
-								<span>NP: Farnell, Nicola</span>
-							</label>
-							<label style="cursor: pointer;">
-								<input type="checkbox" id="includeAdminKhan">
-								<span>Admin: Khan, Sarah</span>
-							</label>
-							<label style="cursor: pointer;">
-								<input type="checkbox" id="includeAdminSupport">
-								<span>Admin: MSF Admin Support</span>
-							</label>
+				<div class="modal-body" style="display: grid; grid-template-columns: 400px 1fr; gap: 20px; flex: 1; overflow: hidden;">
+					<!-- LEFT SIDE - CONTROLS -->
+					<div style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto; padding-right: 10px;">
+						<!-- Intake MD Selection -->
+						<div class="form-group">
+							<label for="intakeMdSelect" style="font-weight: 600;">Intake MD</label>
+							<select id="intakeMdSelect" onchange="updateIntakeMdSelection()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+								<option value="">-- Select Intake MD --</option>
+							</select>
+						</div>
+						
+						<!-- Intake Fellow Selection -->
+						<div class="form-group">
+							<label for="intakeFellowSelect" style="font-weight: 600;">Intake Fellow</label>
+							<select id="intakeFellowSelect" onchange="updateIntakeFellowSelection()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+								<option value="">-- Select Intake Fellow --</option>
+							</select>
+						</div>
+						
+						<!-- Recipients Checkboxes -->
+						<div style="background: #f8f9fa; padding: 12px; border-radius: 6px;">
+							<div style="font-weight: 600; margin-bottom: 10px;">Include in Email:</div>
+							<div style="display: flex; flex-direction: column; gap: 8px;">
+								<label style="cursor: pointer;">
+									<input type="checkbox" id="includeIntakeMd" checked onchange="updateIntakeEmailPreview()">
+									<span id="intakeMdLabel">Intake MD</span>
+								</label>
+								<label style="cursor: pointer;">
+									<input type="checkbox" id="includeIntakeFellow" checked onchange="updateIntakeEmailPreview()">
+									<span id="intakeFellowLabel">Intake Fellow</span>
+								</label>
+								<label style="cursor: pointer;">
+									<input type="checkbox" id="includeGreenblatt" onchange="updateIntakeEmailPreview()">
+									<span>Dr. Greenblatt</span>
+								</label>
+								<label style="cursor: pointer;">
+									<input type="checkbox" id="includeMichaeli" onchange="updateIntakeEmailPreview()">
+									<span>Dr. Michaeli</span>
+								</label>
+								<label style="cursor: pointer;">
+									<input type="checkbox" id="includeNP" onchange="updateIntakeEmailPreview()">
+									<span>NP: Farnell, Nicola</span>
+								</label>
+								<label style="cursor: pointer;">
+									<input type="checkbox" id="includeAdminKhan" onchange="updateIntakeEmailPreview()">
+									<span>Admin: Khan, Sarah</span>
+								</label>
+								<label style="cursor: pointer;">
+									<input type="checkbox" id="includeAdminSupport" onchange="updateIntakeEmailPreview()">
+									<span>MSF Admin Support</span>
+								</label>
+							</div>
 						</div>
 					</div>
 					
-					<!-- Email Preview -->
-					<div class="form-group" style="margin-top: 20px;">
-						<label style="font-weight: 600;">Email Preview:</label>
-						<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 13px;">
-							<div><strong>To:</strong> <span id="intakeEmailTo"></span></div>
-							<div style="margin-top: 8px;"><strong>Subject:</strong> <span id="intakeEmailSubject"></span></div>
-							<div style="margin-top: 12px; white-space: pre-wrap;" id="intakeEmailBody"></div>
-							<div style="margin-top: 12px;"><strong>Attachment:</strong> <span id="intakeEmailAttachment"></span></div>
+					<!-- RIGHT SIDE - EMAIL PREVIEW -->
+					<div style="display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid #e0e0e0; padding-left: 20px;">
+						<div style="font-weight: 600; margin-bottom: 10px; font-size: 16px;">Email Preview</div>
+						<div style="flex: 1; overflow-y: auto; background: white; padding: 15px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Segoe UI', Arial, sans-serif;">
+							<div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0;">
+								<div style="margin-bottom: 8px;"><strong>To:</strong> <span id="intakeEmailTo" style="color: #0066cc;"></span></div>
+								<div style="margin-bottom: 8px;"><strong>Subject:</strong> <span id="intakeEmailSubject"></span></div>
+								<div><strong>Attachment:</strong> <span id="intakeEmailAttachment" style="color: #666; font-size: 13px;"></span></div>
+							</div>
+							<div id="intakeEmailBody" style="white-space: pre-wrap; line-height: 1.6;"></div>
 						</div>
 					</div>
 				</div>
@@ -4011,7 +4016,6 @@ Have a great day.`
         let intakeConfig = null;
         
         async function contactIntakeMd() {
-            // Load intake config
             const result = await eel.load_intake_config()();
             if (result.status === 'success') {
                 intakeConfig = result.config;
@@ -4023,16 +4027,16 @@ Have a great day.`
         }
         
         function populateIntakeModal() {
-            // Populate Intake MD dropdown with all MDs from selectOptions
+            // Populate Intake MD dropdown from JSON (not SQL DB)
             const mdSelect = document.getElementById('intakeMdSelect');
             mdSelect.innerHTML = '<option value="">-- Select Intake MD --</option>';
             
-            if (selectOptions.requestedPhysicians) {
-                selectOptions.requestedPhysicians.forEach(md => {
+            if (intakeConfig.physicians) {
+                intakeConfig.physicians.forEach(md => {
                     const option = document.createElement('option');
-                    option.value = md;
-                    option.textContent = md;
-                    if (intakeConfig.selectedMD && intakeConfig.selectedMD.name === md) {
+                    option.value = JSON.stringify(md);
+                    option.textContent = md.name;
+                    if (intakeConfig.selectedMD && intakeConfig.selectedMD.name === md.name) {
                         option.selected = true;
                     }
                     mdSelect.appendChild(option);
@@ -4055,30 +4059,21 @@ Have a great day.`
                 });
             }
             
-            // Update labels
             updateIntakeEmailPreview();
         }
         
         async function updateIntakeMdSelection() {
             const mdSelect = document.getElementById('intakeMdSelect');
-            const selectedMdName = mdSelect.value;
+            const selectedValue = mdSelect.value;
             
-            if (selectedMdName) {
-                // Get email from database - need to query physician email
-                // For now, store name and we'll get email when sending
-                intakeConfig.selectedMD = {
-                    name: selectedMdName,
-                    email: '' // Will be filled from DB when sending
-                };
+            if (selectedValue) {
+                intakeConfig.selectedMD = JSON.parse(selectedValue);
             } else {
                 intakeConfig.selectedMD = { name: '', email: '' };
             }
             
-            // Save config
             await eel.save_intake_config(intakeConfig)();
-            
-            // Update label and preview
-            document.getElementById('intakeMdLabel').textContent = selectedMdName || 'Intake MD';
+            document.getElementById('intakeMdLabel').textContent = intakeConfig.selectedMD.name || 'Intake MD';
             updateIntakeEmailPreview();
         }
         
@@ -4092,38 +4087,35 @@ Have a great day.`
                 intakeConfig.selectedFellow = { name: '', email: '' };
             }
             
-            // Save config
             await eel.save_intake_config(intakeConfig)();
-            
-            // Update label and preview
             document.getElementById('intakeFellowLabel').textContent = intakeConfig.selectedFellow.name || 'Intake Fellow';
             updateIntakeEmailPreview();
         }
         
         function updateIntakeEmailPreview() {
-            // Build recipient list
+            // Build recipient list with emails
             const recipients = [];
             
-            if (document.getElementById('includeIntakeMd').checked && intakeConfig.selectedMD.name) {
-                recipients.push(intakeConfig.selectedMD.name);
+            if (document.getElementById('includeIntakeMd').checked && intakeConfig.selectedMD.email) {
+                recipients.push(intakeConfig.selectedMD.email);
             }
-            if (document.getElementById('includeIntakeFellow').checked && intakeConfig.selectedFellow.name) {
-                recipients.push(intakeConfig.selectedFellow.name);
+            if (document.getElementById('includeIntakeFellow').checked && intakeConfig.selectedFellow.email) {
+                recipients.push(intakeConfig.selectedFellow.email);
             }
             if (document.getElementById('includeGreenblatt').checked) {
-                recipients.push('Dr. Greenblatt');
+                recipients.push('Ellen.Greenblatt@sinaihealth.ca');
             }
             if (document.getElementById('includeMichaeli').checked) {
-                recipients.push('Dr. Michaeli');
+                recipients.push('Jennia.Michaeli@sinaihealth.ca');
             }
             if (document.getElementById('includeNP').checked) {
-                recipients.push('Farnell, Nicola');
+                recipients.push('Nicola.Farnell@sinaihealth.ca');
             }
             if (document.getElementById('includeAdminKhan').checked) {
-                recipients.push('Khan, Sarah');
+                recipients.push('Sarah.Khan@sinaihealth.ca');
             }
             if (document.getElementById('includeAdminSupport').checked) {
-                recipients.push('MSF Admin Support');
+                recipients.push('MSF.adminsupport@sinaihealth.ca');
             }
             
             document.getElementById('intakeEmailTo').textContent = recipients.join('; ');
@@ -4139,40 +4131,55 @@ Have a great day.`
             const body = `Dear Intake team,\n\nPlease find attached a new urgent ONC referral.`;
             document.getElementById('intakeEmailBody').textContent = body;
             
-            // Show attachment
-            const fileName = currentViewingReferral.fileName || 'No file attached';
-            document.getElementById('intakeEmailAttachment').textContent = fileName;
+            // Show attachment - need to get full path from backend or construct it
+            const fileName = currentViewingReferral.fileName || '';
+            if (fileName) {
+                // Construct path - will be validated by backend
+                const attachmentPath = `Referrals\\Linked\\${fileName}`;
+                document.getElementById('intakeEmailAttachment').textContent = attachmentPath;
+            } else {
+                document.getElementById('intakeEmailAttachment').textContent = 'No file attached';
+            }
         }
         
-        function sendIntakeEmail() {
-            // Build email with selected recipients
+        async function sendIntakeEmail() {
             updateIntakeEmailPreview();
             
+            const to = document.getElementById('intakeEmailTo').textContent;
             const subject = document.getElementById('intakeEmailSubject').textContent;
             const body = document.getElementById('intakeEmailBody').textContent;
-            const to = document.getElementById('intakeEmailTo').textContent;
+            const attachmentText = document.getElementById('intakeEmailAttachment').textContent;
             
             if (!to) {
                 showErrorModal('No Recipients', 'Please select at least one recipient.');
                 return;
             }
             
-            // For now, show alert - in production this would open email client or send via backend
-            alert(`Email prepared!\n\nTo: ${to}\nSubject: ${subject}\n\nBody:\n${body}\n\nAttachment: ${currentViewingReferral.fileName || 'None'}\n\n(Email client integration coming soon)`);
+            // Get full attachment path if file exists
+            let attachment = '';
+            if (attachmentText !== 'No file attached' && currentViewingReferral.fileName) {
+                // Backend will resolve to full path
+                attachment = attachmentText;
+            }
             
-            closeModal('contactIntakeModal');
+            // Create email object for Outlook macro
+            const emailsArray = [{
+                to: to,
+                subject: subject,
+                body: body,
+                attachment: attachment
+            }];
+            
+            // Save to temp/pending-emails.json
+            const result = await eel.save_emails_to_file(emailsArray)();
+            
+            if (result.status === 'error') {
+                showErrorModal('Save Error', result.message);
+            } else {
+                showSuccessModal('Email Saved', '1 email saved.\n\nIn Outlook, click the "Create Emails" button to open it.');
+                closeModal('contactIntakeModal');
+            }
         }
-        
-        // Add event listeners to checkboxes for live preview update
-        document.addEventListener('DOMContentLoaded', function() {
-            const checkboxes = ['includeIntakeMd', 'includeIntakeFellow', 'includeGreenblatt', 'includeMichaeli', 'includeNP', 'includeAdminKhan', 'includeAdminSupport'];
-            checkboxes.forEach(id => {
-                const checkbox = document.getElementById(id);
-                if (checkbox) {
-                    checkbox.addEventListener('change', updateIntakeEmailPreview);
-                }
-            });
-        });
         
         function openRecordReferringContactModal() {
             // Clear comment
