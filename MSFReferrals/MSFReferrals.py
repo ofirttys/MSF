@@ -350,6 +350,11 @@ def get_referrals(filters=None, sort_by='id', sort_order='asc', offset=0, limit=
                     "(patientFirstName LIKE ? OR patientLastName LIKE ? OR patientPhone LIKE ? OR patientEmail LIKE ? OR CAST(referralID AS TEXT) LIKE ?)"
                 )
                 params.extend([search_term, search_term, search_term, search_term, search_term])
+            
+            # Service filter
+            if filters.get('service'):
+                where_clauses.append("serviceRequested LIKE ?")
+                params.append(f"%{filters['service']}%")
         
         # Build ORDER BY clause
         order_map = {
@@ -1744,18 +1749,41 @@ def save_cerner_entry(referral_id, mrn, original_filename, username='System'):
             VALUES (?, ?, ?, ?)
         """, (referral_id, f"Cerner entry created - MRN: {mrn}", now_timestamp, username))
         
-        conn.commit()
-        conn.close()
-        
-        # Copy file to eIVF if it exists
+        # Copy file to eIVF if it exists and rename it
         if original_filename:
             linked_path = os.path.join(exe_dir, 'Referrals', 'Linked', original_filename)
             eivf_dir = os.path.join(exe_dir, 'Referrals', 'eIVF')
             os.makedirs(eivf_dir, exist_ok=True)
-            eivf_path = os.path.join(eivf_dir, original_filename)
+            
+            # Get referral date for filename
+            cursor = conn.cursor()
+            cursor.execute("SELECT referralDate FROM referrals WHERE referralID = ?", (referral_id,))
+            row = cursor.fetchone()
+            
+            if row and row['referralDate']:
+                # Convert timestamp to YYMMDD
+                referral_date = datetime.fromtimestamp(row['referralDate'])
+                yymmdd = referral_date.strftime('%y%m%d')
+            else:
+                # Use today's date if no referral date
+                yymmdd = datetime.now().strftime('%y%m%d')
+            
+            # Build new filename: MRN_Referral_YYMMDD.pdf
+            new_filename = f"{mrn}_Referral_{yymmdd}.pdf"
+            eivf_path = os.path.join(eivf_dir, new_filename)
             
             if os.path.exists(linked_path):
                 shutil.copy2(linked_path, eivf_path)
+                
+                # Update fileName in database to new filename
+                cursor.execute("""
+                    UPDATE referrals
+                    SET fileName = ?
+                    WHERE referralID = ?
+                """, (new_filename, referral_id))
+                conn.commit()
+        
+        conn.close()
         
         return {'status': 'success', 'message': 'Cerner entry saved and file copied'}
         

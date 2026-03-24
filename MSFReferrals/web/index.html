@@ -1311,6 +1311,10 @@
                     <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('no-email')">No<br>Email</button>
                     <button class="filter-btn" onclick="filterByStatus('no-file')">No<br>File</button>
+                    <span class="filter-separator"></span>
+                    <select id="serviceFilter" onchange="filterByService()" style="padding: 4px 8px; font-size: 11px; border: 1px solid #e0e0e0; border-radius: 4px; background: white; cursor: pointer; line-height: 1.2;">
+                        <option value="">All Services</option>
+                    </select>
                 </div>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search referrals..." oninput="filterReferrals()">
                 <div class="referral-list">
@@ -2249,7 +2253,8 @@
                 statuses: getActiveFilterButtons(),
                 search: document.getElementById('searchBox')?.value || '',
                 dateFrom: document.getElementById('dateFrom')?.value || '',
-                dateTo: document.getElementById('dateTo')?.value || ''
+                dateTo: document.getElementById('dateTo')?.value || '',
+                service: document.getElementById('serviceFilter')?.value || ''
             };
             
             console.log('Loading referrals with filters:', currentFilters); // Debug
@@ -2396,6 +2401,7 @@
             // Load from SQLite backend
             await loadSelectOptions();
             populateSelectOptions(); // Populate dropdown menus
+            populateServiceFilter(); // Populate service filter dropdown
             await loadReferrals(true);
             await updateKPIs();
             
@@ -2794,6 +2800,28 @@
 			// Reload with new filters
 			loadReferrals(true);
 		}
+		
+		// Populate service filter dropdown
+		function populateServiceFilter() {
+			const select = document.getElementById('serviceFilter');
+			if (!select || !selectOptions.servicesRequested) return;
+			
+			// Clear existing options except "All Services"
+			select.innerHTML = '<option value="">All Services</option>';
+			
+			// Add each service as an option
+			selectOptions.servicesRequested.forEach(service => {
+				const option = document.createElement('option');
+				option.value = service;
+				option.textContent = service;
+				select.appendChild(option);
+			});
+		}
+		
+		// Filter by service
+		function filterByService() {
+			loadReferrals(true);
+		}
 
         // Filter referrals (called by search input)
         function filterReferrals() { loadReferrals(true); }
@@ -2804,6 +2832,7 @@
             document.getElementById('dateFrom').value = '';
             document.getElementById('dateTo').value = '';
             document.getElementById('searchBox').value = '';
+            document.getElementById('serviceFilter').value = '';
             currentFilter = [];  // Clear filter array (not string 'all')
             currentSort = { by: 'id', order: 'asc' };  // Reset sort
             currentSortMode = 'id';
@@ -4155,7 +4184,8 @@ Have a great day.`
                     return;
                 }
                 
-                document.getElementById('eivfFilePath').value = eivfPath;
+                // Use full path from backend
+                document.getElementById('eivfFilePath').value = result.path || eivfPath;
                 document.getElementById('eivfPID').value = currentViewingReferral.patientPID || '';
                 
                 openModal('createEivfEntryModal');
