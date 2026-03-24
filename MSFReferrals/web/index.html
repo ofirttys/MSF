@@ -2426,6 +2426,7 @@
 
         // Disable editing controls in read-only mode
         function disableEditingControls() {
+            // Top toolbar buttons
             const saveBtn = document.getElementById('saveButton');
             if (saveBtn) {
                 saveBtn.disabled = true;
@@ -2436,6 +2437,32 @@
             if (addBtn) {
                 addBtn.disabled = true;
                 addBtn.style.opacity = '0.5';
+            }
+            
+            // View modal action buttons (these are in the modal, so might not exist at login time)
+            // We'll also need to disable them when viewing a referral
+            const editBtn = document.querySelector('button[onclick="editCurrentReferral()"]');
+            if (editBtn) {
+                editBtn.disabled = true;
+                editBtn.style.opacity = '0.5';
+            }
+            
+            const deferBtn = document.getElementById('deferBtn');
+            if (deferBtn) {
+                deferBtn.disabled = true;
+                deferBtn.style.opacity = '0.5';
+            }
+            
+            const contactPatientBtn = document.getElementById('contactPatientBtn');
+            if (contactPatientBtn) {
+                contactPatientBtn.disabled = true;
+                contactPatientBtn.style.opacity = '0.5';
+            }
+            
+            const contactPhysicianBtn = document.getElementById('contactReferringPhysicianBtn');
+            if (contactPhysicianBtn) {
+                contactPhysicianBtn.disabled = true;
+                contactPhysicianBtn.style.opacity = '0.5';
             }
         }
 
@@ -2819,6 +2846,11 @@
             document.querySelector('#viewReferralModal .tab').classList.add('active');
             document.getElementById('informationTab').classList.add('active');
             
+            // Disable action buttons if in read-only mode
+            if (isReadOnly) {
+                disableEditingControls();
+            }
+            
             document.getElementById('viewReferralModal').classList.add('active');
         }
         
@@ -3155,6 +3187,11 @@
         }
         
         function contactPatient() {
+            if (isReadOnly) {
+                showErrorModal('Read-Only Mode', 'Cannot contact patients in read-only mode.');
+                return;
+            }
+            
             if (!currentViewingReferral) return;
             
             // Populate patient info
@@ -3519,6 +3556,11 @@ Have a great day.`
         
         
         function contactReferringPhysician() {
+            if (isReadOnly) {
+                showErrorModal('Read-Only Mode', 'Cannot contact physicians in read-only mode.');
+                return;
+            }
+            
             if (!currentViewingReferral) return;
             
             const physicianName = currentViewingReferral.referringPhysicianName || 'Not provided';
@@ -4268,6 +4310,11 @@ Have a great day.`
         }
         
         function deferReferral() {
+            if (isReadOnly) {
+                showErrorModal('Read-Only Mode', 'Cannot defer referrals in read-only mode.');
+                return;
+            }
+            
             // Clear previous reason
             document.getElementById('deferralReason').value = '';
             openModal('deferReferralModal');
