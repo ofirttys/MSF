@@ -5297,6 +5297,12 @@ Have a great day.`
 				renderReferralList();
 				updateKPIs();
 				closeModal('referralModal');
+				
+				// If viewing this referral, refresh the view modal with updated data
+				if (currentViewingReferral && currentViewingReferral.referralID === currentEditingReferralId) {
+					viewReferral(currentEditingReferralId);
+				}
+				
 				document.getElementById('currentFile').textContent = 'DB\\referrals.json - Referral saved';
 				document.getElementById('statusBar').style.color = '#27ae60';
 				setTimeout(() => {
