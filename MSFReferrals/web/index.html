@@ -284,7 +284,7 @@
         
         .kpi-card { 
             flex: 1; 
-            min-width: 140px; 
+            min-width: 120px; 
             background: white; 
             padding: 15px 10px; 
             border-radius: 10px; 
@@ -1267,6 +1267,10 @@
                     <div class="kpi-label">Deferred</div>
                     <div class="kpi-value" id="kpiDeferred">-</div>
                 </div>
+                <div class="kpi-card" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
+                    <div class="kpi-label">Urgent</div>
+                    <div class="kpi-value" id="kpiUrgent">-</div>
+                </div>
             </div>
 
             <!-- Referrals List Card -->
@@ -1307,6 +1311,11 @@
                     <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('no-email')">No<br>Email</button>
                     <button class="filter-btn" onclick="filterByStatus('no-file')">No<br>File</button>
+                    <span class="filter-separator"></span>
+                    <select id="serviceFilter" onchange="filterReferrals()" style="padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; background: white; cursor: pointer; font-size: 12px; font-weight: 500; min-width: 120px;">
+                        <option value="all">All Services</option>
+                        <!-- Options populated dynamically from database -->
+                    </select>
                 </div>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search referrals..." oninput="filterReferrals()">
                 <div class="referral-list">
@@ -2224,7 +2233,26 @@
             const result = await eel.get_select_options()();
             if (result.status === 'success') {
                 selectOptions = result.options;
+                populateServiceFilter(); // Populate the service filter dropdown
             }
+        }
+        
+        function populateServiceFilter() {
+            const serviceFilter = document.getElementById('serviceFilter');
+            if (!serviceFilter) return;
+            
+            // Keep the "All Services" option
+            const firstOption = serviceFilter.options[0].outerHTML;
+            serviceFilter.innerHTML = firstOption;
+            
+            // Add services from database
+            const services = selectOptions.servicesRequested || [];
+            services.forEach(service => {
+                const opt = document.createElement('option');
+                opt.value = service;
+                opt.textContent = service;
+                serviceFilter.appendChild(opt);
+            });
         }
         
         async function loadReferrals(reset = false) {
@@ -2243,7 +2271,8 @@
                 statuses: getActiveFilterButtons(),
                 search: document.getElementById('searchBox')?.value || '',
                 dateFrom: document.getElementById('dateFrom')?.value || '',
-                dateTo: document.getElementById('dateTo')?.value || ''
+                dateTo: document.getElementById('dateTo')?.value || '',
+                service: document.getElementById('serviceFilter')?.value || 'all'
             };
             
             console.log('Loading referrals with filters:', currentFilters); // Debug
@@ -2527,6 +2556,7 @@
             document.getElementById('kpiCompleted').textContent = result.completed || 0;
             document.getElementById('kpiDeferred').textContent = result.deferred || 0;
             document.getElementById('kpiWaitingContact').textContent = result.waitingContact || 0;
+            document.getElementById('kpiUrgent').textContent = result.urgent || 0;
         }
 
         // Render referral list

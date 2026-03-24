@@ -350,6 +350,11 @@ def get_referrals(filters=None, sort_by='id', sort_order='asc', offset=0, limit=
                     "(patientFirstName LIKE ? OR patientLastName LIKE ? OR patientPhone LIKE ? OR patientEmail LIKE ? OR CAST(referralID AS TEXT) LIKE ?)"
                 )
                 params.extend([search_term, search_term, search_term, search_term, search_term])
+            
+            # Service filter
+            if filters.get('service') and filters['service'] != 'all':
+                where_clauses.append("serviceRequested LIKE ?")
+                params.append(f"%{filters['service']}%")
         
         # Build ORDER BY clause
         order_map = {
@@ -569,6 +574,10 @@ def get_kpi_counts(date_filters=None):
         """, params)
         waiting_contact = cursor.fetchone()[0]
         
+        # Urgent count
+        cursor.execute(f"SELECT COUNT(*) FROM referrals{where_clause} {'AND' if where_clause else 'WHERE'} urgent = 1", params)
+        urgent = cursor.fetchone()[0]
+        
         conn.close()
         
         return {
@@ -577,7 +586,8 @@ def get_kpi_counts(date_filters=None):
             'pending': pending,
             'completed': completed,
             'deferred': deferred,
-            'waitingContact': waiting_contact
+            'waitingContact': waiting_contact,
+            'urgent': urgent
         }
     except Exception as e:
         traceback.print_exc()
