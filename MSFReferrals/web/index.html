@@ -2846,26 +2846,37 @@
 		function openAddReferralModal() {
 			console.log('openAddReferralModal called'); // DEBUG
 			if (isReadOnly) {
+				console.log('Read-only mode, exiting'); // DEBUG
 				document.getElementById('currentFile').textContent = 'Error: Cannot add referrals in read-only mode';
 				document.getElementById('statusBar').style.color = '#e74c3c';
 				return;
 			}
 			
+			console.log('Setting currentEditingReferral to null'); // DEBUG
 			currentEditingReferral = null;
+			console.log('Setting modal title'); // DEBUG
 			document.getElementById('referralModalTitle').textContent = 'Add New Referral';
+			console.log('Resetting form'); // DEBUG
 			document.getElementById('referralForm').reset();
+			console.log('Initializing date pickers'); // DEBUG
 			initializeDatePickers();
 			
+			console.log('Resetting self-referral checkbox'); // DEBUG
 			// Reset self-referral checkbox and enable physician fields
 			document.getElementById('selfReferral').checked = false;
+			console.log('Toggling physician fields'); // DEBUG
 			togglePhysicianFields();
 			
+			console.log('Closing PDF viewer'); // DEBUG
 			closePdfViewer();
 			currentFileObjectURL = null;
 			document.getElementById('viewFileBtn').style.display = 'none';
 			
+			console.log('About to open modal'); // DEBUG
 			openModal('referralModal');
+			console.log('Modal opened, scrolling to top'); // DEBUG
 			document.querySelector('#referralModal .modal-body').scrollTop = 0;
+			console.log('openAddReferralModal completed'); // DEBUG
 		}
 
         async function viewReferral(id) {
@@ -4448,25 +4459,34 @@ Have a great day.`
         function editCurrentReferral() {
             console.log('editCurrentReferral called'); // DEBUG
             cameFromViewModal = true;
+            console.log('Removing active class from view modal'); // DEBUG
             // Don't close view modal - just hide it
             document.getElementById('viewReferralModal').classList.remove('active');
+            console.log('Calling editReferralById with ID:', currentViewingReferral.referralID); // DEBUG
             editReferralById(currentViewingReferral.referralID);
+            console.log('editCurrentReferral completed'); // DEBUG
         }
 
 		async function editReferralById(id) {
+			console.log('editReferralById called with id:', id); // DEBUG
 			if (isReadOnly) {
+				console.log('Read-only mode, exiting'); // DEBUG
 				document.getElementById('currentFile').textContent = 'Error: Cannot edit in read-only mode';
 				document.getElementById('statusBar').style.color = '#e74c3c';
 				return;
 			}
 			
+			console.log('Fetching referral details from backend'); // DEBUG
 			// Fetch full referral details from backend (list data only has 17 fields)
 			const result = await eel.get_referral_details(id)();
+			console.log('Got result:', result); // DEBUG
 			if (result.status !== 'success') {
+				console.log('Failed to get referral details'); // DEBUG
 				showErrorModal('Load Referral Error', 'Could not load referral details for editing');
 				return;
 			}
 			
+			console.log('Populating fields'); // DEBUG
 			const referral = result.referral;
 			currentEditingReferral = referral;
 			document.getElementById('referralModalTitle').textContent = 'Edit Referral';
@@ -4557,8 +4577,17 @@ Have a great day.`
         }
 		
 		function openModal(id) {
-			document.getElementById(id).classList.add('active');
+			console.log('openModal called with id:', id); // DEBUG
+			const modalElement = document.getElementById(id);
+			console.log('Modal element:', modalElement); // DEBUG
+			if (modalElement) {
+				modalElement.classList.add('active');
+				console.log('Added active class to modal'); // DEBUG
+			} else {
+				console.error('Modal element not found:', id); // DEBUG
+			}
 			checkDualModal();
+			console.log('openModal completed'); // DEBUG
 		}
 
 		function closeModal(id) {
