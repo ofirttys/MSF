@@ -1,0 +1,46 @@
+{
+  "selectedMD": {
+    "name": "Dr. Michaeli",
+    "email": "jennia.michaeli@sinaihealth.ca"
+  },
+  "selectedFellow": {
+    "name": "Nathoo, Sahra",
+    "email": "Sahra.Nathoo@sinaihealth.ca"
+  },
+  "np": {
+    "name": "Farnell, Nicola",
+    "email": "Nicola.Farnell@sinaihealth.ca"
+  },
+  "admin": [
+    {
+      "name": "Khan, Sarah",
+      "email": "Sarah.Khan@sinaihealth.ca"
+    },
+    {
+      "name": "MSF Admin Support",
+      "email": "MSF.adminsupport@sinaihealth.ca"
+    }
+  ],
+  "fellows": [
+    {
+      "name": "Nathoo, Sahra",
+      "email": "Sahra.Nathoo@sinaihealth.ca"
+    },
+    {
+      "name": "Hasan, Ahmad",
+      "email": "Ahmad.Hasan@sinaihealth.ca"
+    },
+    {
+      "name": "Habte, Ruth",
+      "email": "RUTH.HABTE@sinaihealth.ca"
+    },
+    {
+      "name": "Li, Angela",
+      "email": "Angela.Li@sinaihealth.ca"
+    },
+    {
+      "name": "Ferraro, Zachary",
+      "email": "Zachary.Ferraro@sinaihealth.ca"
+    }
+  ]
+}

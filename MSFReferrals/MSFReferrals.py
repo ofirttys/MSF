@@ -1376,6 +1376,58 @@ def load_templates():
             'message': f'Error loading templates: {str(e)}'
         }
 
+@eel.expose
+def load_intake_config():
+    """Load intake team configuration from DB/Intake.json"""
+    try:
+        intake_path = os.path.join(DB_FOLDER, 'Intake.json')
+        
+        if not os.path.exists(intake_path):
+            # Create default if doesn't exist
+            default_config = {
+                "selectedMD": {"name": "", "email": ""},
+                "selectedFellow": {"name": "Nathoo, Sahra", "email": "Sahra.Nathoo@sinaihealth.ca"},
+                "np": {"name": "Farnell, Nicola", "email": "Nicola.Farnell@sinaihealth.ca"},
+                "admin": [
+                    {"name": "Khan, Sarah", "email": "Sarah.Khan@sinaihealth.ca"},
+                    {"name": "MSF Admin Support", "email": "MSF.adminsupport@sinaihealth.ca"}
+                ],
+                "fellows": [
+                    {"name": "Nathoo, Sahra", "email": "Sahra.Nathoo@sinaihealth.ca"},
+                    {"name": "Hasan, Ahmad", "email": "Ahmad.Hasan@sinaihealth.ca"},
+                    {"name": "Habte, Ruth", "email": "RUTH.HABTE@sinaihealth.ca"},
+                    {"name": "Li, Angela", "email": "Angela.Li@sinaihealth.ca"},
+                    {"name": "Ferraro, Zachary", "email": "Zachary.Ferraro@sinaihealth.ca"}
+                ]
+            }
+            with open(intake_path, 'w', encoding='utf-8') as f:
+                json.dump(default_config, f, indent=2)
+            return {'status': 'success', 'config': default_config}
+        
+        with open(intake_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        return {'status': 'success', 'config': config}
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {'status': 'error', 'message': f'Error loading intake config: {str(e)}'}
+
+@eel.expose
+def save_intake_config(config):
+    """Save intake team configuration to DB/Intake.json"""
+    try:
+        intake_path = os.path.join(DB_FOLDER, 'Intake.json')
+        
+        with open(intake_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2)
+        
+        return {'status': 'success'}
+        
+    except Exception as e:
+        traceback.print_exc()
+        return {'status': 'error', 'message': f'Error saving intake config: {str(e)}'}
+
 def on_close(page, sockets):
     """Handle window close"""
     global _shutting_down
