@@ -32,7 +32,7 @@ DEBUG_MODE = False
 VALID_USERS = {
     'admin': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da',
     'jennia': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da',
-    'abena': '357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6'
+    'abena': '357efeb61add568d1add568e1add568f1add56901add56911add56921add5693'
 }
 
 # Global state
