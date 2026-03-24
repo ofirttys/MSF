@@ -390,6 +390,18 @@
             margin: 0 8px 0 5px;
             vertical-align: middle;
         }
+        
+        .fax-checkbox {
+            cursor: pointer;
+            user-select: none;
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+        
+        .fax-checkbox:hover {
+            background-color: #e8f4f8;
+        }
 
         .sort-btn {
             padding: 6px 10px;
@@ -3676,7 +3688,7 @@ Have a great day.`
             
             if (!templateKey || !faxTemplates[templateKey]) {
                 document.getElementById('faxTemplateBody').value = '';
-                document.getElementById('faxPreview').textContent = 'Select a fax template to see the preview';
+                document.getElementById('faxPreview').innerHTML = 'Select a fax template to see the preview';
                 return;
             }
             
@@ -3684,6 +3696,10 @@ Have a great day.`
             const patientName = `${currentViewingReferral.patientFirstName || ''} ${currentViewingReferral.patientLastName || ''}`.trim();
             const patientDOB = currentViewingReferral.patientDOB || '[DOB]';
             const patientHC = currentViewingReferral.patientHC || '[HEALTH_CARD]';
+            const patientPhone = currentViewingReferral.patientPhone || '[PATIENT_PHONE]';
+            const patientEmail = currentViewingReferral.patientEmail || '[PATIENT_EMAIL]';
+            const partnerPhone = currentViewingReferral.partnerPhone || '[PARTNER_PHONE]';
+            const partnerEmail = currentViewingReferral.partnerEmail || '[PARTNER_EMAIL]';
             const referringPhysician = currentViewingReferral.referringPhysicianName || '[REFERRING_PHYSICIAN]';
             const requestedPhysician = currentViewingReferral.requestedPhysician || '[REQUESTED_PHYSICIAN]';
             const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -3693,13 +3709,64 @@ Have a great day.`
             body = body.replace(/{{patientName}}/g, patientName);
             body = body.replace(/{{patientDOB}}/g, patientDOB);
             body = body.replace(/{{patientHC}}/g, patientHC);
+            body = body.replace(/{{patientPhone}}/g, patientPhone);
+            body = body.replace(/{{patientEmail}}/g, patientEmail);
+            body = body.replace(/{{partnerPhone}}/g, partnerPhone);
+            body = body.replace(/{{partnerEmail}}/g, partnerEmail);
             body = body.replace(/{{referringPhysician}}/g, referringPhysician);
             body = body.replace(/{{requestedPhysician}}/g, requestedPhysician);
             body = body.replace(/{{currentDate}}/g, currentDate);
             body = body.replace(/{{signature}}/g, templateSettings.signature || 'Mount Sinai Fertility');
             
+            // Update the text area (raw text)
             document.getElementById('faxTemplateBody').value = body;
-            document.getElementById('faxPreview').textContent = body;
+            
+            // Convert checkboxes to interactive elements for preview
+            let previewBody = body;
+            
+            // Replace [ ] with clickable checkboxes
+            previewBody = previewBody.replace(/\[ \]/g, '<span class="fax-checkbox" onclick="toggleFaxCheckbox(this)">[ ]</span>');
+            
+            // Escape HTML but preserve our checkbox spans
+            previewBody = previewBody
+                .split('<span class="fax-checkbox"')
+                .map((part, i) => {
+                    if (i === 0) return escapeHtml(part);
+                    const [checkbox, rest] = part.split('</span>');
+                    return '<span class="fax-checkbox"' + checkbox + '</span>' + escapeHtml(rest);
+                })
+                .join('');
+            
+            document.getElementById('faxPreview').innerHTML = previewBody;
+        }
+        
+        function toggleFaxCheckbox(element) {
+            const currentText = element.textContent;
+            if (currentText === '[ ]') {
+                element.textContent = '[X]';
+                element.style.fontWeight = 'bold';
+            } else {
+                element.textContent = '[ ]';
+                element.style.fontWeight = 'normal';
+            }
+            
+            // Update the faxTemplateBody textarea to reflect the change
+            updateFaxBodyFromPreview();
+        }
+        
+        function updateFaxBodyFromPreview() {
+            const preview = document.getElementById('faxPreview');
+            const textarea = document.getElementById('faxTemplateBody');
+            
+            // Get text content with checkbox states
+            let text = preview.innerText || preview.textContent;
+            textarea.value = text;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         function updateReferringPhoneScript() {
