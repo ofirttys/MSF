@@ -2844,6 +2844,7 @@
         }
 
 		function openAddReferralModal() {
+			console.log('openAddReferralModal called'); // DEBUG
 			if (isReadOnly) {
 				document.getElementById('currentFile').textContent = 'Error: Cannot add referrals in read-only mode';
 				document.getElementById('statusBar').style.color = '#e74c3c';
@@ -4445,6 +4446,7 @@ Have a great day.`
         }
         
         function editCurrentReferral() {
+            console.log('editCurrentReferral called'); // DEBUG
             cameFromViewModal = true;
             // Don't close view modal - just hide it
             document.getElementById('viewReferralModal').classList.remove('active');
