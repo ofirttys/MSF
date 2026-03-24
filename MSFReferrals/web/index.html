@@ -4583,6 +4583,10 @@ Have a great day.`
 			if (modalElement) {
 				modalElement.classList.add('active');
 				console.log('Added active class to modal'); // DEBUG
+				console.log('Modal classes:', modalElement.className); // DEBUG
+				const computedStyle = window.getComputedStyle(modalElement);
+				console.log('Modal display style:', computedStyle.display); // DEBUG
+				console.log('Modal z-index:', computedStyle.zIndex); // DEBUG
 			} else {
 				console.error('Modal element not found:', id); // DEBUG
 			}
