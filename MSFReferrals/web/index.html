@@ -2238,6 +2238,8 @@
                 dateTo: document.getElementById('dateTo')?.value || ''
             };
             
+            console.log('Loading referrals with filters:', currentFilters); // Debug
+            
             const result = await eel.get_referrals(
                 currentFilters,
                 currentSort.by,
@@ -2245,6 +2247,8 @@
                 currentOffset,
                 100
             )();
+            
+            console.log('Received result:', result); // Debug
             
             if (result.status === 'success') {
                 if (reset) {
@@ -2257,8 +2261,12 @@
                 currentOffset += result.referrals.length;
                 totalReferralsCount = result.total;
                 
+                console.log('Loaded', result.referrals.length, 'referrals, total:', result.total); // Debug
+                
                 renderReferralList();
                 updateReferralCount(result.total);
+            } else {
+                console.error('Failed to load referrals:', result); // Debug
             }
             
             isLoading = false;
@@ -2368,6 +2376,12 @@
         async function initializeApp() {
             // Load templates first
             await loadTemplates();
+            
+            // Initialize filter state - ensure "All" button is active
+            currentFilter = [];
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            const allButton = document.querySelector('.filter-btn'); // First filter button is "All"
+            if (allButton) allButton.classList.add('active');
             
             // Load from SQLite backend
             await loadSelectOptions();
