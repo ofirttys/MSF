@@ -284,7 +284,7 @@
         
         .kpi-card { 
             flex: 1; 
-            min-width: 120px; 
+            min-width: 140px; 
             background: white; 
             padding: 15px 10px; 
             border-radius: 10px; 
@@ -380,27 +380,6 @@
             background: #3498db;
             color: white;
             border-color: #3498db;
-        }
-        
-        .filter-separator {
-            display: inline-block;
-            width: 2px;
-            height: 32px;
-            background: #c0c0c0;
-            margin: 0 8px 0 5px;
-            vertical-align: middle;
-        }
-        
-        .fax-checkbox {
-            cursor: pointer;
-            user-select: none;
-            padding: 2px 4px;
-            border-radius: 3px;
-            transition: background-color 0.2s;
-        }
-        
-        .fax-checkbox:hover {
-            background-color: #e8f4f8;
         }
 
         .sort-btn {
@@ -1288,13 +1267,10 @@
                 </div>
                 <div class="filter-buttons" id="filterButtons">
                     <button class="filter-btn active" onclick="filterByStatus('all')">All</button>
-                    <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('urgent')">Urgent</button>
-                    <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('new')">New<br>Patient</button>
                     <button class="filter-btn" onclick="filterByStatus('previous')">Previous<br>Patient</button>
                     <button class="filter-btn" onclick="filterByStatus('partner')">Partner</button>
-                    <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('new-referral')">New<br>Referral</button>
                     <button class="filter-btn" onclick="filterByStatus('pending')">Pending</button>
                     <button class="filter-btn" onclick="filterByStatus('info-received')">Information<br>Completed</button>
@@ -1303,19 +1279,12 @@
                     <button class="filter-btn" onclick="filterByStatus('eivf-done')">eIVF<br>Done</button>
                     <button class="filter-btn" onclick="filterByStatus('completed')">Completed</button>
                     <button class="filter-btn" onclick="filterByStatus('deferred')">Deferred</button>
-                    <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('contact-2days')">Contact<br>> 2 days</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-3days')">Contact<br>> 3 days</button>
                     <button class="filter-btn" onclick="filterByStatus('contact-7days')">Contact<br>> 7 days</button>
                     <button class="filter-btn" onclick="filterByStatus('no-contact')">No<br>Contact</button>
-                    <span class="filter-separator"></span>
                     <button class="filter-btn" onclick="filterByStatus('no-email')">No<br>Email</button>
                     <button class="filter-btn" onclick="filterByStatus('no-file')">No<br>File</button>
-                    <span class="filter-separator"></span>
-                    <select id="serviceFilter" onchange="filterReferrals()" style="padding: 4px 8px; border: 2px solid #e0e0e0; border-radius: 4px; background: white; cursor: pointer; font-size: 11px; font-weight: 500; min-width: 120px; vertical-align: middle; line-height: 1.2;">
-                        <option value="all">All Services</option>
-                        <!-- Options populated dynamically from database -->
-                    </select>
                 </div>
                 <input type="text" class="search-box" id="searchBox" placeholder="Search referrals..." oninput="filterReferrals()">
                 <div class="referral-list">
@@ -1485,12 +1454,12 @@
 							<select id="emailTemplateSelect" onchange="updateEmailTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
 								<option value="">-- Select Template --</option>
 								<option value="welcomeEmail">Welcome Email (New Patient Referral)</option>
-									<option value="reminder">Reminder</option>
-									<option value="partialInfoReminder">Partial Information Reminder</option>
-									<option value="araPatient">ARA Patient (Patient Letter)</option>
-									<option value="eefAgeOver40Patient">EEF Patient Age > 40 (Patient Letter)</option>
-									<option value="eefSelfReferralInfoRequest">EEF Self-Referral Info Request</option>
-								</select>
+								<option value="eefSelfReferralInfoRequest">EEF Self-Referral Info Request</option>
+								<option value="eefAgeOver40Patient">EEF Patient Age > 40</option>
+								<option value="araPatient">ARA Patient</option>
+								<option value="reminder">Reminder</option>
+								<option value="partialInfoReminder">Partial Information Reminder</option>
+							</select>
 						</div>
 						
 						<!-- Hidden fields for email -->
@@ -1578,21 +1547,24 @@
 						<!-- Fax Template Selection -->
 						<div id="faxTemplateSection">
 							<label for="faxTemplateSelect" style="display: block; margin-bottom: 5px; font-weight: 600;">Select Fax Template</label>
-			<select id="faxTemplateSelect" onchange="updateFaxTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-				<option value="">-- Select Template --</option>
-				<option value="missingInformation">Missing/Unreadable Information</option>
-				<option value="oldReferralForm">Old Referral Form</option>
-				<option value="multipleAttempts">Multiple Attempts to Contact</option>
-				<option value="araPhysician">ARA Patient</option>
-				<option value="eefAgeOver40Physician">EEF Patient Age > 40</option>
-				<option value="eefPedsPhysician">EEF Patient Age < 18</option>
-				<option value="gyneReferral">Gyne Referral</option>
-				<option value="obReferral">OB Referral</option>
-				<option value="semenAnalysis">Semen Analysis</option>
-				<option value="spermBanking">Sperm Banking/Freezing</option>
-				<option value="iudInsertion">IUD Insertion</option>
-				<option value="cancellationNotNeeded">Cancellation - Not Needed</option>
-			</select>
+							<select id="faxTemplateSelect" onchange="updateFaxTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+								<option value="">-- Select Template --</option>
+								<option value="eefAgeOver40Physician">EEF Patient Age > 40</option>
+								<option value="eefPedsPhysician">EEF Patient Age < 18</option>
+								<option value="araPhysician">ARA Patient</option>
+								<option value="semenAnalysis">Semen Analysis</option>
+								<option value="spermBanking">Sperm Banking/Freezing</option>
+								<option value="gyneReferral">Gyne Referral</option>
+								<option value="obReferral">OB Referral</option>
+								<option value="iudInsertion">IUD Insertion</option>
+								<option value="multipleAttempts">Multiple Attempts to Contact</option>
+								<option value="cancellationPregnant">Cancellation - Pregnant</option>
+								<option value="cancellationNotNeeded">Cancellation - Not Needed</option>
+								<option value="missingInformation">Missing Information</option>
+								<option value="oldReferralForm">Old Referral Form</option>
+								<option value="unreadableReferral">Unreadable Referral</option>
+							</select>
+						</div>
 						
 						<!-- Phone Script Selection -->
 						<div id="referringPhoneScriptSection" style="display: none;">
@@ -1629,7 +1601,7 @@
 						
 						<!-- Fax Preview -->
 						<div id="faxPreviewPane" style="flex: 1; overflow-y: auto;">
-							<div id="faxPreview" style="padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; white-space: pre-wrap; min-height: 100%;">
+							<div id="faxPreview" style="padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; min-height: 100%;">
 								Select a fax template to see the preview
 							</div>
 						</div>
@@ -1896,38 +1868,29 @@
 								</div>
 							</div>
 							
-							<div class="form-row">
-								<div class="checkbox-group">
-									<input type="checkbox" id="selfReferral" onchange="togglePhysicianFields()">
-									<label for="selfReferral" style="font-weight: 600;">Self Referral (No Referring Physician)</label>
+							<div class="form-row" style="grid-template-columns: 2fr 1fr 1fr;">
+								<div class="form-group">
+									<label class="required">Referring Physician Name</label>
+									<input type="text" id="referringPhysician" required>
+								</div>
+								<div class="form-group">
+									<label class="required">Billing Number</label>
+									<input type="text" id="billingNumber" required>
+								</div>
+								<div class="form-group">
+									<label class="required">Fax</label>
+									<input type="text" id="physicianFax" required>
 								</div>
 							</div>
 							
-							<div id="physicianFieldsSection">
-								<div class="form-row" style="grid-template-columns: 2fr 1fr 1fr;">
-									<div class="form-group">
-										<label class="required">Referring Physician Name</label>
-										<input type="text" id="referringPhysician" required>
-									</div>
-									<div class="form-group">
-										<label class="required">Billing Number</label>
-										<input type="text" id="billingNumber" required>
-									</div>
-									<div class="form-group">
-										<label class="required">Fax</label>
-										<input type="text" id="physicianFax" required>
-									</div>
+							<div class="form-row">
+								<div class="form-group">
+									<label>Phone</label>
+									<input type="text" id="physicianPhone">
 								</div>
-								
-								<div class="form-row">
-									<div class="form-group">
-										<label>Phone</label>
-										<input type="text" id="physicianPhone">
-									</div>
-									<div class="form-group">
-										<label>Email</label>
-										<input type="email" id="physicianEmail">
-									</div>
+								<div class="form-group">
+									<label>Email</label>
+									<input type="email" id="physicianEmail">
 								</div>
 							</div>
 						</div>
@@ -2234,26 +2197,7 @@
             const result = await eel.get_select_options()();
             if (result.status === 'success') {
                 selectOptions = result.options;
-                populateServiceFilter(); // Populate the service filter dropdown
             }
-        }
-        
-        function populateServiceFilter() {
-            const serviceFilter = document.getElementById('serviceFilter');
-            if (!serviceFilter) return;
-            
-            // Keep the "All Services" option
-            const firstOption = serviceFilter.options[0].outerHTML;
-            serviceFilter.innerHTML = firstOption;
-            
-            // Add services from database
-            const services = selectOptions.servicesRequested || [];
-            services.forEach(service => {
-                const opt = document.createElement('option');
-                opt.value = service;
-                opt.textContent = service;
-                serviceFilter.appendChild(opt);
-            });
         }
         
         async function loadReferrals(reset = false) {
@@ -2272,11 +2216,8 @@
                 statuses: getActiveFilterButtons(),
                 search: document.getElementById('searchBox')?.value || '',
                 dateFrom: document.getElementById('dateFrom')?.value || '',
-                dateTo: document.getElementById('dateTo')?.value || '',
-                service: document.getElementById('serviceFilter')?.value || 'all'
+                dateTo: document.getElementById('dateTo')?.value || ''
             };
-            
-            console.log('Loading referrals with filters:', currentFilters); // Debug
             
             const result = await eel.get_referrals(
                 currentFilters,
@@ -2285,8 +2226,6 @@
                 currentOffset,
                 100
             )();
-            
-            console.log('Received result:', result); // Debug
             
             if (result.status === 'success') {
                 if (reset) {
@@ -2299,12 +2238,8 @@
                 currentOffset += result.referrals.length;
                 totalReferralsCount = result.total;
                 
-                console.log('Loaded', result.referrals.length, 'referrals, total:', result.total); // Debug
-                
                 renderReferralList();
                 updateReferralCount(result.total);
-            } else {
-                console.error('Failed to load referrals:', result); // Debug
             }
             
             isLoading = false;
@@ -2353,9 +2288,13 @@
                     
                     await initializeApp();
                 } else if (result.status === 'locked') {
-                    // Show professional modal instead of browser confirm
-                    showReadOnlyModal(result.user, async () => {
-                        // User chose to open in read-only mode
+                    const readOnlyChoice = confirm(
+                        `Database is currently locked by ${result.user}\n\n` +
+                        `Click OK to open in Read-Only mode (you can view but not edit).\n` +
+                        `Click Cancel to return to login.`
+                    );
+                    
+                    if (readOnlyChoice) {
                         await eel.login_readonly(username)();
                         currentUser = username;
                         isReadOnly = true;
@@ -2365,7 +2304,7 @@
                         document.getElementById('lockOwnerName').textContent = result.user;
                         disableEditingControls();
                         await initializeApp();
-                    });
+                    }
                 } else {
                     errorDiv.textContent = result.message || 'Login failed';
                     errorDiv.style.display = 'block';
@@ -2410,12 +2349,6 @@
         async function initializeApp() {
             // Load templates first
             await loadTemplates();
-            
-            // Initialize filter state - ensure "All" button is active
-            currentFilter = [];
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            const allButton = document.querySelector('.filter-btn'); // First filter button is "All"
-            if (allButton) allButton.classList.add('active');
             
             // Load from SQLite backend
             await loadSelectOptions();
@@ -2464,44 +2397,10 @@
 
         // Disable editing controls in read-only mode
         function disableEditingControls() {
-            // Top toolbar buttons
-            const saveBtn = document.getElementById('saveButton');
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.style.opacity = '0.5';
-            }
-            
-            const addBtn = document.getElementById('addReferralBtn');
-            if (addBtn) {
-                addBtn.disabled = true;
-                addBtn.style.opacity = '0.5';
-            }
-            
-            // View modal action buttons (these are in the modal, so might not exist at login time)
-            // We'll also need to disable them when viewing a referral
-            const editBtn = document.querySelector('button[onclick="editCurrentReferral()"]');
-            if (editBtn) {
-                editBtn.disabled = true;
-                editBtn.style.opacity = '0.5';
-            }
-            
-            const deferBtn = document.getElementById('deferBtn');
-            if (deferBtn) {
-                deferBtn.disabled = true;
-                deferBtn.style.opacity = '0.5';
-            }
-            
-            const contactPatientBtn = document.getElementById('contactPatientBtn');
-            if (contactPatientBtn) {
-                contactPatientBtn.disabled = true;
-                contactPatientBtn.style.opacity = '0.5';
-            }
-            
-            const contactPhysicianBtn = document.getElementById('contactReferringPhysicianBtn');
-            if (contactPhysicianBtn) {
-                contactPhysicianBtn.disabled = true;
-                contactPhysicianBtn.style.opacity = '0.5';
-            }
+            document.getElementById('saveButton').disabled = true;
+            document.getElementById('saveButton').style.opacity = '0.5';
+            document.getElementById('addReferralBtn').disabled = true;
+            document.getElementById('addReferralBtn').style.opacity = '0.5';
         }
 
         // Save database - NOT NEEDED WITH SQLITE (auto-saves on each operation)
@@ -2844,39 +2743,23 @@
         }
 
 		function openAddReferralModal() {
-			console.log('openAddReferralModal called'); // DEBUG
 			if (isReadOnly) {
-				console.log('Read-only mode, exiting'); // DEBUG
 				document.getElementById('currentFile').textContent = 'Error: Cannot add referrals in read-only mode';
 				document.getElementById('statusBar').style.color = '#e74c3c';
 				return;
 			}
 			
-			console.log('Setting currentEditingReferral to null'); // DEBUG
 			currentEditingReferral = null;
-			console.log('Setting modal title'); // DEBUG
 			document.getElementById('referralModalTitle').textContent = 'Add New Referral';
-			console.log('Resetting form'); // DEBUG
 			document.getElementById('referralForm').reset();
-			console.log('Initializing date pickers'); // DEBUG
 			initializeDatePickers();
 			
-			console.log('Resetting self-referral checkbox'); // DEBUG
-			// Reset self-referral checkbox and enable physician fields
-			document.getElementById('selfReferral').checked = false;
-			console.log('Toggling physician fields'); // DEBUG
-			togglePhysicianFields();
-			
-			console.log('Closing PDF viewer'); // DEBUG
 			closePdfViewer();
 			currentFileObjectURL = null;
 			document.getElementById('viewFileBtn').style.display = 'none';
 			
-			console.log('About to open modal'); // DEBUG
 			openModal('referralModal');
-			console.log('Modal opened, scrolling to top'); // DEBUG
 			document.querySelector('#referralModal .modal-body').scrollTop = 0;
-			console.log('openAddReferralModal completed'); // DEBUG
 		}
 
         async function viewReferral(id) {
@@ -2896,11 +2779,6 @@
             document.querySelectorAll('#viewReferralModal .tab-content').forEach(c => c.classList.remove('active'));
             document.querySelector('#viewReferralModal .tab').classList.add('active');
             document.getElementById('informationTab').classList.add('active');
-            
-            // Disable action buttons if in read-only mode
-            if (isReadOnly) {
-                disableEditingControls();
-            }
             
             document.getElementById('viewReferralModal').classList.add('active');
         }
@@ -3238,11 +3116,6 @@
         }
         
         function contactPatient() {
-            if (isReadOnly) {
-                showErrorModal('Read-Only Mode', 'Cannot contact patients in read-only mode.');
-                return;
-            }
-            
             if (!currentViewingReferral) return;
             
             // Populate patient info
@@ -3607,11 +3480,6 @@ Have a great day.`
         
         
         function contactReferringPhysician() {
-            if (isReadOnly) {
-                showErrorModal('Read-Only Mode', 'Cannot contact physicians in read-only mode.');
-                return;
-            }
-            
             if (!currentViewingReferral) return;
             
             const physicianName = currentViewingReferral.referringPhysicianName || 'Not provided';
@@ -3727,18 +3595,13 @@ Have a great day.`
             
             if (!templateKey || !faxTemplates[templateKey]) {
                 document.getElementById('faxTemplateBody').value = '';
-                document.getElementById('faxPreview').innerHTML = 'Select a fax template to see the preview';
+                document.getElementById('faxPreview').textContent = 'Select a fax template to see the preview';
                 return;
             }
             
             const template = faxTemplates[templateKey];
             const patientName = `${currentViewingReferral.patientFirstName || ''} ${currentViewingReferral.patientLastName || ''}`.trim();
             const patientDOB = currentViewingReferral.patientDOB || '[DOB]';
-            const patientHC = currentViewingReferral.patientHC || '[HEALTH_CARD]';
-            const patientPhone = currentViewingReferral.patientPhone || '[PATIENT_PHONE]';
-            const patientEmail = currentViewingReferral.patientEmail || '[PATIENT_EMAIL]';
-            const partnerPhone = currentViewingReferral.partnerPhone || '[PARTNER_PHONE]';
-            const partnerEmail = currentViewingReferral.partnerEmail || '[PARTNER_EMAIL]';
             const referringPhysician = currentViewingReferral.referringPhysicianName || '[REFERRING_PHYSICIAN]';
             const requestedPhysician = currentViewingReferral.requestedPhysician || '[REQUESTED_PHYSICIAN]';
             const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -3747,65 +3610,13 @@ Have a great day.`
             let body = template.body;
             body = body.replace(/{{patientName}}/g, patientName);
             body = body.replace(/{{patientDOB}}/g, patientDOB);
-            body = body.replace(/{{patientHC}}/g, patientHC);
-            body = body.replace(/{{patientPhone}}/g, patientPhone);
-            body = body.replace(/{{patientEmail}}/g, patientEmail);
-            body = body.replace(/{{partnerPhone}}/g, partnerPhone);
-            body = body.replace(/{{partnerEmail}}/g, partnerEmail);
             body = body.replace(/{{referringPhysician}}/g, referringPhysician);
             body = body.replace(/{{requestedPhysician}}/g, requestedPhysician);
             body = body.replace(/{{currentDate}}/g, currentDate);
             body = body.replace(/{{signature}}/g, templateSettings.signature || 'Mount Sinai Fertility');
             
-            // Update the text area (raw text)
             document.getElementById('faxTemplateBody').value = body;
-            
-            // Convert checkboxes to interactive elements for preview
-            let previewBody = body;
-            
-            // Replace [ ] with clickable checkboxes
-            previewBody = previewBody.replace(/\[ \]/g, '<span class="fax-checkbox" onclick="toggleFaxCheckbox(this)">[ ]</span>');
-            
-            // Escape HTML but preserve our checkbox spans
-            previewBody = previewBody
-                .split('<span class="fax-checkbox"')
-                .map((part, i) => {
-                    if (i === 0) return escapeHtml(part);
-                    const [checkbox, rest] = part.split('</span>');
-                    return '<span class="fax-checkbox"' + checkbox + '</span>' + escapeHtml(rest);
-                })
-                .join('');
-            
-            document.getElementById('faxPreview').innerHTML = previewBody;
-        }
-        
-        function toggleFaxCheckbox(element) {
-            const currentText = element.textContent;
-            if (currentText === '[ ]') {
-                element.textContent = '[X]';
-                element.style.fontWeight = 'bold';
-            } else {
-                element.textContent = '[ ]';
-                element.style.fontWeight = 'normal';
-            }
-            
-            // Update the faxTemplateBody textarea to reflect the change
-            updateFaxBodyFromPreview();
-        }
-        
-        function updateFaxBodyFromPreview() {
-            const preview = document.getElementById('faxPreview');
-            const textarea = document.getElementById('faxTemplateBody');
-            
-            // Get text content with checkbox states
-            let text = preview.innerText || preview.textContent;
-            textarea.value = text;
-        }
-        
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+            document.getElementById('faxPreview').textContent = body;
         }
         
         function updateReferringPhoneScript() {
@@ -4416,11 +4227,6 @@ Have a great day.`
         }
         
         function deferReferral() {
-            if (isReadOnly) {
-                showErrorModal('Read-Only Mode', 'Cannot defer referrals in read-only mode.');
-                return;
-            }
-            
             // Clear previous reason
             document.getElementById('deferralReason').value = '';
             openModal('deferReferralModal');
@@ -4457,37 +4263,22 @@ Have a great day.`
         }
         
         function editCurrentReferral() {
-            console.log('editCurrentReferral called'); // DEBUG
             cameFromViewModal = true;
-            console.log('Removing active class from view modal'); // DEBUG
             // Don't close view modal - just hide it
             document.getElementById('viewReferralModal').classList.remove('active');
-            console.log('Calling editReferralById with ID:', currentViewingReferral.referralID); // DEBUG
             editReferralById(currentViewingReferral.referralID);
-            console.log('editCurrentReferral completed'); // DEBUG
         }
 
-		async function editReferralById(id) {
-			console.log('editReferralById called with id:', id); // DEBUG
+		function editReferralById(id) {
 			if (isReadOnly) {
-				console.log('Read-only mode, exiting'); // DEBUG
 				document.getElementById('currentFile').textContent = 'Error: Cannot edit in read-only mode';
 				document.getElementById('statusBar').style.color = '#e74c3c';
 				return;
 			}
 			
-			console.log('Fetching referral details from backend'); // DEBUG
-			// Fetch full referral details from backend (list data only has 17 fields)
-			const result = await eel.get_referral_details(id)();
-			console.log('Got result:', result); // DEBUG
-			if (result.status !== 'success') {
-				console.log('Failed to get referral details'); // DEBUG
-				showErrorModal('Load Referral Error', 'Could not load referral details for editing');
-				return;
-			}
+			const referral = allLoadedReferrals.find(r => r.referralID === id);
+			if (!referral) return;
 			
-			console.log('Populating fields'); // DEBUG
-			const referral = result.referral;
 			currentEditingReferral = referral;
 			document.getElementById('referralModalTitle').textContent = 'Edit Referral';
 			
@@ -4500,8 +4291,6 @@ Have a great day.`
 			document.getElementById('physicianFax').value = referral.referringPhysicianFax || '';
 			document.getElementById('physicianPhone').value = referral.referringPhysicianPhone || '';
 			document.getElementById('physicianEmail').value = referral.referringPhysicianEmail || '';
-			document.getElementById('selfReferral').checked = referral.selfReferral || false;
-			togglePhysicianFields(); // Apply the gray-out based on selfReferral status
 			
 			document.getElementById('requestedLocation').value = referral.requestedLocation || '';
 			document.getElementById('requestedPhysician').value = referral.requestedPhysician || '';
@@ -4577,26 +4366,8 @@ Have a great day.`
         }
 		
 		function openModal(id) {
-			console.log('openModal called with id:', id); // DEBUG
-			const modalElement = document.getElementById(id);
-			console.log('Modal element:', modalElement); // DEBUG
-			if (modalElement) {
-				console.log('BEFORE - inline style:', modalElement.style.cssText); // DEBUG
-				console.log('BEFORE - display:', modalElement.style.display); // DEBUG
-				modalElement.classList.add('active');
-				console.log('Added active class to modal'); // DEBUG
-				console.log('Modal classes:', modalElement.className); // DEBUG
-				console.log('AFTER - inline style:', modalElement.style.cssText); // DEBUG
-				const computedStyle = window.getComputedStyle(modalElement);
-				console.log('Modal display style:', computedStyle.display); // DEBUG
-				console.log('Modal z-index:', computedStyle.zIndex); // DEBUG
-				console.log('Modal position:', computedStyle.position); // DEBUG
-				console.log('Modal visibility:', computedStyle.visibility); // DEBUG
-			} else {
-				console.error('Modal element not found:', id); // DEBUG
-			}
+			document.getElementById(id).classList.add('active');
 			checkDualModal();
-			console.log('openModal completed'); // DEBUG
 		}
 
 		function closeModal(id) {
@@ -4716,32 +4487,6 @@ Have a great day.`
 			`;
 			document.body.appendChild(modal);
 			modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-		}
-		
-		function showReadOnlyModal(lockedBy, onConfirm) {
-			const modal = document.createElement('div');
-			modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
-			modal.innerHTML = `
-				<div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; min-width: 400px;">
-					<h3 style="margin: 0 0 20px 0; color: #f39c12;">🔒 Database Locked</h3>
-					<p style="margin: 0 0 10px 0; color: #2c3e50; line-height: 1.5;">The database is currently being edited by <strong>${lockedBy}</strong>.</p>
-					<p style="margin: 0 0 20px 0; color: #2c3e50; line-height: 1.5;">You can open in <strong>Read-Only mode</strong> to view data without the ability to edit, or return to login and try again later.</p>
-					<div style="text-align: right;">
-						<button id="readOnlyCancelBtn" style="background: #95a5a6; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px;">Cancel</button>
-						<button id="readOnlyConfirmBtn" style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">Open Read-Only</button>
-					</div>
-				</div>
-			`;
-			document.body.appendChild(modal);
-			
-			document.getElementById('readOnlyConfirmBtn').onclick = () => {
-				modal.remove();
-				onConfirm();
-			};
-			
-			document.getElementById('readOnlyCancelBtn').onclick = () => {
-				modal.remove();
-			};
 		}
 
 		// Open file from a stored path (works for both new and edit)
@@ -4935,9 +4680,7 @@ Have a great day.`
 					document.getElementById('receivedDate').focus();
 					return;
 				}
-				// Skip referring physician validation if self-referral is checked
-				const isSelfReferral = document.getElementById('selfReferral').checked;
-				if (!isSelfReferral && !referringPhysician) {
+				if (!referringPhysician) {
 					document.getElementById('currentFile').textContent = 'Error: Referring Physician Name is required';
 					document.getElementById('statusBar').style.color = '#e74c3c';
 					document.getElementById('referringPhysician').focus();
@@ -4998,7 +4741,6 @@ Have a great day.`
 				referringPhysicianFax: document.getElementById('physicianFax').value,
 				referringPhysicianPhone: document.getElementById('physicianPhone').value,
 				referringPhysicianEmail: document.getElementById('physicianEmail').value,
-				selfReferral: document.getElementById('selfReferral').checked,
 				
 				// Service info
 				requestedLocation: requestedLocation,
@@ -5101,6 +4843,25 @@ Have a great day.`
 	}
 		
 		// Reset and open add referral modal  
+		function openAddReferralModal() {
+			if (isReadOnly) {
+				document.getElementById('currentFile').textContent = 'Error: Cannot add referrals in read-only mode';
+				document.getElementById('statusBar').style.color = '#e74c3c';
+				return;
+			}
+			
+			currentEditingReferral = null;
+			currentFilePath = null;
+			currentFileObjectURL = null;
+			
+			document.getElementById('referralModalTitle').textContent = 'Add New Referral';
+			document.getElementById('referralForm').reset();
+			document.getElementById('viewFileBtn').style.display = 'none';
+			closePdfViewer();
+			
+			initializeDatePickers();
+			openModal('referralModal');
+		}
 		
 		function togglePartnerFields() {
 			const enabled = document.getElementById('enablePartner').checked;
@@ -5118,43 +4879,10 @@ Have a great day.`
 				});
 			}
 		}
-		
-		function togglePhysicianFields() {
-			const isSelfReferral = document.getElementById('selfReferral').checked;
-			const physicianSection = document.getElementById('physicianFieldsSection');
-			const physicianFields = [
-				document.getElementById('referringPhysician'),
-				document.getElementById('billingNumber'),
-				document.getElementById('physicianFax'),
-				document.getElementById('physicianPhone'),
-				document.getElementById('physicianEmail')
-			];
-			
-			if (isSelfReferral) {
-				// Gray out and disable physician fields
-				physicianSection.style.opacity = '0.4';
-				physicianSection.style.pointerEvents = 'none';
-				
-				// Remove required attribute and clear values
-				physicianFields.forEach(field => {
-					field.removeAttribute('required');
-					field.value = '';
-				});
-			} else {
-				// Re-enable physician fields
-				physicianSection.style.opacity = '1';
-				physicianSection.style.pointerEvents = 'auto';
-				
-				// Restore required attributes
-				document.getElementById('referringPhysician').setAttribute('required', 'required');
-				document.getElementById('billingNumber').setAttribute('required', 'required');
-				document.getElementById('physicianFax').setAttribute('required', 'required');
-			}
-		}
 
     
         // Infinite scroll for referral list
-        document.querySelector('.referral-list')?.addEventListener('scroll', async function(e) {
+        document.getElementById('referralList')?.addEventListener('scroll', async function(e) {
             const container = e.target;
             const scrollTop = container.scrollTop;
             const scrollHeight = container.scrollHeight;
