@@ -350,11 +350,6 @@ def get_referrals(filters=None, sort_by='id', sort_order='asc', offset=0, limit=
                     "(patientFirstName LIKE ? OR patientLastName LIKE ? OR patientPhone LIKE ? OR patientEmail LIKE ? OR CAST(referralID AS TEXT) LIKE ?)"
                 )
                 params.extend([search_term, search_term, search_term, search_term, search_term])
-            
-            # Service filter
-            if filters.get('service') and filters['service'] != 'all':
-                where_clauses.append("serviceRequested LIKE ?")
-                params.append(f"%{filters['service']}%")
         
         # Build ORDER BY clause
         order_map = {
@@ -574,8 +569,8 @@ def get_kpi_counts(date_filters=None):
         """, params)
         waiting_contact = cursor.fetchone()[0]
         
-        # Urgent count
-        cursor.execute(f"SELECT COUNT(*) FROM referrals{where_clause} {'AND' if where_clause else 'WHERE'} urgent = 1", params)
+        # Urgent: flaggedUrgent = 1
+        cursor.execute(f"SELECT COUNT(*) FROM referrals{where_clause} {'AND' if where_clause else 'WHERE'} flaggedUrgent = 1", params)
         urgent = cursor.fetchone()[0]
         
         conn.close()
@@ -1605,7 +1600,7 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
                     if original_filename.lower().endswith('.pdf'):
                         original_pdf = PdfReader(referral_path)
                         
-                        # Add all pages from original referral directly (no separator)
+                        # Add all pages from original referral directly (no separator page)
                         for page in original_pdf.pages:
                             pdf_writer.add_page(page)
                     else:
