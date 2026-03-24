@@ -14,7 +14,8 @@ a = Analysis(
     datas=[
         ('web', 'web'),
         ('msf_logo.png', '.'),
-        ('MSFReferrals.ico', '.'),
+        ('MSFReferrals.ico', '.'),  # Icon in root for Windows API
+        ('MSFReferrals.ico', 'web'),  # Icon in web folder for HTML favicon
         # DB folder will be copied manually in post-build to root level
     ],
     hiddenimports=[
@@ -91,7 +92,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='MSFReferrals.ico',
+    icon='MSFReferrals.ico',  # ← Icon for .exe file itself
 )
 
 coll = COLLECT(
