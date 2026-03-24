@@ -1467,26 +1467,29 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
         settings = templates.get('settings', {})
         
         # === HEADER SECTION ===
-        y_position = height - 0.4 * inch
+        y_position = height - 0.5 * inch
         
-        # Add logo if exists (upper left, original size)
+        # Add logo if exists (upper left, scaled appropriately for PDF)
         logo_path = os.path.join(exe_dir, 'msf_logo.png')
         if os.path.exists(logo_path):
             try:
                 img = ImageReader(logo_path)
-                # Get original image dimensions
+                # Get original image dimensions in pixels
                 img_width_px, img_height_px = img.getSize()
-                # Use original size (no scaling)
+                # Scale to reasonable size for PDF (1.5 inches wide, maintain aspect ratio)
+                logo_width = 1.5 * inch
+                logo_height = logo_width * (img_height_px / img_width_px)
                 # Position in upper left with small margin
-                x_position = 0.5 * inch  # Left margin
-                c.drawImage(img, x_position, y_position - (img_height_px), 
-                           width=img_width_px, height=img_height_px, 
+                x_position = 0.5 * inch
+                y_logo = height - 0.5 * inch - logo_height
+                c.drawImage(img, x_position, y_logo, 
+                           width=logo_width, height=logo_height, 
                            mask='auto', preserveAspectRatio=True)
             except Exception as e:
                 print(f"Could not add logo: {e}")
         
-        # Move y_position down to after logo space
-        y_position -= 0.8 * inch
+        # Move y_position down to start content below logo
+        y_position = height - 1.2 * inch
         
         # Organization name (large, bold, centered)
         c.setFont("Helvetica-Bold", 16)
@@ -1588,11 +1591,70 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
             
             if os.path.exists(referral_path):
                 try:
-                    original_pdf = PdfReader(referral_path)
-                    for page in original_pdf.pages:
-                        pdf_writer.add_page(page)
+                    # Check if file is a PDF
+                    if original_filename.lower().endswith('.pdf'):
+                        original_pdf = PdfReader(referral_path)
+                        # Add separator page before original referral
+                        separator_buffer = io.BytesIO()
+                        separator_canvas = canvas.Canvas(separator_buffer, pagesize=letter)
+                        sep_width, sep_height = letter
+                        
+                        # Draw separator text
+                        separator_canvas.setFont("Helvetica-Bold", 14)
+                        separator_canvas.drawCentredString(sep_width / 2, sep_height / 2, "Original Referral Attached Below")
+                        separator_canvas.setFont("Helvetica", 10)
+                        separator_canvas.drawCentredString(sep_width / 2, sep_height / 2 - 30, f"File: {original_filename}")
+                        
+                        separator_canvas.save()
+                        separator_buffer.seek(0)
+                        
+                        # Add separator page
+                        separator_pdf = PdfReader(separator_buffer)
+                        for page in separator_pdf.pages:
+                            pdf_writer.add_page(page)
+                        
+                        # Add all pages from original referral
+                        for page in original_pdf.pages:
+                            pdf_writer.add_page(page)
+                    else:
+                        # Non-PDF file - add note page instead
+                        note_buffer = io.BytesIO()
+                        note_canvas = canvas.Canvas(note_buffer, pagesize=letter)
+                        note_width, note_height = letter
+                        
+                        note_canvas.setFont("Helvetica-Bold", 14)
+                        note_canvas.drawCentredString(note_width / 2, note_height / 2, "Original Referral Document")
+                        note_canvas.setFont("Helvetica", 10)
+                        note_canvas.drawCentredString(note_width / 2, note_height / 2 - 30, f"File: {original_filename}")
+                        note_canvas.drawCentredString(note_width / 2, note_height / 2 - 50, f"File type: {os.path.splitext(original_filename)[1].upper()}")
+                        note_canvas.drawCentredString(note_width / 2, note_height / 2 - 80, "Note: Non-PDF files cannot be automatically appended to this fax.")
+                        
+                        note_canvas.save()
+                        note_buffer.seek(0)
+                        
+                        note_pdf = PdfReader(note_buffer)
+                        for page in note_pdf.pages:
+                            pdf_writer.add_page(page)
+                            
                 except Exception as e:
                     print(f"Warning: Could not add original referral: {e}")
+                    # Add error note page
+                    error_buffer = io.BytesIO()
+                    error_canvas = canvas.Canvas(error_buffer, pagesize=letter)
+                    err_width, err_height = letter
+                    
+                    error_canvas.setFont("Helvetica-Bold", 14)
+                    error_canvas.drawCentredString(err_width / 2, err_height / 2, "Original Referral - Error")
+                    error_canvas.setFont("Helvetica", 10)
+                    error_canvas.drawCentredString(err_width / 2, err_height / 2 - 30, f"Could not append: {original_filename}")
+                    error_canvas.drawCentredString(err_width / 2, err_height / 2 - 50, f"Error: {str(e)[:100]}")
+                    
+                    error_canvas.save()
+                    error_buffer.seek(0)
+                    
+                    error_pdf = PdfReader(error_buffer)
+                    for page in error_pdf.pages:
+                        pdf_writer.add_page(page)
         
         # Write final PDF
         with open(output_path, 'wb') as output_file:

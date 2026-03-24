@@ -384,10 +384,10 @@
         
         .filter-separator {
             display: inline-block;
-            width: 1px;
-            height: 24px;
-            background: #d0d0d0;
-            margin: 0 8px 4px 5px;
+            width: 2px;
+            height: 32px;
+            background: #c0c0c0;
+            margin: 0 8px 0 5px;
             vertical-align: middle;
         }
 
@@ -4293,16 +4293,21 @@ Have a great day.`
             editReferralById(currentViewingReferral.referralID);
         }
 
-		function editReferralById(id) {
+		async function editReferralById(id) {
 			if (isReadOnly) {
 				document.getElementById('currentFile').textContent = 'Error: Cannot edit in read-only mode';
 				document.getElementById('statusBar').style.color = '#e74c3c';
 				return;
 			}
 			
-			const referral = allLoadedReferrals.find(r => r.referralID === id);
-			if (!referral) return;
+			// Fetch full referral details from backend (list data only has 17 fields)
+			const result = await eel.get_referral_details(id)();
+			if (result.status !== 'success') {
+				showErrorModal('Load Referral Error', 'Could not load referral details for editing');
+				return;
+			}
 			
+			const referral = result.referral;
 			currentEditingReferral = referral;
 			document.getElementById('referralModalTitle').textContent = 'Edit Referral';
 			
