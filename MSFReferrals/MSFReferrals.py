@@ -569,8 +569,8 @@ def get_kpi_counts(date_filters=None):
         """, params)
         waiting_contact = cursor.fetchone()[0]
         
-        # Urgent: flaggedUrgent = 1
-        cursor.execute(f"SELECT COUNT(*) FROM referrals{where_clause} {'AND' if where_clause else 'WHERE'} flaggedUrgent = 1", params)
+        # Urgent: urgent = 1
+        cursor.execute(f"SELECT COUNT(*) FROM referrals{where_clause} {'AND' if where_clause else 'WHERE'} urgent = 1", params)
         urgent = cursor.fetchone()[0]
         
         conn.close()
