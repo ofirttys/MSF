@@ -2131,10 +2131,29 @@
 										</div>
 									</div>
 									
-									<div class="form-row full">
+									<div class="form-row">
 										<div class="form-group">
 											<label>Address</label>
 											<input type="text" id="patientAddress">
+										</div>
+										<div class="form-group">
+											<label>City</label>
+											<input type="text" id="patientCity">
+										</div>
+									</div>
+									
+									<div class="form-row">
+										<div class="form-group">
+											<label>Province</label>
+											<input type="text" id="patientProvince" value="ON">
+										</div>
+										<div class="form-group">
+											<label>Country</label>
+											<input type="text" id="patientCountry" value="Canada">
+										</div>
+										<div class="form-group">
+											<label>Postal Code</label>
+											<input type="text" id="patientPostal">
 										</div>
 									</div>
 									
@@ -2215,10 +2234,29 @@
 										</div>
 									</div>
 									
-									<div class="form-row full">
+									<div class="form-row">
 										<div class="form-group">
 											<label>Address</label>
 											<input type="text" id="partnerAddress">
+										</div>
+										<div class="form-group">
+											<label>City</label>
+											<input type="text" id="partnerCity">
+										</div>
+									</div>
+									
+									<div class="form-row">
+										<div class="form-group">
+											<label>Province</label>
+											<input type="text" id="partnerProvince" value="ON">
+										</div>
+										<div class="form-group">
+											<label>Country</label>
+											<input type="text" id="partnerCountry" value="Canada">
+										</div>
+										<div class="form-group">
+											<label>Postal Code</label>
+											<input type="text" id="partnerPostal">
 										</div>
 									</div>
 									
@@ -2956,6 +2994,19 @@
 			openModal('referralModal');
 			document.querySelector('#referralModal .modal-body').scrollTop = 0;
 		}
+		
+		// Helper function to format address from components
+		function formatAddress(address, city, province, country, postal) {
+			const parts = [];
+			if (address) parts.push(address);
+			if (city) parts.push(city);
+			if (province && province !== 'ON') parts.push(province);
+			else if (province === 'ON') parts.push(province);
+			if (country && country !== 'Canada') parts.push(country);
+			else if (country === 'Canada') parts.push(country);
+			if (postal) parts.push(postal);
+			return parts.join(', ') || 'N/A';
+		}
 
         async function viewReferral(id) {
             // Always fetch full referral details from backend (list data only has 17 fields)
@@ -3149,7 +3200,7 @@
                     <strong>Date of Birth:</strong><span>${ref.patientDOB || 'N/A'}<span style="${ageColor}">${ageText}</span></span>
                     <strong>Phone:</strong><span>${ref.patientPhone || 'N/A'}</span>
                     <strong>Email:</strong><span>${ref.patientEmail || 'N/A'}</span>
-                    <strong>Address:</strong><span>${ref.patientAddress || 'N/A'}</span>
+                    <strong>Address:</strong><span>${formatAddress(ref.patientAddress, ref.patientCity, ref.patientProvince, ref.patientCountry, ref.patientPostal)}</span>
                     <strong>Health Card:</strong><span>${ref.patientHC || 'N/A'}</span>
                     <strong>Gender at Birth:</strong><span>${ref.patientGenderAtBirth || 'N/A'}</span>
                     <strong>Emergency Contact:</strong><span>${ref.emergencyContact || 'N/A'}</span>
@@ -3191,7 +3242,7 @@
                     <strong>Date of Birth:</strong><span>${ref.partnerDOB || 'N/A'}<span style="${ageColor}">${ageText}</span></span>
                     <strong>Phone:</strong><span>${ref.partnerPhone || 'N/A'}</span>
                     <strong>Email:</strong><span>${ref.partnerEmail || 'N/A'}</span>
-                    <strong>Address:</strong><span>${ref.partnerAddress || 'N/A'}</span>
+                    <strong>Address:</strong><span>${formatAddress(ref.partnerAddress, ref.partnerCity, ref.partnerProvince, ref.partnerCountry, ref.partnerPostal)}</span>
                     <strong>Health Card:</strong><span>${ref.partnerHC || 'N/A'}</span>
                     <strong>Gender at Birth:</strong><span>${ref.partnerGenderAtBirth || 'N/A'}</span>
                     <strong>Emergency Contact:</strong><span>${ref.partnerEmergencyContact || 'N/A'}</span>
@@ -4275,7 +4326,8 @@ Have a great day.`
             if (ref.patientPID) previewText += `PID: ${ref.patientPID}\n`;
             if (ref.patientPhone) previewText += `Phone: ${ref.patientPhone}\n`;
             if (ref.patientEmail) previewText += `Email: ${ref.patientEmail}\n`;
-            if (ref.patientAddress) previewText += `Address: ${ref.patientAddress}\n`;
+            const patientFullAddress = formatAddress(ref.patientAddress, ref.patientCity, ref.patientProvince, ref.patientCountry, ref.patientPostal);
+            if (patientFullAddress !== 'N/A') previewText += `Address: ${patientFullAddress}\n`;
             if (ref.patientHC) previewText += `Health Card: ${ref.patientHC}\n`;
             if (ref.patientGenderAtBirth) previewText += `Gender at Birth: ${ref.patientGenderAtBirth}\n`;
             if (ref.emergencyContact) previewText += `Emergency Contact: ${ref.emergencyContact}\n`;
@@ -4292,7 +4344,8 @@ Have a great day.`
                 if (ref.partnerPID) previewText += `PID: ${ref.partnerPID}\n`;
                 if (ref.partnerPhone) previewText += `Phone: ${ref.partnerPhone}\n`;
                 if (ref.partnerEmail) previewText += `Email: ${ref.partnerEmail}\n`;
-                if (ref.partnerAddress) previewText += `Address: ${ref.partnerAddress}\n`;
+                const partnerFullAddress = formatAddress(ref.partnerAddress, ref.partnerCity, ref.partnerProvince, ref.partnerCountry, ref.partnerPostal);
+                if (partnerFullAddress !== 'N/A') previewText += `Address: ${partnerFullAddress}\n`;
                 if (ref.partnerHC) previewText += `Health Card: ${ref.partnerHC}\n`;
                 if (ref.partnerGenderAtBirth) previewText += `Gender at Birth: ${ref.partnerGenderAtBirth}\n`;
                 if (ref.partnerEmergencyContact) previewText += `Emergency Contact: ${ref.partnerEmergencyContact}\n`;
@@ -4752,6 +4805,10 @@ Have a great day.`
 			document.getElementById('patientPhone').value = referral.patientPhone || '';
 			document.getElementById('patientEmail').value = referral.patientEmail || '';
 			document.getElementById('patientAddress').value = referral.patientAddress || '';
+			document.getElementById('patientCity').value = referral.patientCity || '';
+			document.getElementById('patientProvince').value = referral.patientProvince || 'ON';
+			document.getElementById('patientCountry').value = referral.patientCountry || 'Canada';
+			document.getElementById('patientPostal').value = referral.patientPostal || '';
 			document.getElementById('patientHC').value = referral.patientHC || '';
 			document.getElementById('patientGenderAtBirth').value = referral.patientGenderAtBirth || '';
 			document.getElementById('emergencyContact').value = referral.emergencyContact || '';
@@ -4774,6 +4831,10 @@ Have a great day.`
 			document.getElementById('partnerPhone').value = referral.partnerPhone || '';
 			document.getElementById('partnerEmail').value = referral.partnerEmail || '';
 			document.getElementById('partnerAddress').value = referral.partnerAddress || '';
+			document.getElementById('partnerCity').value = referral.partnerCity || '';
+			document.getElementById('partnerProvince').value = referral.partnerProvince || 'ON';
+			document.getElementById('partnerCountry').value = referral.partnerCountry || 'Canada';
+			document.getElementById('partnerPostal').value = referral.partnerPostal || '';
 			document.getElementById('partnerHC').value = referral.partnerHC || '';
 			document.getElementById('partnerGenderAtBirth').value = referral.partnerGenderAtBirth || '';
 			document.getElementById('partnerEmergencyContact').value = referral.partnerEmergencyContact || '';
@@ -5233,6 +5294,10 @@ Have a great day.`
 				patientPhone: patientPhone,
 				patientEmail: patientEmail,
 				patientAddress: document.getElementById('patientAddress').value,
+				patientCity: document.getElementById('patientCity').value,
+				patientProvince: document.getElementById('patientProvince').value,
+				patientCountry: document.getElementById('patientCountry').value,
+				patientPostal: document.getElementById('patientPostal').value,
 				patientHC: document.getElementById('patientHC').value,
 				patientGenderAtBirth: document.getElementById('patientGenderAtBirth').value,
 				emergencyContact: document.getElementById('emergencyContact').value,
@@ -5248,6 +5313,10 @@ Have a great day.`
 				partnerPhone: document.getElementById('partnerPhone').value,
 				partnerEmail: document.getElementById('partnerEmail').value,
 				partnerAddress: document.getElementById('partnerAddress').value,
+				partnerCity: document.getElementById('partnerCity').value,
+				partnerProvince: document.getElementById('partnerProvince').value,
+				partnerCountry: document.getElementById('partnerCountry').value,
+				partnerPostal: document.getElementById('partnerPostal').value,
 				partnerHC: document.getElementById('partnerHC').value,
 				partnerGenderAtBirth: document.getElementById('partnerGenderAtBirth').value,
 				partnerEmergencyContact: document.getElementById('partnerEmergencyContact').value,

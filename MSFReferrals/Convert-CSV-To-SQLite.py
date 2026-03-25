@@ -95,6 +95,10 @@ def create_database(db_path):
         patientPhone TEXT,
         patientEmail TEXT,
         patientAddress TEXT,
+        patientCity TEXT,
+        patientProvince TEXT DEFAULT 'ON',
+        patientCountry TEXT DEFAULT 'Canada',
+        patientPostal TEXT,
         patientHC TEXT,
         patientGenderAtBirth TEXT,
         emergencyContact TEXT,
@@ -110,6 +114,10 @@ def create_database(db_path):
         partnerPhone TEXT,
         partnerEmail TEXT,
         partnerAddress TEXT,
+        partnerCity TEXT,
+        partnerProvince TEXT DEFAULT 'ON',
+        partnerCountry TEXT DEFAULT 'Canada',
+        partnerPostal TEXT,
         partnerHC TEXT,
         partnerGenderAtBirth TEXT,
         partnerEmergencyContact TEXT,
@@ -387,16 +395,16 @@ def convert_csv_to_sqlite(csv_path, db_path):
                 urgent, requestedLocation, requestedPhysician, serviceRequested,
                 subServiceRequested, referralType,
                 patientPID, patientMRN, patientFirstName, patientMiddleName, patientLastName,
-                patientDOB, patientPhone, patientEmail, patientAddress, patientHC, patientGenderAtBirth,
+                patientDOB, patientPhone, patientEmail, patientAddress, patientCity, patientProvince, patientCountry, patientPostal, patientHC, patientGenderAtBirth,
                 emergencyContact, emergencyContactRelationship,
                 partnerPID, partnerMRN, partnerFirstName, partnerMiddleName, partnerLastName,
-                partnerDOB, partnerPhone, partnerEmail, partnerAddress, partnerHC, partnerGenderAtBirth,
+                partnerDOB, partnerPhone, partnerEmail, partnerAddress, partnerCity, partnerProvince, partnerCountry, partnerPostal, partnerHC, partnerGenderAtBirth,
                 partnerEmergencyContact, partnerEmergencyContactRelationship,
                 referralStatus, lastAttemptDate, lastAttemptTime, lastAttemptMode, lastAttemptComment,
                 phoneAttempts, emailAttempts, assignedPhysician,
                 faxedBackDate, completeInfoReceivedDate, taskedToPhysicianAdmin,
                 referralCompleteDate, notes, notesDate
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             now_timestamp,
             parse_date_to_timestamp(row.get('Date Referral Received', '')),
@@ -423,6 +431,10 @@ def convert_csv_to_sqlite(csv_path, db_path):
             clean_phone(row.get('Phone', '')),
             clean_email(row.get('E-Mail', '')),
             '',  # patientAddress
+            '',  # patientCity
+            'ON',  # patientProvince (default)
+            'Canada',  # patientCountry (default)
+            '',  # patientPostal
             '',  # patientHC
             gender,
             '',  # emergencyContact
@@ -436,6 +448,10 @@ def convert_csv_to_sqlite(csv_path, db_path):
             '',  # partnerPhone
             '',  # partnerEmail
             '',  # partnerAddress
+            '',  # partnerCity
+            'ON',  # partnerProvince (default)
+            'Canada',  # partnerCountry (default)
+            '',  # partnerPostal
             '',  # partnerHC
             '',  # partnerGenderAtBirth
             '',  # partnerEmergencyContact
