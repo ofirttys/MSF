@@ -5296,12 +5296,13 @@ Have a great day.`
 				unsavedChanges = 0;
 				renderReferralList();
 				updateKPIs();
-				closeModal('referralModal');
 				
-				// If viewing this referral, refresh the view modal with updated data
+				// If viewing this referral, refresh the view modal BEFORE closing edit modal
 				if (currentViewingReferral && currentViewingReferral.referralID === currentEditingReferral.referralID) {
 					viewReferral(currentEditingReferral.referralID);
 				}
+				
+				closeModal('referralModal');
 				
 				document.getElementById('currentFile').textContent = 'DB\\referrals.json - Referral saved';
 				document.getElementById('statusBar').style.color = '#27ae60';
