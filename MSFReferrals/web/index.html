@@ -1485,7 +1485,7 @@
 							<select id="emailTemplateSelect" onchange="updateEmailTemplate()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
 								<option value="">-- Select Template --</option>
 								<option value="welcomeEmail">Welcome Email (New Patient Referral)</option>
-									<option value="reminder">Reminder</option>
+									<option value="reminderEmail">Reminder</option>
 									<option value="partialInfoReminder">Partial Information Reminder</option>
 									<option value="araPatient">ARA Patient (Patient Letter)</option>
 									<option value="eefAgeOver40Patient">EEF Patient Age > 40 (Patient Letter)</option>
@@ -5299,8 +5299,8 @@ Have a great day.`
 				closeModal('referralModal');
 				
 				// If viewing this referral, refresh the view modal with updated data
-				if (currentViewingReferral && currentViewingReferral.referralID === currentEditingReferralId) {
-					viewReferral(currentEditingReferralId);
+				if (currentViewingReferral && currentViewingReferral.referralID === currentEditingReferral.referralID) {
+					viewReferral(currentEditingReferral.referralID);
 				}
 				
 				document.getElementById('currentFile').textContent = 'DB\\referrals.json - Referral saved';
