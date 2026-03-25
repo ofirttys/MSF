@@ -897,6 +897,10 @@
         .form-row.three-col {
             grid-template-columns: 4fr 2fr 4fr;
         }
+        
+        .form-row.address-row {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
 
         .form-section {
             background: #f8f9fa;
@@ -2142,7 +2146,7 @@
 										</div>
 									</div>
 									
-									<div class="form-row">
+									<div class="form-row address-row">
 										<div class="form-group">
 											<label>Province</label>
 											<input type="text" id="patientProvince" value="ON">
@@ -2245,7 +2249,7 @@
 										</div>
 									</div>
 									
-									<div class="form-row">
+									<div class="form-row address-row">
 										<div class="form-group">
 											<label>Province</label>
 											<input type="text" id="partnerProvince" value="ON">
@@ -4326,8 +4330,11 @@ Have a great day.`
             if (ref.patientPID) previewText += `PID: ${ref.patientPID}\n`;
             if (ref.patientPhone) previewText += `Phone: ${ref.patientPhone}\n`;
             if (ref.patientEmail) previewText += `Email: ${ref.patientEmail}\n`;
-            const patientFullAddress = formatAddress(ref.patientAddress, ref.patientCity, ref.patientProvince, ref.patientCountry, ref.patientPostal);
-            if (patientFullAddress !== 'N/A') previewText += `Address: ${patientFullAddress}\n`;
+            if (ref.patientAddress) previewText += `Address: ${ref.patientAddress}\n`;
+            if (ref.patientCity) previewText += `City: ${ref.patientCity}\n`;
+            if (ref.patientProvince) previewText += `Province: ${ref.patientProvince}\n`;
+            if (ref.patientCountry) previewText += `Country: ${ref.patientCountry}\n`;
+            if (ref.patientPostal) previewText += `Postal Code: ${ref.patientPostal}\n`;
             if (ref.patientHC) previewText += `Health Card: ${ref.patientHC}\n`;
             if (ref.patientGenderAtBirth) previewText += `Gender at Birth: ${ref.patientGenderAtBirth}\n`;
             if (ref.emergencyContact) previewText += `Emergency Contact: ${ref.emergencyContact}\n`;
@@ -4344,8 +4351,11 @@ Have a great day.`
                 if (ref.partnerPID) previewText += `PID: ${ref.partnerPID}\n`;
                 if (ref.partnerPhone) previewText += `Phone: ${ref.partnerPhone}\n`;
                 if (ref.partnerEmail) previewText += `Email: ${ref.partnerEmail}\n`;
-                const partnerFullAddress = formatAddress(ref.partnerAddress, ref.partnerCity, ref.partnerProvince, ref.partnerCountry, ref.partnerPostal);
-                if (partnerFullAddress !== 'N/A') previewText += `Address: ${partnerFullAddress}\n`;
+                if (ref.partnerAddress) previewText += `Address: ${ref.partnerAddress}\n`;
+                if (ref.partnerCity) previewText += `City: ${ref.partnerCity}\n`;
+                if (ref.partnerProvince) previewText += `Province: ${ref.partnerProvince}\n`;
+                if (ref.partnerCountry) previewText += `Country: ${ref.partnerCountry}\n`;
+                if (ref.partnerPostal) previewText += `Postal Code: ${ref.partnerPostal}\n`;
                 if (ref.partnerHC) previewText += `Health Card: ${ref.partnerHC}\n`;
                 if (ref.partnerGenderAtBirth) previewText += `Gender at Birth: ${ref.partnerGenderAtBirth}\n`;
                 if (ref.partnerEmergencyContact) previewText += `Emergency Contact: ${ref.partnerEmergencyContact}\n`;
