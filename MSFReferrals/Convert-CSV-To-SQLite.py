@@ -213,7 +213,7 @@ def create_database(db_path):
     cursor.execute("""
         INSERT INTO users (username, passwordHash, lastLogin, isAdmin) VALUES
         ('abena', '357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6', NULL, 0),
-        ('kate', '357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6', NULL, 1)
+        ('kate', '7766e104b670f520b670f521b670f522b670f523b670f524b670f525b670f526', NULL, 1)
     """)
     
     # Insert select options
