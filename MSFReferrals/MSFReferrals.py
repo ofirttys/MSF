@@ -28,15 +28,14 @@ LOCK_STALE_HOURS = 4
 # DEBUG MODE: Set to True to see password hashes for setup
 DEBUG_MODE = False
 
-# User credentials (hashed passwords)
+# Keep ONLY admin in code as backup (can't be deleted from UI)
 VALID_USERS = {
-    'admin': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da',
-    'jennia': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da',
-    'abena': '357efeb61add568d1add568e1add568f1add56901add56911add56921add5693'
+    'admin': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da'
 }
 
 # Global state
 current_user = None
+current_user_is_admin = False  # Track if current user is admin
 is_read_only = False
 lock_owner = None
 
@@ -104,8 +103,8 @@ def row_to_dict(row):
 
 @eel.expose
 def login(username, password):
-    """Handle user login"""
-    global current_user, is_read_only, lock_owner
+    """Handle user login - checks database users first, then code-based admin"""
+    global current_user, current_user_is_admin, is_read_only, lock_owner
     
     username = username.lower()
     entered_hash = hash_password(password)
@@ -116,30 +115,76 @@ def login(username, password):
         print(f'Hash: {entered_hash}')
         print(f'==================\n')
     
-    if username not in VALID_USERS or entered_hash != VALID_USERS[username]:
-        return {'status': 'error', 'message': 'Invalid username or password'}
+    # Try database users first
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT username, passwordHash, isAdmin FROM users WHERE username = ?", (username,))
+        user = cursor.fetchone()
+        
+        if user and user['passwordHash'] == entered_hash:
+            # Valid database user - update last login
+            current_user = username
+            current_user_is_admin = bool(user['isAdmin'])
+            
+            cursor.execute("UPDATE users SET lastLogin = ? WHERE username = ?", 
+                          (int(datetime.now().timestamp()), username))
+            conn.commit()
+            conn.close()
+            
+            lock_status = check_lock_file()
+            
+            if lock_status['locked'] and not lock_status['stale']:
+                is_read_only = True
+                return {
+                    'status': 'success',
+                    'username': username,
+                    'isAdmin': current_user_is_admin,
+                    'readOnly': True,
+                    'lockOwner': lock_status['owner']
+                }
+            
+            create_lock_file(username)
+            lock_owner = username
+            return {
+                'status': 'success',
+                'username': username,
+                'isAdmin': current_user_is_admin,
+                'readOnly': False
+            }
+        
+        conn.close()
+    except Exception as e:
+        print(f"Database user check error: {e}")
     
-    lock_status = check_lock_file()
-    
-    if lock_status['locked'] and not lock_status['stale']:
+    # Fall back to code-based users (admin only)
+    if username in VALID_USERS and entered_hash == VALID_USERS[username]:
         current_user = username
-        is_read_only = True
-        lock_owner = lock_status['user']
+        current_user_is_admin = True  # Code-based users are always admin
+        
+        lock_status = check_lock_file()
+        
+        if lock_status['locked'] and not lock_status['stale']:
+            is_read_only = True
+            return {
+                'status': 'success',
+                'username': username,
+                'isAdmin': True,
+                'readOnly': True,
+                'lockOwner': lock_status['owner']
+            }
+        
+        create_lock_file(username)
+        lock_owner = username
         return {
-            'status': 'locked',
-            'user': lock_status['user'],
-            'timestamp': lock_status['timestamp'],
-            'message': f"Database is locked by {lock_status['user']}"
+            'status': 'success',
+            'username': username,
+            'isAdmin': True,
+            'readOnly': False
         }
     
-    if lock_status.get('stale', False):
-        delete_lock_file()
-    
-    create_lock_file(username)
-    current_user = username
-    is_read_only = False
-    
-    return {'status': 'success', 'username': username, 'readOnly': False}
+    # No valid user found
+    return {'status': 'error', 'message': 'Invalid username or password'}
 
 @eel.expose
 def login_readonly(username):
@@ -1938,6 +1983,222 @@ def assign_md_admin(referral_id, md_admin, username='System'):
     except Exception as e:
         traceback.print_exc()
         return {'status': 'error', 'message': f'Error assigning MD Admin: {str(e)}'}
+
+
+# ==================== USER MANAGEMENT FUNCTIONS ====================
+
+@eel.expose
+def change_password(old_password, new_password):
+    """Change password for current user"""
+    global current_user
+    
+    if not current_user:
+        return {'status': 'error', 'message': 'Not logged in'}
+    
+    # Validate new password
+    if len(new_password) < 8:
+        return {'status': 'error', 'message': 'Password must be at least 8 characters'}
+    
+    has_lower = any(c.islower() for c in new_password)
+    has_upper = any(c.isupper() for c in new_password)
+    has_digit = any(c.isdigit() for c in new_password)
+    
+    if not (has_lower and has_upper and has_digit):
+        return {'status': 'error', 'message': 'Password must contain lowercase, uppercase, and numbers'}
+    
+    # Verify old password
+    old_hash = hash_password(old_password)
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT passwordHash FROM users WHERE username = ?", (current_user,))
+        user = cursor.fetchone()
+        
+        if not user:
+            conn.close()
+            return {'status': 'error', 'message': 'User not found in database'}
+        
+        if user['passwordHash'] != old_hash:
+            conn.close()
+            return {'status': 'error', 'message': 'Current password is incorrect'}
+        
+        # Update password
+        new_hash = hash_password(new_password)
+        cursor.execute("UPDATE users SET passwordHash = ? WHERE username = ?", (new_hash, current_user))
+        conn.commit()
+        conn.close()
+        
+        return {'status': 'success', 'message': 'Password changed successfully'}
+        
+    except Exception as e:
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+
+@eel.expose
+def get_users():
+    """Get all users (admin only)"""
+    if not current_user_is_admin:
+        return {'status': 'error', 'message': 'Admin access required'}
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT username, lastLogin, isAdmin FROM users ORDER BY username")
+        users = cursor.fetchall()
+        conn.close()
+        
+        users_list = []
+        for user in users:
+            users_list.append({
+                'username': user['username'],
+                'lastLogin': user['lastLogin'],
+                'isAdmin': bool(user['isAdmin'])
+            })
+        
+        return {'status': 'success', 'users': users_list}
+        
+    except Exception as e:
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+
+@eel.expose
+def add_user(username, password, is_admin):
+    """Add new user (admin only)"""
+    if not current_user_is_admin:
+        return {'status': 'error', 'message': 'Admin access required'}
+    
+    username = username.lower().strip()
+    
+    if not username:
+        return {'status': 'error', 'message': 'Username cannot be empty'}
+    
+    # Validate password
+    if len(password) < 8:
+        return {'status': 'error', 'message': 'Password must be at least 8 characters'}
+    
+    has_lower = any(c.islower() for c in password)
+    has_upper = any(c.isupper() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    
+    if not (has_lower and has_upper and has_digit):
+        return {'status': 'error', 'message': 'Password must contain lowercase, uppercase, and numbers'}
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if user already exists
+        cursor.execute("SELECT username FROM users WHERE username = ?", (username,))
+        if cursor.fetchone():
+            conn.close()
+            return {'status': 'error', 'message': 'Username already exists'}
+        
+        # Insert new user
+        password_hash = hash_password(password)
+        cursor.execute(
+            "INSERT INTO users (username, passwordHash, lastLogin, isAdmin) VALUES (?, ?, NULL, ?)",
+            (username, password_hash, 1 if is_admin else 0)
+        )
+        conn.commit()
+        conn.close()
+        
+        return {'status': 'success', 'message': f'User {username} added successfully'}
+        
+    except Exception as e:
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+
+@eel.expose
+def update_user_password(username, new_password):
+    """Update user password (admin only)"""
+    if not current_user_is_admin:
+        return {'status': 'error', 'message': 'Admin access required'}
+    
+    # Validate password
+    if len(new_password) < 8:
+        return {'status': 'error', 'message': 'Password must be at least 8 characters'}
+    
+    has_lower = any(c.islower() for c in new_password)
+    has_upper = any(c.isupper() for c in new_password)
+    has_digit = any(c.isdigit() for c in new_password)
+    
+    if not (has_lower and has_upper and has_digit):
+        return {'status': 'error', 'message': 'Password must contain lowercase, uppercase, and numbers'}
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        new_hash = hash_password(new_password)
+        cursor.execute("UPDATE users SET passwordHash = ? WHERE username = ?", (new_hash, username))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return {'status': 'error', 'message': 'User not found'}
+        
+        conn.commit()
+        conn.close()
+        
+        return {'status': 'success', 'message': f'Password updated for {username}'}
+        
+    except Exception as e:
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+
+@eel.expose
+def update_user_admin(username, is_admin):
+    """Update user admin status (admin only)"""
+    if not current_user_is_admin:
+        return {'status': 'error', 'message': 'Admin access required'}
+    
+    if username == 'admin':
+        return {'status': 'error', 'message': 'Cannot modify admin user'}
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("UPDATE users SET isAdmin = ? WHERE username = ?", (1 if is_admin else 0, username))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return {'status': 'error', 'message': 'User not found'}
+        
+        conn.commit()
+        conn.close()
+        
+        return {'status': 'success', 'message': f'Admin status updated for {username}'}
+        
+    except Exception as e:
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+
+@eel.expose
+def remove_user(username):
+    """Remove user (admin only)"""
+    if not current_user_is_admin:
+        return {'status': 'error', 'message': 'Admin access required'}
+    
+    if username == 'admin':
+        return {'status': 'error', 'message': 'Cannot delete admin user'}
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return {'status': 'error', 'message': 'User not found'}
+        
+        conn.commit()
+        conn.close()
+        
+        return {'status': 'success', 'message': f'User {username} removed successfully'}
+        
+    except Exception as e:
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+
+# ==================== END USER MANAGEMENT ====================
 
 @eel.expose
 def export_to_csv():

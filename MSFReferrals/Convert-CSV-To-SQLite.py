@@ -139,6 +139,14 @@ def create_database(db_path):
         notes TEXT,
         notesDate INTEGER
     );
+    
+    -- Users table for authentication
+    CREATE TABLE users (
+        username TEXT PRIMARY KEY,
+        passwordHash TEXT NOT NULL,
+        lastLogin INTEGER,
+        isAdmin INTEGER DEFAULT 0
+    );
 
     -- Attempt history
     CREATE TABLE attempt_history (
@@ -196,6 +204,16 @@ def create_database(db_path):
     PRAGMA journal_mode=WAL;
     PRAGMA synchronous=NORMAL;
     PRAGMA cache_size=10000;
+    """)
+    
+    # Insert default users
+    # admin: password same as current (hash: 5f8eb2b...)
+    # abena: password Abena123 (hash: 357efeb6...)
+    # kate: password Abena123 (hash: 357efeb6...), isAdmin=1
+    cursor.execute("""
+        INSERT INTO users (username, passwordHash, lastLogin, isAdmin) VALUES
+        ('abena', '357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6', NULL, 0),
+        ('kate', '357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6357efeb6', NULL, 1)
     """)
     
     # Insert select options

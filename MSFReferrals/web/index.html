@@ -1141,6 +1141,11 @@
         .mt-10 { margin-top: 10px; }
         .mb-10 { margin-bottom: 10px; }
 
+        /* Gear menu styles */
+        #gearMenu > div:hover {
+            background-color: #f8f9fa;
+        }
+
         @media (max-width: 1300px) {
             #exportButton,
             .btn-secondary[onclick="logout()"] {
@@ -1234,7 +1239,15 @@
                             <input type="text" class="date-input" id="dateTo" placeholder="End">
                         </div>
                         <button class="btn btn-success" onclick="resetFilters()">Reset</button>
-                        <button onclick="logout()" class="btn btn-secondary">Logout</button>
+                        
+                        <!-- Gear Menu -->
+                        <div style="position: relative; display: inline-block;">
+                            <button onclick="toggleGearMenu()" class="btn btn-secondary" style="font-size: 18px; padding: 6px 12px;" title="Settings">⚙️</button>
+                            <div id="gearMenu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 5px; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); min-width: 120px; z-index: 1000;">
+                                <div onclick="showSettingsModal()" style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee;">Settings</div>
+                                <div onclick="logout()" style="padding: 10px 15px; cursor: pointer;">Logout</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -1947,6 +1960,85 @@
 			</div>
 		</div>
 
+		<!-- Change Password Modal (for regular users) -->
+		<div id="changePasswordModal" class="modal">
+			<div class="modal-content" style="max-width: 500px;">
+				<div class="modal-header">
+					<h2 class="modal-title">Change Password</h2>
+					<button type="button" class="close-btn" onclick="closeModal('changePasswordModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body">
+					<div class="form-group">
+						<label for="oldPassword">Current Password</label>
+						<input type="password" id="oldPassword" placeholder="Enter current password" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+					</div>
+					
+					<div class="form-group">
+						<label for="newPassword">New Password</label>
+						<input type="password" id="newPassword" placeholder="At least 8 characters" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+						<small style="color: #666;">Must contain lowercase, uppercase, and numbers</small>
+					</div>
+					
+					<div class="form-group">
+						<label for="confirmPassword">Confirm New Password</label>
+						<input type="password" id="confirmPassword" placeholder="Re-enter new password" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+					</div>
+					
+					<div id="passwordChangeError" style="color: #e74c3c; margin-top: 10px; display: none;"></div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" onclick="closeModal('changePasswordModal')" class="btn btn-secondary">Cancel</button>
+					<button type="button" onclick="savePasswordChange()" class="btn btn-success">Change Password</button>
+				</div>
+			</div>
+		</div>
+		
+		<!-- User Management Modal (for admins) -->
+		<div id="userManagementModal" class="modal">
+			<div class="modal-content" style="max-width: 800px;">
+				<div class="modal-header">
+					<h2 class="modal-title">User Management</h2>
+					<button type="button" class="close-btn" onclick="closeModal('userManagementModal')">&times;</button>
+				</div>
+				
+				<div class="modal-body">
+					<h3 style="margin-top: 0;">Existing Users</h3>
+					<div id="usersList" style="margin-bottom: 30px;">
+						<!-- Users will be populated here -->
+					</div>
+					
+					<hr style="border: none; border-top: 2px solid #ecf0f1; margin: 20px 0;">
+					
+					<h3>Add New User</h3>
+					<div style="display: grid; grid-template-columns: 1fr 1fr 100px 120px; gap: 10px; align-items: end;">
+						<div class="form-group" style="margin: 0;">
+							<label for="newUsername">Username</label>
+							<input type="text" id="newUsername" placeholder="Username" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+						</div>
+						<div class="form-group" style="margin: 0;">
+							<label for="newUserPassword">Password</label>
+							<input type="password" id="newUserPassword" placeholder="Password" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+						</div>
+						<div class="form-group" style="margin: 0;">
+							<label>
+								<input type="checkbox" id="newUserIsAdmin" style="margin-right: 5px;">
+								Admin
+							</label>
+						</div>
+						<button onclick="addNewUser()" class="btn btn-success" style="padding: 8px 16px;">Add User</button>
+					</div>
+					
+					<div id="userManagementError" style="color: #e74c3c; margin-top: 10px; display: none;"></div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" onclick="closeModal('userManagementModal')" class="btn btn-secondary">Close</button>
+				</div>
+			</div>
+		</div>
+
 		<!-- Add/Edit Referral Modal -->
 		<div id="referralModal" class="modal">
 			<div class="modal-content large">
@@ -2450,6 +2542,7 @@
                 
                 if (result.status === 'success') {
                     currentUser = username;
+                    currentUserIsAdmin = result.isAdmin || false;  // Store admin status
                     isReadOnly = result.readOnly;
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('mainApp').style.display = 'block';
@@ -2466,6 +2559,7 @@
                         // User chose to open in read-only mode
                         await eel.login_readonly(username)();
                         currentUser = username;
+                        currentUserIsAdmin = false;  // Read-only mode, assume not admin
                         isReadOnly = true;
                         document.getElementById('loginScreen').style.display = 'none';
                         document.getElementById('mainApp').style.display = 'block';
@@ -2503,6 +2597,7 @@
             await eel.logout()();
             
             currentUser = null;
+            currentUserIsAdmin = false;
             isReadOnly = false;
             unsavedChanges = 0;
             
@@ -2513,6 +2608,192 @@
             document.getElementById('loginError').style.display = 'none';
             document.getElementById('readOnlyBanner').style.display = 'none';
         }
+        
+        // ==================== USER MANAGEMENT FUNCTIONS ====================
+        
+        let currentUserIsAdmin = false;  // Track admin status
+        
+        function toggleGearMenu() {
+            const menu = document.getElementById('gearMenu');
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Close gear menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const gearMenu = document.getElementById('gearMenu');
+            if (gearMenu && !event.target.closest('button[onclick="toggleGearMenu()"]') && !event.target.closest('#gearMenu')) {
+                gearMenu.style.display = 'none';
+            }
+        });
+        
+        function showSettingsModal() {
+            document.getElementById('gearMenu').style.display = 'none';  // Close gear menu
+            
+            if (currentUserIsAdmin) {
+                loadUsersForManagement();
+                openModal('userManagementModal');
+            } else {
+                // Clear password fields
+                document.getElementById('oldPassword').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+                document.getElementById('passwordChangeError').style.display = 'none';
+                openModal('changePasswordModal');
+            }
+        }
+        
+        async function savePasswordChange() {
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorDiv = document.getElementById('passwordChangeError');
+            
+            // Validation
+            if (!oldPassword || !newPassword || !confirmPassword) {
+                errorDiv.textContent = 'All fields are required';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                errorDiv.textContent = 'New passwords do not match';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            if (newPassword.length < 8) {
+                errorDiv.textContent = 'Password must be at least 8 characters';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            const hasLower = /[a-z]/.test(newPassword);
+            const hasUpper = /[A-Z]/.test(newPassword);
+            const hasDigit = /[0-9]/.test(newPassword);
+            
+            if (!hasLower || !hasUpper || !hasDigit) {
+                errorDiv.textContent = 'Password must contain lowercase, uppercase, and numbers';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Call backend
+            const result = await eel.change_password(oldPassword, newPassword)();
+            
+            if (result.status === 'success') {
+                closeModal('changePasswordModal');
+                showSuccessModal('Password Changed', 'Your password has been changed successfully.');
+            } else {
+                errorDiv.textContent = result.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+        
+        async function loadUsersForManagement() {
+            const result = await eel.get_users()();
+            
+            if (result.status !== 'success') {
+                document.getElementById('userManagementError').textContent = result.message;
+                document.getElementById('userManagementError').style.display = 'block';
+                return;
+            }
+            
+            const usersList = document.getElementById('usersList');
+            usersList.innerHTML = '';
+            
+            result.users.forEach(user => {
+                const userRow = document.createElement('div');
+                userRow.style.cssText = 'display: grid; grid-template-columns: 150px 1fr 100px 120px 100px; gap: 10px; align-items: center; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;';
+                
+                const isAdminUser = user.username === 'admin';
+                
+                userRow.innerHTML = `
+                    <div><strong>${user.username}</strong></div>
+                    <input type="password" placeholder="New password (leave blank)" id="pwd_${user.username}" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;" ${isAdminUser ? 'disabled' : ''}>
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <input type="checkbox" id="admin_${user.username}" ${user.isAdmin ? 'checked' : ''} ${isAdminUser ? 'disabled' : ''} onchange="updateUserAdmin('${user.username}', this.checked)">
+                        Admin
+                    </label>
+                    <button onclick="updateUserPasswordFromUI('${user.username}')" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" ${isAdminUser ? 'disabled' : ''}>Update</button>
+                    <button onclick="removeUserFromUI('${user.username}')" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" ${isAdminUser ? 'disabled' : ''}>Remove</button>
+                `;
+                
+                usersList.appendChild(userRow);
+            });
+        }
+        
+        async function addNewUser() {
+            const username = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('newUserPassword').value;
+            const isAdmin = document.getElementById('newUserIsAdmin').checked;
+            const errorDiv = document.getElementById('userManagementError');
+            
+            if (!username || !password) {
+                errorDiv.textContent = 'Username and password are required';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            const result = await eel.add_user(username, password, isAdmin)();
+            
+            if (result.status === 'success') {
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newUserPassword').value = '';
+                document.getElementById('newUserIsAdmin').checked = false;
+                errorDiv.style.display = 'none';
+                loadUsersForManagement();
+                showSuccessModal('User Added', result.message);
+            } else {
+                errorDiv.textContent = result.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+        
+        async function updateUserPasswordFromUI(username) {
+            const passwordField = document.getElementById(`pwd_${username}`);
+            const newPassword = passwordField.value.trim();
+            
+            if (!newPassword) {
+                alert('Please enter a new password');
+                return;
+            }
+            
+            const result = await eel.update_user_password(username, newPassword)();
+            
+            if (result.status === 'success') {
+                passwordField.value = '';
+                showSuccessModal('Password Updated', result.message);
+            } else {
+                alert(result.message);
+            }
+        }
+        
+        async function updateUserAdmin(username, isAdmin) {
+            const result = await eel.update_user_admin(username, isAdmin)();
+            
+            if (result.status !== 'success') {
+                alert(result.message);
+                // Revert checkbox
+                document.getElementById(`admin_${username}`).checked = !isAdmin;
+            }
+        }
+        
+        async function removeUserFromUI(username) {
+            if (!confirm(`Are you sure you want to remove user "${username}"?`)) {
+                return;
+            }
+            
+            const result = await eel.remove_user(username)();
+            
+            if (result.status === 'success') {
+                loadUsersForManagement();
+                showSuccessModal('User Removed', result.message);
+            } else {
+                alert(result.message);
+            }
+        }
+        
+        // ==================== END USER MANAGEMENT ====================
 
         // Initialize app
         async function initializeApp() {
