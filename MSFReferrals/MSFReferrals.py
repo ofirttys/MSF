@@ -1289,14 +1289,14 @@ def record_contact_attempt(contact_data):
             return {
                 'status': 'success',
                 'message': 'Contact attempt recorded successfully'
-        }
-        
-    except Exception as e:
-        traceback.print_exc()
-        return {
-            'status': 'error',
-            'message': f'Error recording contact attempt: {str(e)}'
-        }
+            }
+            
+        except Exception as e:
+            traceback.print_exc()
+            return {
+                'status': 'error',
+                'message': f'Error recording contact attempt: {str(e)}'
+            }
 
 @eel.expose
 def save_emails_to_file(emails_array):

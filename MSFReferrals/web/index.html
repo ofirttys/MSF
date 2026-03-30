@@ -2544,12 +2544,21 @@
         // Logout
         async function logout() {
             if (unsavedChanges > 0) {
-                const choice = confirm(`You have ${unsavedChanges} unsaved change(s)!\n\nClick OK to save and logout, or Cancel to logout without saving.`);
-                if (choice) {
-                    await saveDatabase();
-                }
+                showConfirmModal(
+                    'Unsaved Changes',
+                    `You have ${unsavedChanges} unsaved change(s)!\n\nDo you want to save before logging out?`,
+                    async () => {
+                        await saveDatabase();
+                        performLogout();
+                    }
+                );
+                return;
             }
             
+            performLogout();
+        }
+        
+        async function performLogout() {
             if (autoSaveInterval) {
                 clearInterval(autoSaveInterval);
                 autoSaveInterval = null;
@@ -2713,7 +2722,7 @@
             const newPassword = passwordField.value.trim();
             
             if (!newPassword) {
-                alert('Please enter a new password');
+                showErrorModal('Password Required', 'Please enter a new password');
                 return;
             }
             
@@ -2723,7 +2732,7 @@
                 passwordField.value = '';
                 showSuccessModal('Password Updated', result.message);
             } else {
-                alert(result.message);
+                showErrorModal('Password Update Error', result.message);
             }
         }
         
@@ -2731,25 +2740,27 @@
             const result = await eel.update_user_admin(username, isAdmin)();
             
             if (result.status !== 'success') {
-                alert(result.message);
+                showErrorModal('Admin Update Error', result.message);
                 // Revert checkbox
                 document.getElementById(`admin_${username}`).checked = !isAdmin;
             }
         }
         
         async function removeUserFromUI(username) {
-            if (!confirm(`Are you sure you want to remove user "${username}"?`)) {
-                return;
-            }
-            
-            const result = await eel.remove_user(username)();
-            
-            if (result.status === 'success') {
-                loadUsersForManagement();
-                showSuccessModal('User Removed', result.message);
-            } else {
-                alert(result.message);
-            }
+            showConfirmModal(
+                'Confirm Remove User',
+                `Are you sure you want to remove user "${username}"?\n\nThis action cannot be undone.`,
+                async () => {
+                    const result = await eel.remove_user(username)();
+                    
+                    if (result.status === 'success') {
+                        loadUsersForManagement();
+                        showSuccessModal('User Removed', result.message);
+                    } else {
+                        showErrorModal('Remove User Error', result.message);
+                    }
+                }
+            );
         }
         
         // ==================== END USER MANAGEMENT ====================
@@ -4881,8 +4892,8 @@ Have a great day.`
                     // Copy full path to clipboard
                     await navigator.clipboard.writeText(result.fullPath);
                     
-                    // Show success alert with path
-                    alert(result.message + '\n\nFull path copied to clipboard:\n' + result.fullPath);
+                    // Show success modal with path
+                    showSuccessModal('File Copied', result.message + '\n\nFull path copied to clipboard:\n' + result.fullPath);
                     
                     // TODO: Update referral status to "Cerner Done" in database
                     // This will be implemented when we add the full state transition modal
@@ -5037,7 +5048,7 @@ Have a great day.`
 		}
 
         function quickContact(id) {
-            alert('Quick contact for referral #' + id + ' - coming soon');
+            showErrorModal('Coming Soon', 'Quick contact for referral #' + id + ' - feature coming soon');
         }
 		
 		function openModal(id) {
@@ -5161,6 +5172,33 @@ Have a great day.`
 				</div>
 			`;
 			document.body.appendChild(modal);
+			modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+		}
+		
+		function showConfirmModal(title, message, onConfirm) {
+			const modal = document.createElement('div');
+			modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+			modal.innerHTML = `
+				<div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; min-width: 400px;">
+					<h3 style="margin: 0 0 20px 0; color: #f39c12;">⚠️ ${title}</h3>
+					<p style="margin: 0 0 20px 0; color: #2c3e50; line-height: 1.5; white-space: pre-wrap;">${message}</p>
+					<div style="text-align: right;">
+						<button id="confirmCancel" style="background: #95a5a6; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px;">Cancel</button>
+						<button id="confirmOK" style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">Confirm</button>
+					</div>
+				</div>
+			`;
+			document.body.appendChild(modal);
+			
+			document.getElementById('confirmOK').onclick = () => {
+				modal.remove();
+				if (onConfirm) onConfirm();
+			};
+			
+			document.getElementById('confirmCancel').onclick = () => {
+				modal.remove();
+			};
+			
 			modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 		}
 		
