@@ -1122,18 +1122,6 @@
             font-size: 16px;
         }
 
-        /* Read-only Banner */
-        #readOnlyBanner {
-            display: none;
-            background: #f39c12;
-            color: white;
-            padding: 10px 20px;
-            text-align: center;
-            font-weight: 600;
-            margin-bottom: 10px;
-            border-radius: 6px;
-        }
-
         /* Utility */
         .text-muted { color: #7f8c8d; }
         .text-danger { color: #e74c3c; }
@@ -1211,11 +1199,6 @@
     <!-- Main Application -->
     <div id="mainApp" style="display: none;">
         <div class="container">
-            <!-- Read-Only Banner -->
-            <div id="readOnlyBanner">
-                🔒 READ-ONLY MODE - Database is being edited by <span id="lockOwnerName"></span>
-            </div>
-
             <!-- Header -->
             <header>
                 <div class="header-content">
@@ -2427,7 +2410,6 @@
         // Global state - UPDATED FOR SQLITE
         let database = null;  // Keep for compatibility
         let currentUser = null;
-        let isReadOnly = false;
         let unsavedChanges = 0;
         let currentEditingReferral = null;
         let currentViewingReferral = null;
@@ -2543,31 +2525,10 @@
                 if (result.status === 'success') {
                     currentUser = username;
                     currentUserIsAdmin = result.isAdmin || false;  // Store admin status
-                    isReadOnly = result.readOnly;
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('mainApp').style.display = 'block';
                     
-                    if (isReadOnly) {
-                        document.getElementById('readOnlyBanner').style.display = 'block';
-                        disableEditingControls();
-                    }
-                    
                     await initializeApp();
-                } else if (result.status === 'locked') {
-                    // Show professional modal instead of browser confirm
-                    showReadOnlyModal(result.user, async () => {
-                        // User chose to open in read-only mode
-                        await eel.login_readonly(username)();
-                        currentUser = username;
-                        currentUserIsAdmin = false;  // Read-only mode, assume not admin
-                        isReadOnly = true;
-                        document.getElementById('loginScreen').style.display = 'none';
-                        document.getElementById('mainApp').style.display = 'block';
-                        document.getElementById('readOnlyBanner').style.display = 'block';
-                        document.getElementById('lockOwnerName').textContent = result.user;
-                        disableEditingControls();
-                        await initializeApp();
-                    });
                 } else {
                     errorDiv.textContent = result.message || 'Login failed';
                     errorDiv.style.display = 'block';
@@ -2598,7 +2559,6 @@
             
             currentUser = null;
             currentUserIsAdmin = false;
-            isReadOnly = false;
             unsavedChanges = 0;
             
             document.getElementById('mainApp').style.display = 'none';
@@ -2606,7 +2566,6 @@
             document.getElementById('loginUsername').value = '';
             document.getElementById('loginPassword').value = '';
             document.getElementById('loginError').style.display = 'none';
-            document.getElementById('readOnlyBanner').style.display = 'none';
         }
         
         // ==================== USER MANAGEMENT FUNCTIONS ====================
@@ -2826,13 +2785,6 @@
                 allowInput: true,
                 onChange: function() { filterReferrals(); updateKPIs(); }
             });				
-            
-            if (!isReadOnly) {
-                autoSaveInterval = setInterval(async () => {
-                    // SQLite auto-saves on each operation, no need for periodic save
-                    // Just refresh lock file
-                }, 5 * 60 * 1000);
-            }
         }
 
 		// Initialize date pickers (add after initializeApp function)
@@ -2852,47 +2804,6 @@
 			}
 		});
 
-        // Disable editing controls in read-only mode
-        function disableEditingControls() {
-            // Top toolbar buttons
-            const saveBtn = document.getElementById('saveButton');
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.style.opacity = '0.5';
-            }
-            
-            const addBtn = document.getElementById('addReferralBtn');
-            if (addBtn) {
-                addBtn.disabled = true;
-                addBtn.style.opacity = '0.5';
-            }
-            
-            // View modal action buttons (these are in the modal, so might not exist at login time)
-            // We'll also need to disable them when viewing a referral
-            const editBtn = document.querySelector('button[onclick="editCurrentReferral()"]');
-            if (editBtn) {
-                editBtn.disabled = true;
-                editBtn.style.opacity = '0.5';
-            }
-            
-            const deferBtn = document.getElementById('deferBtn');
-            if (deferBtn) {
-                deferBtn.disabled = true;
-                deferBtn.style.opacity = '0.5';
-            }
-            
-            const contactPatientBtn = document.getElementById('contactPatientBtn');
-            if (contactPatientBtn) {
-                contactPatientBtn.disabled = true;
-                contactPatientBtn.style.opacity = '0.5';
-            }
-            
-            const contactPhysicianBtn = document.getElementById('contactReferringPhysicianBtn');
-            if (contactPhysicianBtn) {
-                contactPhysicianBtn.disabled = true;
-                contactPhysicianBtn.style.opacity = '0.5';
-            }
-        }
 
         // Save database - NOT NEEDED WITH SQLITE (auto-saves on each operation)
 		async function saveDatabase(silent = false) {
@@ -3257,12 +3168,6 @@
         }
 
 		function openAddReferralModal() {
-			if (isReadOnly) {
-				document.getElementById('currentFile').textContent = 'Error: Cannot add referrals in read-only mode';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				return;
-			}
-			
 			currentEditingReferral = null;
 			document.getElementById('referralModalTitle').textContent = 'Add New Referral';
 			document.getElementById('referralForm').reset();
@@ -3310,11 +3215,6 @@
             document.querySelectorAll('#viewReferralModal .tab-content').forEach(c => c.classList.remove('active'));
             document.querySelector('#viewReferralModal .tab').classList.add('active');
             document.getElementById('informationTab').classList.add('active');
-            
-            // Disable action buttons if in read-only mode
-            if (isReadOnly) {
-                disableEditingControls();
-            }
             
             document.getElementById('viewReferralModal').classList.add('active');
         }
@@ -3651,11 +3551,6 @@
         }
         
         function contactPatient() {
-            if (isReadOnly) {
-                showErrorModal('Read-Only Mode', 'Cannot contact patients in read-only mode.');
-                return;
-            }
-            
             if (!currentViewingReferral) return;
             
             // Populate patient info
@@ -4020,11 +3915,6 @@ Have a great day.`
         
         
         function contactReferringPhysician() {
-            if (isReadOnly) {
-                showErrorModal('Read-Only Mode', 'Cannot contact physicians in read-only mode.');
-                return;
-            }
-            
             if (!currentViewingReferral) return;
             
             const physicianName = currentViewingReferral.referringPhysicianName || 'Not provided';
@@ -5003,11 +4893,6 @@ Have a great day.`
         }
         
         function deferReferral() {
-            if (isReadOnly) {
-                showErrorModal('Read-Only Mode', 'Cannot defer referrals in read-only mode.');
-                return;
-            }
-            
             // Clear previous reason
             document.getElementById('deferralReason').value = '';
             openModal('deferReferralModal');
@@ -5051,12 +4936,6 @@ Have a great day.`
         }
 
 		async function editReferralById(id) {
-			if (isReadOnly) {
-				document.getElementById('currentFile').textContent = 'Error: Cannot edit in read-only mode';
-				document.getElementById('statusBar').style.color = '#e74c3c';
-				return;
-			}
-			
 			// Fetch full referral details from backend (list data only has 17 fields)
 			const result = await eel.get_referral_details(id)();
 			if (result.status !== 'success') {
@@ -5285,31 +5164,6 @@ Have a great day.`
 			modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 		}
 		
-		function showReadOnlyModal(lockedBy, onConfirm) {
-			const modal = document.createElement('div');
-			modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
-			modal.innerHTML = `
-				<div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; min-width: 400px;">
-					<h3 style="margin: 0 0 20px 0; color: #f39c12;">🔒 Database Locked</h3>
-					<p style="margin: 0 0 10px 0; color: #2c3e50; line-height: 1.5;">The database is currently being edited by <strong>${lockedBy}</strong>.</p>
-					<p style="margin: 0 0 20px 0; color: #2c3e50; line-height: 1.5;">You can open in <strong>Read-Only mode</strong> to view data without the ability to edit, or return to login and try again later.</p>
-					<div style="text-align: right;">
-						<button id="readOnlyCancelBtn" style="background: #95a5a6; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px;">Cancel</button>
-						<button id="readOnlyConfirmBtn" style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px;">Open Read-Only</button>
-					</div>
-				</div>
-			`;
-			document.body.appendChild(modal);
-			
-			document.getElementById('readOnlyConfirmBtn').onclick = () => {
-				modal.remove();
-				onConfirm();
-			};
-			
-			document.getElementById('readOnlyCancelBtn').onclick = () => {
-				modal.remove();
-			};
-		}
 
 		// Open file from a stored path (works for both new and edit)
 		async function openFileFromPath(filePath) {
@@ -5472,12 +5326,6 @@ Have a great day.`
 		// Save referral
 		async function saveReferral() {
 			try {
-				if (isReadOnly) {
-					document.getElementById('currentFile').textContent = 'Error: Cannot save in read-only mode';
-					document.getElementById('statusBar').style.color = '#e74c3c';
-					return;
-				}
-				
 				console.log('Starting saveReferral...');
 				
 				// Validate required fields

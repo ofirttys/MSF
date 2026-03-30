@@ -22,8 +22,6 @@ else:
 
 DB_FOLDER = str(exe_dir / 'DB')
 DATABASE_FILE = str(Path(DB_FOLDER) / 'referrals.db')
-LOCK_FILE = str(Path(DB_FOLDER) / 'referrals.lock')
-LOCK_STALE_HOURS = 4
 
 # DEBUG MODE: Set to True to see password hashes for setup
 DEBUG_MODE = False
@@ -33,11 +31,12 @@ VALID_USERS = {
     'admin': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da'
 }
 
+# Database write lock - ensures only one write operation at a time across all users
+db_write_lock = threading.Lock()
+
 # Global state
 current_user = None
 current_user_is_admin = False  # Track if current user is admin
-is_read_only = False
-lock_owner = None
 
 # Shutdown flag
 _shutting_down = False
@@ -104,7 +103,7 @@ def row_to_dict(row):
 @eel.expose
 def login(username, password):
     """Handle user login - checks database users first, then code-based admin"""
-    global current_user, current_user_is_admin, is_read_only, lock_owner
+    global current_user, current_user_is_admin
     
     username = username.lower()
     entered_hash = hash_password(password)
@@ -127,30 +126,16 @@ def login(username, password):
             current_user = username
             current_user_is_admin = bool(user['isAdmin'])
             
-            cursor.execute("UPDATE users SET lastLogin = ? WHERE username = ?", 
-                          (int(datetime.now().timestamp()), username))
-            conn.commit()
+            with db_write_lock:  # Ensure only one write at a time
+                cursor.execute("UPDATE users SET lastLogin = ? WHERE username = ?", 
+                              (int(datetime.now().timestamp()), username))
+                conn.commit()
             conn.close()
             
-            lock_status = check_lock_file()
-            
-            if lock_status['locked'] and not lock_status['stale']:
-                is_read_only = True
-                return {
-                    'status': 'success',
-                    'username': username,
-                    'isAdmin': current_user_is_admin,
-                    'readOnly': True,
-                    'lockOwner': lock_status['owner']
-                }
-            
-            create_lock_file(username)
-            lock_owner = username
             return {
                 'status': 'success',
                 'username': username,
-                'isAdmin': current_user_is_admin,
-                'readOnly': False
+                'isAdmin': current_user_is_admin
             }
         
         conn.close()
@@ -162,100 +147,24 @@ def login(username, password):
         current_user = username
         current_user_is_admin = True  # Code-based users are always admin
         
-        lock_status = check_lock_file()
-        
-        if lock_status['locked'] and not lock_status['stale']:
-            is_read_only = True
-            return {
-                'status': 'success',
-                'username': username,
-                'isAdmin': True,
-                'readOnly': True,
-                'lockOwner': lock_status['owner']
-            }
-        
-        create_lock_file(username)
-        lock_owner = username
         return {
             'status': 'success',
             'username': username,
-            'isAdmin': True,
-            'readOnly': False
+            'isAdmin': True
         }
     
     # No valid user found
     return {'status': 'error', 'message': 'Invalid username or password'}
 
 @eel.expose
-def login_readonly(username):
-    """Login in read-only mode"""
-    global current_user, is_read_only
-    current_user = username
-    is_read_only = True
-    return {'status': 'success', 'username': username, 'readOnly': True}
-
-@eel.expose
 def logout():
     """Handle user logout"""
-    global current_user, is_read_only, lock_owner
-    
-    if not is_read_only:
-        delete_lock_file()
+    global current_user, current_user_is_admin
     
     current_user = None
-    is_read_only = False
-    lock_owner = None
+    current_user_is_admin = False
     
     return {'status': 'success'}
-
-def check_lock_file():
-    """Check if lock file exists and is valid"""
-    try:
-        if not os.path.exists(LOCK_FILE):
-            return {'locked': False}
-        
-        with open(LOCK_FILE, 'r') as f:
-            lock_data = json.load(f)
-        
-        lock_time = datetime.fromisoformat(lock_data['timestamp'])
-        now = datetime.now()
-        hours_old = (now - lock_time).total_seconds() / 3600
-        
-        return {
-            'locked': True,
-            'user': lock_data['user'],
-            'timestamp': lock_data['timestamp'],
-            'stale': hours_old > LOCK_STALE_HOURS
-        }
-    except Exception as e:
-        print(f"Error checking lock file: {e}")
-        return {'locked': False}
-
-def create_lock_file(username):
-    """Create lock file"""
-    try:
-        os.makedirs(DB_FOLDER, exist_ok=True)
-        lock_data = {
-            'user': username,
-            'timestamp': datetime.now().isoformat()
-        }
-        with open(LOCK_FILE, 'w') as f:
-            json.dump(lock_data, f)
-    except Exception as e:
-        print(f"Error creating lock file: {e}")
-
-def delete_lock_file():
-    """Delete lock file"""
-    try:
-        if os.path.exists(LOCK_FILE):
-            os.remove(LOCK_FILE)
-    except Exception as e:
-        print(f"Error deleting lock file: {e}")
-
-def refresh_lock_file():
-    """Refresh lock file timestamp"""
-    if not is_read_only and current_user:
-        create_lock_file(current_user)
 
 @eel.expose
 def get_referrals(filters=None, sort_by='id', sort_order='asc', offset=0, limit=100):
@@ -771,189 +680,177 @@ def get_select_options():
 @eel.expose
 def add_referral(referral_data):
     """Add new referral to database"""
-    if is_read_only:
-        return {'status': 'error', 'message': 'Cannot add referrals in read-only mode'}
-    
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Add timestamp
-        referral_data['addedToDBDate'] = int(datetime.now().timestamp())
-        
-        # Extract attempt history
-        attempt_history = referral_data.pop('attemptHistory', [])
-        
-        # Calculate attempt counts (OPTIMIZED - store counts instead of querying)
-        phone_count = sum(1 for a in attempt_history if a.get('mode') in ['Phone', 'Phone call'])
-        email_count = sum(1 for a in attempt_history if a.get('mode') in ['E-Mail', 'Email'])
-        
-        referral_data['phoneAttempts'] = phone_count
-        referral_data['emailAttempts'] = email_count
-        
-        # Set lastAttemptMode from last attempt
-        if attempt_history:
-            referral_data['lastAttemptMode'] = attempt_history[-1].get('mode', '')
-        
-        # Convert date strings to timestamps
-        date_fields = ['referralDate', 'receivedDate', 'patientDOB', 'partnerDOB', 
-                      'lastAttemptDate', 'faxedBackDate', 'completeInfoReceivedDate', 
-                      'referralCompleteDate', 'notesDate']
-        
-        for field in date_fields:
-            if field in referral_data and referral_data[field]:
-                try:
-                    dt = datetime.strptime(referral_data[field], '%Y-%m-%d')
-                    referral_data[field] = int(dt.timestamp())
-                except:
-                    referral_data[field] = None
-        
-        # Insert referral
-        columns = ', '.join(referral_data.keys())
-        placeholders = ', '.join(['?' for _ in referral_data])
-        sql = f"INSERT INTO referrals ({columns}) VALUES ({placeholders})"
-        
-        cursor.execute(sql, list(referral_data.values()))
-        referral_id = cursor.lastrowid
-        
-        # Insert attempt history
-        for attempt in attempt_history:
-            attempt_date = None
-            if attempt.get('date'):
-                try:
-                    dt = datetime.strptime(attempt['date'], '%Y-%m-%d')
-                    attempt_date = int(dt.timestamp())
-                except:
-                    pass
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
             
-            cursor.execute("""
-                INSERT INTO attempt_history (referralID, attemptDate, attemptTime, attemptMode, attemptComment)
-                VALUES (?, ?, ?, ?, ?)
-            """, (
-                referral_id,
-                attempt_date,
-                attempt.get('time', ''),
-                attempt.get('mode', ''),
-                attempt.get('comment', '')
-            ))
-        
-        conn.commit()
-        conn.close()
-        
-        refresh_lock_file()
-        
-        referral_data['referralID'] = referral_id
-        return {'status': 'success', 'referral': referral_data}
-        
-    except Exception as e:
-        print(f"Error adding referral: {e}")
-        import traceback
-        traceback.print_exc()
-        return {'status': 'error', 'message': str(e)}
+            # Add timestamp
+            referral_data['addedToDBDate'] = int(datetime.now().timestamp())
+            
+            # Extract attempt history
+            attempt_history = referral_data.pop('attemptHistory', [])
+            
+            # Calculate attempt counts (OPTIMIZED - store counts instead of querying)
+            phone_count = sum(1 for a in attempt_history if a.get('mode') in ['Phone', 'Phone call'])
+            email_count = sum(1 for a in attempt_history if a.get('mode') in ['E-Mail', 'Email'])
+            
+            referral_data['phoneAttempts'] = phone_count
+            referral_data['emailAttempts'] = email_count
+            
+            # Set lastAttemptMode from last attempt
+            if attempt_history:
+                referral_data['lastAttemptMode'] = attempt_history[-1].get('mode', '')
+            
+            # Convert date strings to timestamps
+            date_fields = ['referralDate', 'receivedDate', 'patientDOB', 'partnerDOB', 
+                          'lastAttemptDate', 'faxedBackDate', 'completeInfoReceivedDate', 
+                          'referralCompleteDate', 'notesDate']
+            
+            for field in date_fields:
+                if field in referral_data and referral_data[field]:
+                    try:
+                        dt = datetime.strptime(referral_data[field], '%Y-%m-%d')
+                        referral_data[field] = int(dt.timestamp())
+                    except:
+                        referral_data[field] = None
+            
+            # Insert referral
+            columns = ', '.join(referral_data.keys())
+            placeholders = ', '.join(['?' for _ in referral_data])
+            sql = f"INSERT INTO referrals ({columns}) VALUES ({placeholders})"
+            
+            cursor.execute(sql, list(referral_data.values()))
+            referral_id = cursor.lastrowid
+            
+            # Insert attempt history
+            for attempt in attempt_history:
+                attempt_date = None
+                if attempt.get('date'):
+                    try:
+                        dt = datetime.strptime(attempt['date'], '%Y-%m-%d')
+                        attempt_date = int(dt.timestamp())
+                    except:
+                        pass
+                
+                cursor.execute("""
+                    INSERT INTO attempt_history (referralID, attemptDate, attemptTime, attemptMode, attemptComment)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    referral_id,
+                    attempt_date,
+                    attempt.get('time', ''),
+                    attempt.get('mode', ''),
+                    attempt.get('comment', '')
+                ))
+            
+            conn.commit()
+            conn.close()
+            
+            referral_data['referralID'] = referral_id
+            return {'status': 'success', 'referral': referral_data}
+            
+        except Exception as e:
+            print(f"Error adding referral: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'status': 'error', 'message': str(e)}
 
 @eel.expose
 def update_referral(referral_id, referral_data):
     """Update existing referral"""
-    if is_read_only:
-        return {'status': 'error', 'message': 'Cannot update referrals in read-only mode'}
-    
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Extract attempt history
-        attempt_history = referral_data.pop('attemptHistory', [])
-        
-        # Calculate attempt counts (OPTIMIZED - store counts instead of querying)
-        phone_count = sum(1 for a in attempt_history if a.get('mode') in ['Phone', 'Phone call'])
-        email_count = sum(1 for a in attempt_history if a.get('mode') in ['E-Mail', 'Email'])
-        
-        referral_data['phoneAttempts'] = phone_count
-        referral_data['emailAttempts'] = email_count
-        
-        # Set lastAttemptMode from last attempt
-        if attempt_history:
-            referral_data['lastAttemptMode'] = attempt_history[-1].get('mode', '')
-        
-        # Convert date strings to timestamps
-        date_fields = ['referralDate', 'receivedDate', 'patientDOB', 'partnerDOB',
-                      'lastAttemptDate', 'faxedBackDate', 'completeInfoReceivedDate',
-                      'referralCompleteDate', 'notesDate']
-        
-        for field in date_fields:
-            if field in referral_data and referral_data[field]:
-                try:
-                    dt = datetime.strptime(referral_data[field], '%Y-%m-%d')
-                    referral_data[field] = int(dt.timestamp())
-                except:
-                    referral_data[field] = None
-        
-        # Update referral
-        set_clause = ', '.join([f"{k} = ?" for k in referral_data.keys()])
-        sql = f"UPDATE referrals SET {set_clause} WHERE referralID = ?"
-        
-        cursor.execute(sql, list(referral_data.values()) + [referral_id])
-        
-        # Delete old attempt history
-        cursor.execute("DELETE FROM attempt_history WHERE referralID = ?", (referral_id,))
-        
-        # Insert new attempt history
-        for attempt in attempt_history:
-            attempt_date = None
-            if attempt.get('date'):
-                try:
-                    dt = datetime.strptime(attempt['date'], '%Y-%m-%d')
-                    attempt_date = int(dt.timestamp())
-                except:
-                    pass
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
             
-            cursor.execute("""
-                INSERT INTO attempt_history (referralID, attemptDate, attemptTime, attemptMode, attemptComment)
-                VALUES (?, ?, ?, ?, ?)
-            """, (
-                referral_id,
-                attempt_date,
-                attempt.get('time', ''),
-                attempt.get('mode', ''),
-                attempt.get('comment', '')
-            ))
-        
-        conn.commit()
-        conn.close()
-        
-        refresh_lock_file()
-        
-        return {'status': 'success', 'referral': referral_data}
-        
-    except Exception as e:
-        print(f"Error updating referral: {e}")
-        import traceback
-        traceback.print_exc()
-        return {'status': 'error', 'message': str(e)}
+            # Extract attempt history
+            attempt_history = referral_data.pop('attemptHistory', [])
+            
+            # Calculate attempt counts (OPTIMIZED - store counts instead of querying)
+            phone_count = sum(1 for a in attempt_history if a.get('mode') in ['Phone', 'Phone call'])
+            email_count = sum(1 for a in attempt_history if a.get('mode') in ['E-Mail', 'Email'])
+            
+            referral_data['phoneAttempts'] = phone_count
+            referral_data['emailAttempts'] = email_count
+            
+            # Set lastAttemptMode from last attempt
+            if attempt_history:
+                referral_data['lastAttemptMode'] = attempt_history[-1].get('mode', '')
+            
+            # Convert date strings to timestamps
+            date_fields = ['referralDate', 'receivedDate', 'patientDOB', 'partnerDOB',
+                          'lastAttemptDate', 'faxedBackDate', 'completeInfoReceivedDate',
+                          'referralCompleteDate', 'notesDate']
+            
+            for field in date_fields:
+                if field in referral_data and referral_data[field]:
+                    try:
+                        dt = datetime.strptime(referral_data[field], '%Y-%m-%d')
+                        referral_data[field] = int(dt.timestamp())
+                    except:
+                        referral_data[field] = None
+            
+            # Update referral
+            set_clause = ', '.join([f"{k} = ?" for k in referral_data.keys()])
+            sql = f"UPDATE referrals SET {set_clause} WHERE referralID = ?"
+            
+            cursor.execute(sql, list(referral_data.values()) + [referral_id])
+            
+            # Delete old attempt history
+            cursor.execute("DELETE FROM attempt_history WHERE referralID = ?", (referral_id,))
+            
+            # Insert new attempt history
+            for attempt in attempt_history:
+                attempt_date = None
+                if attempt.get('date'):
+                    try:
+                        dt = datetime.strptime(attempt['date'], '%Y-%m-%d')
+                        attempt_date = int(dt.timestamp())
+                    except:
+                        pass
+                
+                cursor.execute("""
+                    INSERT INTO attempt_history (referralID, attemptDate, attemptTime, attemptMode, attemptComment)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    referral_id,
+                    attempt_date,
+                    attempt.get('time', ''),
+                    attempt.get('mode', ''),
+                    attempt.get('comment', '')
+                ))
+            
+            conn.commit()
+            conn.close()
+            
+            return {'status': 'success', 'referral': referral_data}
+            
+        except Exception as e:
+            print(f"Error updating referral: {e}")
+            import traceback
+            traceback.print_exc()
+            return {'status': 'error', 'message': str(e)}
 
 @eel.expose
 def delete_referral(referral_id):
     """Delete referral from database"""
-    if is_read_only:
-        return {'status': 'error', 'message': 'Cannot delete referrals in read-only mode'}
-    
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Delete referral (CASCADE will delete attempt_history)
-        cursor.execute("DELETE FROM referrals WHERE referralID = ?", (referral_id,))
-        
-        conn.commit()
-        conn.close()
-        
-        refresh_lock_file()
-        
-        return {'status': 'success'}
-        
-    except Exception as e:
-        print(f"Error deleting referral: {e}")
-        return {'status': 'error', 'message': str(e)}
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Delete referral (CASCADE will delete attempt_history)
+            cursor.execute("DELETE FROM referrals WHERE referralID = ?", (referral_id,))
+            
+            conn.commit()
+            conn.close()
+            
+            return {'status': 'success'}
+            
+        except Exception as e:
+            print(f"Error deleting referral: {e}")
+            return {'status': 'error', 'message': str(e)}
 
 @eel.expose
 def open_file_dialog():
@@ -1194,169 +1091,172 @@ def copy_to_eivf(referral_id):
 @eel.expose
 def defer_referral(referral_id, reason, username='System'):
     """Defer a referral and record the reason"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Get current status
-        cursor.execute("SELECT referralStatus FROM referrals WHERE referralID = ?", (referral_id,))
-        row = cursor.fetchone()
-        if not row:
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Get current status
+            cursor.execute("SELECT referralStatus FROM referrals WHERE referralID = ?", (referral_id,))
+            row = cursor.fetchone()
+            if not row:
+                conn.close()
+                return {'status': 'error', 'message': 'Referral not found'}
+            
+            old_status = row[0]
+            now_timestamp = int(datetime.now().timestamp())
+            
+            # Update status to Deferred
+            cursor.execute("""
+                UPDATE referrals 
+                SET referralStatus = 'Deferred'
+                WHERE referralID = ?
+            """, (referral_id,))
+            
+            # Add to status_history
+            cursor.execute("""
+                INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+                VALUES (?, ?, 'Deferred', ?, ?)
+            """, (referral_id, old_status, now_timestamp, username))
+            
+            # Add reason to notes_history
+            cursor.execute("""
+                INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+                VALUES (?, ?, ?, ?)
+            """, (referral_id, f"Deferred - Reason: {reason}", now_timestamp, username))
+            
+            conn.commit()
             conn.close()
-            return {'status': 'error', 'message': 'Referral not found'}
-        
-        old_status = row[0]
-        now_timestamp = int(datetime.now().timestamp())
-        
-        # Update status to Deferred
-        cursor.execute("""
-            UPDATE referrals 
-            SET referralStatus = 'Deferred'
-            WHERE referralID = ?
-        """, (referral_id,))
-        
-        # Add to status_history
-        cursor.execute("""
-            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
-            VALUES (?, ?, 'Deferred', ?, ?)
-        """, (referral_id, old_status, now_timestamp, username))
-        
-        # Add reason to notes_history
-        cursor.execute("""
-            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
-            VALUES (?, ?, ?, ?)
-        """, (referral_id, f"Deferred - Reason: {reason}", now_timestamp, username))
-        
-        conn.commit()
-        conn.close()
-        
-        return {
-            'status': 'success',
-            'message': 'Referral deferred successfully'
-        }
-        
-    except Exception as e:
-        traceback.print_exc()
-        return {
-            'status': 'error',
-            'message': f'Error deferring referral: {str(e)}'
-        }
+            
+            return {
+                'status': 'success',
+                'message': 'Referral deferred successfully'
+            }
+            
+        except Exception as e:
+            traceback.print_exc()
+            return {
+                'status': 'error',
+                'message': f'Error deferring referral: {str(e)}'
+            }
 
 @eel.expose
 def return_to_active(referral_id, reason, username='System'):
     """Return a deferred referral to active status"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Get current status (should be Deferred)
-        cursor.execute("SELECT referralStatus FROM referrals WHERE referralID = ?", (referral_id,))
-        row = cursor.fetchone()
-        if not row:
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Get current status (should be Deferred)
+            cursor.execute("SELECT referralStatus FROM referrals WHERE referralID = ?", (referral_id,))
+            row = cursor.fetchone()
+            if not row:
+                conn.close()
+                return {'status': 'error', 'message': 'Referral not found'}
+            
+            old_status = row[0]
+            if old_status != 'Deferred':
+                conn.close()
+                return {'status': 'error', 'message': 'Referral is not deferred'}
+            
+            now_timestamp = int(datetime.now().timestamp())
+            
+            # Update status back to New
+            new_status = 'New'
+            cursor.execute("""
+                UPDATE referrals 
+                SET referralStatus = ?
+                WHERE referralID = ?
+            """, (new_status, referral_id))
+            
+            # Add to status_history
+            cursor.execute("""
+                INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+                VALUES (?, 'Deferred', ?, ?, ?)
+            """, (referral_id, new_status, now_timestamp, username))
+            
+            # Add reason to notes_history
+            cursor.execute("""
+                INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+                VALUES (?, ?, ?, ?)
+            """, (referral_id, f"Returned to Active - Reason: {reason}", now_timestamp, username))
+            
+            conn.commit()
             conn.close()
-            return {'status': 'error', 'message': 'Referral not found'}
-        
-        old_status = row[0]
-        if old_status != 'Deferred':
-            conn.close()
-            return {'status': 'error', 'message': 'Referral is not deferred'}
-        
-        now_timestamp = int(datetime.now().timestamp())
-        
-        # Update status back to New
-        new_status = 'New'
-        cursor.execute("""
-            UPDATE referrals 
-            SET referralStatus = ?
-            WHERE referralID = ?
-        """, (new_status, referral_id))
-        
-        # Add to status_history
-        cursor.execute("""
-            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
-            VALUES (?, 'Deferred', ?, ?, ?)
-        """, (referral_id, new_status, now_timestamp, username))
-        
-        # Add reason to notes_history
-        cursor.execute("""
-            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
-            VALUES (?, ?, ?, ?)
-        """, (referral_id, f"Returned to Active - Reason: {reason}", now_timestamp, username))
-        
-        conn.commit()
-        conn.close()
-        
-        return {
-            'status': 'success',
-            'message': 'Referral returned to active status',
-            'newStatus': new_status
-        }
-        
-    except Exception as e:
-        traceback.print_exc()
-        return {
-            'status': 'error',
-            'message': f'Error returning to active: {str(e)}'
-        }
+            
+            return {
+                'status': 'success',
+                'message': 'Referral returned to active status',
+                'newStatus': new_status
+            }
+            
+        except Exception as e:
+            traceback.print_exc()
+            return {
+                'status': 'error',
+                'message': f'Error returning to active: {str(e)}'
+            }
 
 @eel.expose
 def record_contact_attempt(contact_data):
     """Record a contact attempt in the attempt_history table"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Insert contact attempt
-        cursor.execute("""
-            INSERT INTO attempt_history (
-                referralID, attemptMode, attemptDate, attemptTime, attemptComment
-            )
-            VALUES (?, ?, ?, ?, ?)
-        """, (
-            contact_data['referralID'],
-            contact_data['attemptMode'],
-            contact_data['attemptDate'],
-            contact_data['attemptTime'],
-            contact_data['attemptComment']
-        ))
-        
-        # Recalculate contact counts and last contact info
-        cursor.execute("""
-            SELECT attemptMode, attemptDate, attemptTime
-            FROM attempt_history
-            WHERE referralID = ?
-            ORDER BY attemptDate DESC, attemptTime DESC
-        """, (contact_data['referralID'],))
-        
-        attempts = cursor.fetchall()
-        
-        if attempts:
-            # Count phone and email attempts
-            phone_count = sum(1 for a in attempts if a[0] and a[0].lower() in ['phone', 'phone call'])
-            email_count = sum(1 for a in attempts if a[0] and a[0].lower() in ['e-mail', 'email'])
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
             
-            # Get most recent attempt info
-            last_mode = attempts[0][0]
-            last_date = attempts[0][1]
-            last_time = attempts[0][2]
-            
-            # Update referrals table
+            # Insert contact attempt
             cursor.execute("""
-                UPDATE referrals
-                SET lastAttemptMode = ?,
-                    lastAttemptDate = ?,
-                    lastAttemptTime = ?,
-                    phoneAttempts = ?,
-                    emailAttempts = ?
+                INSERT INTO attempt_history (
+                    referralID, attemptMode, attemptDate, attemptTime, attemptComment
+                )
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                contact_data['referralID'],
+                contact_data['attemptMode'],
+                contact_data['attemptDate'],
+                contact_data['attemptTime'],
+                contact_data['attemptComment']
+            ))
+            
+            # Recalculate contact counts and last contact info
+            cursor.execute("""
+                SELECT attemptMode, attemptDate, attemptTime
+                FROM attempt_history
                 WHERE referralID = ?
-            """, (last_mode, last_date, last_time, phone_count, email_count, contact_data['referralID']))
-        
-        conn.commit()
-        conn.close()
-        
-        return {
-            'status': 'success',
-            'message': 'Contact attempt recorded successfully'
+                ORDER BY attemptDate DESC, attemptTime DESC
+            """, (contact_data['referralID'],))
+            
+            attempts = cursor.fetchall()
+            
+            if attempts:
+                # Count phone and email attempts
+                phone_count = sum(1 for a in attempts if a[0] and a[0].lower() in ['phone', 'phone call'])
+                email_count = sum(1 for a in attempts if a[0] and a[0].lower() in ['e-mail', 'email'])
+                
+                # Get most recent attempt info
+                last_mode = attempts[0][0]
+                last_date = attempts[0][1]
+                last_time = attempts[0][2]
+                
+                # Update referrals table
+                cursor.execute("""
+                    UPDATE referrals
+                    SET lastAttemptMode = ?,
+                        lastAttemptDate = ?,
+                        lastAttemptTime = ?,
+                        phoneAttempts = ?,
+                        emailAttempts = ?
+                    WHERE referralID = ?
+                """, (last_mode, last_date, last_time, phone_count, email_count, contact_data['referralID']))
+            
+            conn.commit()
+            conn.close()
+            
+            return {
+                'status': 'success',
+                'message': 'Contact attempt recorded successfully'
         }
         
     except Exception as e:
@@ -1490,8 +1390,6 @@ def on_close(page, sockets):
     if _shutting_down:
         return
     _shutting_down = True
-    if not is_read_only:
-        delete_lock_file()
     try:
         import gevent
         gevent.killall()
@@ -1502,56 +1400,57 @@ def on_close(page, sockets):
 @eel.expose
 def update_referral_status(referral_id, new_status, note='', username='System'):
     """Update referral status and record the change"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Get current status
-        cursor.execute("SELECT referralStatus FROM referrals WHERE referralID = ?", (referral_id,))
-        row = cursor.fetchone()
-        if not row:
-            conn.close()
-            return {'status': 'error', 'message': 'Referral not found'}
-        
-        old_status = row[0]
-        now_timestamp = int(datetime.now().timestamp())
-        
-        # Update status
-        cursor.execute("""
-            UPDATE referrals 
-            SET referralStatus = ?
-            WHERE referralID = ?
-        """, (new_status, referral_id))
-        
-        # Add to status_history
-        cursor.execute("""
-            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
-            VALUES (?, ?, ?, ?, ?)
-        """, (referral_id, old_status, new_status, now_timestamp, username))
-        
-        # Add note if provided
-        if note:
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Get current status
+            cursor.execute("SELECT referralStatus FROM referrals WHERE referralID = ?", (referral_id,))
+            row = cursor.fetchone()
+            if not row:
+                conn.close()
+                return {'status': 'error', 'message': 'Referral not found'}
+            
+            old_status = row[0]
+            now_timestamp = int(datetime.now().timestamp())
+            
+            # Update status
             cursor.execute("""
-                INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
-                VALUES (?, ?, ?, ?)
-            """, (referral_id, note, now_timestamp, username))
-        
-        conn.commit()
-        conn.close()
-        
-        return {
-            'status': 'success',
-            'message': 'Status updated successfully',
-            'oldStatus': old_status,
-            'newStatus': new_status
-        }
-        
-    except Exception as e:
-        traceback.print_exc()
-        return {
-            'status': 'error',
-            'message': f'Error updating status: {str(e)}'
-        }
+                UPDATE referrals 
+                SET referralStatus = ?
+                WHERE referralID = ?
+            """, (new_status, referral_id))
+            
+            # Add to status_history
+            cursor.execute("""
+                INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+                VALUES (?, ?, ?, ?, ?)
+            """, (referral_id, old_status, new_status, now_timestamp, username))
+            
+            # Add note if provided
+            if note:
+                cursor.execute("""
+                    INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+                    VALUES (?, ?, ?, ?)
+                """, (referral_id, note, now_timestamp, username))
+            
+            conn.commit()
+            conn.close()
+            
+            return {
+                'status': 'success',
+                'message': 'Status updated successfully',
+                'oldStatus': old_status,
+                'newStatus': new_status
+            }
+            
+        except Exception as e:
+            traceback.print_exc()
+            return {
+                'status': 'error',
+                'message': f'Error updating status: {str(e)}'
+            }
 
 @eel.expose
 def generate_fax_pdf(referral_id, fax_content, original_filename):
@@ -1793,111 +1692,113 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
 @eel.expose
 def assign_physician(referral_id, physician, username='System'):
     """Assign physician and update status to Physician Assigned"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        now_timestamp = int(datetime.now().timestamp())
-        
-        # Update assigned physician and status
-        cursor.execute("""
-            UPDATE referrals
-            SET assignedPhysician = ?,
-                referralStatus = 'Physician Assigned'
-            WHERE referralID = ?
-        """, (physician, referral_id))
-        
-        # Add to status history
-        cursor.execute("""
-            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
-            VALUES (?, 'Information Completed', 'Physician Assigned', ?, ?)
-        """, (referral_id, now_timestamp, username))
-        
-        # Add note
-        cursor.execute("""
-            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
-            VALUES (?, ?, ?, ?)
-        """, (referral_id, f"Physician assigned: {physician}", now_timestamp, username))
-        
-        conn.commit()
-        conn.close()
-        
-        return {'status': 'success', 'message': 'Physician assigned successfully'}
-        
-    except Exception as e:
-        traceback.print_exc()
-        return {'status': 'error', 'message': f'Error assigning physician: {str(e)}'}
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            now_timestamp = int(datetime.now().timestamp())
+            
+            # Update assigned physician and status
+            cursor.execute("""
+                UPDATE referrals
+                SET assignedPhysician = ?,
+                    referralStatus = 'Physician Assigned'
+                WHERE referralID = ?
+            """, (physician, referral_id))
+            
+            # Add to status history
+            cursor.execute("""
+                INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+                VALUES (?, 'Information Completed', 'Physician Assigned', ?, ?)
+            """, (referral_id, now_timestamp, username))
+            
+            # Add note
+            cursor.execute("""
+                INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+                VALUES (?, ?, ?, ?)
+            """, (referral_id, f"Physician assigned: {physician}", now_timestamp, username))
+            
+            conn.commit()
+            conn.close()
+            
+            return {'status': 'success', 'message': 'Physician assigned successfully'}
+            
+        except Exception as e:
+            traceback.print_exc()
+            return {'status': 'error', 'message': f'Error assigning physician: {str(e)}'}
 
 @eel.expose
 def save_cerner_entry(referral_id, mrn, original_filename, username='System'):
     """Save MRN, copy file to eIVF, update status to Cerner Done"""
-    try:
-        import shutil
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        now_timestamp = int(datetime.now().timestamp())
-        
-        # Update MRN and status
-        cursor.execute("""
-            UPDATE referrals
-            SET patientMRN = ?,
-                referralStatus = 'Cerner Done'
-            WHERE referralID = ?
-        """, (mrn, referral_id))
-        
-        # Add to status history
-        cursor.execute("""
-            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
-            VALUES (?, 'Physician Assigned', 'Cerner Done', ?, ?)
-        """, (referral_id, now_timestamp, username))
-        
-        # Add note
-        cursor.execute("""
-            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
-            VALUES (?, ?, ?, ?)
-        """, (referral_id, f"Cerner entry created - MRN: {mrn}", now_timestamp, username))
-        
-        # Copy file to eIVF if it exists and rename it
-        if original_filename:
-            linked_path = os.path.join(exe_dir, 'Referrals', 'Linked', original_filename)
-            eivf_dir = os.path.join(exe_dir, 'Referrals', 'eIVF')
-            os.makedirs(eivf_dir, exist_ok=True)
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            import shutil
             
-            # Get referral date for filename
+            conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT referralDate FROM referrals WHERE referralID = ?", (referral_id,))
-            row = cursor.fetchone()
+            now_timestamp = int(datetime.now().timestamp())
             
-            if row and row['referralDate']:
-                # Convert timestamp to YYMMDD
-                referral_date = datetime.fromtimestamp(row['referralDate'])
-                yymmdd = referral_date.strftime('%y%m%d')
-            else:
-                # Use today's date if no referral date
-                yymmdd = datetime.now().strftime('%y%m%d')
+            # Update MRN and status
+            cursor.execute("""
+                UPDATE referrals
+                SET patientMRN = ?,
+                    referralStatus = 'Cerner Done'
+                WHERE referralID = ?
+            """, (mrn, referral_id))
             
-            # Build new filename: MRN_Referral_YYMMDD.pdf
-            new_filename = f"{mrn}_Referral_{yymmdd}.pdf"
-            eivf_path = os.path.join(eivf_dir, new_filename)
+            # Add to status history
+            cursor.execute("""
+                INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+                VALUES (?, 'Physician Assigned', 'Cerner Done', ?, ?)
+            """, (referral_id, now_timestamp, username))
             
-            if os.path.exists(linked_path):
-                shutil.copy2(linked_path, eivf_path)
+            # Add note
+            cursor.execute("""
+                INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+                VALUES (?, ?, ?, ?)
+            """, (referral_id, f"Cerner entry created - MRN: {mrn}", now_timestamp, username))
+            
+            # Copy file to eIVF if it exists and rename it
+            if original_filename:
+                linked_path = os.path.join(exe_dir, 'Referrals', 'Linked', original_filename)
+                eivf_dir = os.path.join(exe_dir, 'Referrals', 'eIVF')
+                os.makedirs(eivf_dir, exist_ok=True)
                 
-                # Update fileName in database to new filename
-                cursor.execute("""
-                    UPDATE referrals
-                    SET fileName = ?
-                    WHERE referralID = ?
-                """, (new_filename, referral_id))
-                conn.commit()
-        
-        conn.close()
-        
-        return {'status': 'success', 'message': 'Cerner entry saved and file copied'}
-        
-    except Exception as e:
-        traceback.print_exc()
-        return {'status': 'error', 'message': f'Error saving Cerner entry: {str(e)}'}
+                # Get referral date for filename
+                cursor = conn.cursor()
+                cursor.execute("SELECT referralDate FROM referrals WHERE referralID = ?", (referral_id,))
+                row = cursor.fetchone()
+                
+                if row and row['referralDate']:
+                    # Convert timestamp to YYMMDD
+                    referral_date = datetime.fromtimestamp(row['referralDate'])
+                    yymmdd = referral_date.strftime('%y%m%d')
+                else:
+                    # Use today's date if no referral date
+                    yymmdd = datetime.now().strftime('%y%m%d')
+                
+                # Build new filename: MRN_Referral_YYMMDD.pdf
+                new_filename = f"{mrn}_Referral_{yymmdd}.pdf"
+                eivf_path = os.path.join(eivf_dir, new_filename)
+                
+                if os.path.exists(linked_path):
+                    shutil.copy2(linked_path, eivf_path)
+                    
+                    # Update fileName in database to new filename
+                    cursor.execute("""
+                        UPDATE referrals
+                        SET fileName = ?
+                        WHERE referralID = ?
+                    """, (new_filename, referral_id))
+                    conn.commit()
+            
+            conn.close()
+            
+            return {'status': 'success', 'message': 'Cerner entry saved and file copied'}
+            
+        except Exception as e:
+            traceback.print_exc()
+            return {'status': 'error', 'message': f'Error saving Cerner entry: {str(e)}'}
 
 @eel.expose
 def check_file_exists(filepath):
@@ -1912,76 +1813,78 @@ def check_file_exists(filepath):
 @eel.expose
 def save_eivf_entry(referral_id, pid, username='System'):
     """Save PID and update status to eIVF Done"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        now_timestamp = int(datetime.now().timestamp())
-        
-        # Update PID and status
-        cursor.execute("""
-            UPDATE referrals
-            SET patientPID = ?,
-                referralStatus = 'eIVF Done'
-            WHERE referralID = ?
-        """, (pid, referral_id))
-        
-        # Add to status history
-        cursor.execute("""
-            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
-            VALUES (?, 'Cerner Done', 'eIVF Done', ?, ?)
-        """, (referral_id, now_timestamp, username))
-        
-        # Add note
-        cursor.execute("""
-            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
-            VALUES (?, ?, ?, ?)
-        """, (referral_id, f"eIVF entry created - PID: {pid}", now_timestamp, username))
-        
-        conn.commit()
-        conn.close()
-        
-        return {'status': 'success', 'message': 'eIVF entry saved successfully'}
-        
-    except Exception as e:
-        traceback.print_exc()
-        return {'status': 'error', 'message': f'Error saving eIVF entry: {str(e)}'}
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            now_timestamp = int(datetime.now().timestamp())
+            
+            # Update PID and status
+            cursor.execute("""
+                UPDATE referrals
+                SET patientPID = ?,
+                    referralStatus = 'eIVF Done'
+                WHERE referralID = ?
+            """, (pid, referral_id))
+            
+            # Add to status history
+            cursor.execute("""
+                INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+                VALUES (?, 'Cerner Done', 'eIVF Done', ?, ?)
+            """, (referral_id, now_timestamp, username))
+            
+            # Add note
+            cursor.execute("""
+                INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+                VALUES (?, ?, ?, ?)
+            """, (referral_id, f"eIVF entry created - PID: {pid}", now_timestamp, username))
+            
+            conn.commit()
+            conn.close()
+            
+            return {'status': 'success', 'message': 'eIVF entry saved successfully'}
+            
+        except Exception as e:
+            traceback.print_exc()
+            return {'status': 'error', 'message': f'Error saving eIVF entry: {str(e)}'}
 
 @eel.expose
 def assign_md_admin(referral_id, md_admin, username='System'):
     """Assign MD Admin and update status to Completed"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        now_timestamp = int(datetime.now().timestamp())
-        
-        # Update MD Admin and status
-        cursor.execute("""
-            UPDATE referrals
-            SET taskedToPhysicianAdmin = ?,
-                referralStatus = 'Completed',
-                referralCompleteDate = ?
-            WHERE referralID = ?
-        """, (md_admin, now_timestamp, referral_id))
-        
-        # Add to status history
-        cursor.execute("""
-            INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
-            VALUES (?, 'eIVF Done', 'Completed', ?, ?)
-        """, (referral_id, now_timestamp, username))
-        
-        # Add note
-        cursor.execute("""
-            INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
-            VALUES (?, ?, ?, ?)
-        """, (referral_id, f"MD Admin assigned: {md_admin} - Referral completed", now_timestamp, username))
-        
-        conn.commit()
-        conn.close()
-        
-        return {'status': 'success', 'message': 'MD Admin assigned and referral completed'}
-        
-    except Exception as e:
-        traceback.print_exc()
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            now_timestamp = int(datetime.now().timestamp())
+            
+            # Update MD Admin and status
+            cursor.execute("""
+                UPDATE referrals
+                SET taskedToPhysicianAdmin = ?,
+                    referralStatus = 'Completed',
+                    referralCompleteDate = ?
+                WHERE referralID = ?
+            """, (md_admin, now_timestamp, referral_id))
+            
+            # Add to status history
+            cursor.execute("""
+                INSERT INTO status_history (referralID, oldStatus, newStatus, changedDate, changedBy)
+                VALUES (?, 'eIVF Done', 'Completed', ?, ?)
+            """, (referral_id, now_timestamp, username))
+            
+            # Add note
+            cursor.execute("""
+                INSERT INTO notes_history (referralID, noteText, noteDate, addedBy)
+                VALUES (?, ?, ?, ?)
+            """, (referral_id, f"MD Admin assigned: {md_admin} - Referral completed", now_timestamp, username))
+            
+            conn.commit()
+            conn.close()
+            
+            return {'status': 'success', 'message': 'MD Admin assigned and referral completed'}
+            
+        except Exception as e:
+            traceback.print_exc()
         return {'status': 'error', 'message': f'Error assigning MD Admin: {str(e)}'}
 
 
@@ -2009,31 +1912,32 @@ def change_password(old_password, new_password):
     # Verify old password
     old_hash = hash_password(old_password)
     
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT passwordHash FROM users WHERE username = ?", (current_user,))
-        user = cursor.fetchone()
-        
-        if not user:
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT passwordHash FROM users WHERE username = ?", (current_user,))
+            user = cursor.fetchone()
+            
+            if not user:
+                conn.close()
+                return {'status': 'error', 'message': 'User not found in database'}
+            
+            if user['passwordHash'] != old_hash:
+                conn.close()
+                return {'status': 'error', 'message': 'Current password is incorrect'}
+            
+            # Update password
+            new_hash = hash_password(new_password)
+            cursor.execute("UPDATE users SET passwordHash = ? WHERE username = ?", (new_hash, current_user))
+            conn.commit()
             conn.close()
-            return {'status': 'error', 'message': 'User not found in database'}
-        
-        if user['passwordHash'] != old_hash:
-            conn.close()
-            return {'status': 'error', 'message': 'Current password is incorrect'}
-        
-        # Update password
-        new_hash = hash_password(new_password)
-        cursor.execute("UPDATE users SET passwordHash = ? WHERE username = ?", (new_hash, current_user))
-        conn.commit()
-        conn.close()
-        
-        return {'status': 'success', 'message': 'Password changed successfully'}
-        
-    except Exception as e:
-        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+            
+            return {'status': 'success', 'message': 'Password changed successfully'}
+            
+        except Exception as e:
+            return {'status': 'error', 'message': f'Database error: {str(e)}'}
 
 @eel.expose
 def get_users():
@@ -2084,29 +1988,30 @@ def add_user(username, password, is_admin):
     if not (has_lower and has_upper and has_digit):
         return {'status': 'error', 'message': 'Password must contain lowercase, uppercase, and numbers'}
     
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Check if user already exists
-        cursor.execute("SELECT username FROM users WHERE username = ?", (username,))
-        if cursor.fetchone():
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Check if user already exists
+            cursor.execute("SELECT username FROM users WHERE username = ?", (username,))
+            if cursor.fetchone():
+                conn.close()
+                return {'status': 'error', 'message': 'Username already exists'}
+            
+            # Insert new user
+            password_hash = hash_password(password)
+            cursor.execute(
+                "INSERT INTO users (username, passwordHash, lastLogin, isAdmin) VALUES (?, ?, NULL, ?)",
+                (username, password_hash, 1 if is_admin else 0)
+            )
+            conn.commit()
             conn.close()
-            return {'status': 'error', 'message': 'Username already exists'}
-        
-        # Insert new user
-        password_hash = hash_password(password)
-        cursor.execute(
-            "INSERT INTO users (username, passwordHash, lastLogin, isAdmin) VALUES (?, ?, NULL, ?)",
-            (username, password_hash, 1 if is_admin else 0)
-        )
-        conn.commit()
-        conn.close()
-        
-        return {'status': 'success', 'message': f'User {username} added successfully'}
-        
-    except Exception as e:
-        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+            
+            return {'status': 'success', 'message': f'User {username} added successfully'}
+            
+        except Exception as e:
+            return {'status': 'error', 'message': f'Database error: {str(e)}'}
 
 @eel.expose
 def update_user_password(username, new_password):
@@ -2125,24 +2030,25 @@ def update_user_password(username, new_password):
     if not (has_lower and has_upper and has_digit):
         return {'status': 'error', 'message': 'Password must contain lowercase, uppercase, and numbers'}
     
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        new_hash = hash_password(new_password)
-        cursor.execute("UPDATE users SET passwordHash = ? WHERE username = ?", (new_hash, username))
-        
-        if cursor.rowcount == 0:
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            new_hash = hash_password(new_password)
+            cursor.execute("UPDATE users SET passwordHash = ? WHERE username = ?", (new_hash, username))
+            
+            if cursor.rowcount == 0:
+                conn.close()
+                return {'status': 'error', 'message': 'User not found'}
+            
+            conn.commit()
             conn.close()
-            return {'status': 'error', 'message': 'User not found'}
-        
-        conn.commit()
-        conn.close()
-        
-        return {'status': 'success', 'message': f'Password updated for {username}'}
-        
-    except Exception as e:
-        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+            
+            return {'status': 'success', 'message': f'Password updated for {username}'}
+            
+        except Exception as e:
+            return {'status': 'error', 'message': f'Database error: {str(e)}'}
 
 @eel.expose
 def update_user_admin(username, is_admin):
@@ -2153,23 +2059,24 @@ def update_user_admin(username, is_admin):
     if username == 'admin':
         return {'status': 'error', 'message': 'Cannot modify admin user'}
     
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("UPDATE users SET isAdmin = ? WHERE username = ?", (1 if is_admin else 0, username))
-        
-        if cursor.rowcount == 0:
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("UPDATE users SET isAdmin = ? WHERE username = ?", (1 if is_admin else 0, username))
+            
+            if cursor.rowcount == 0:
+                conn.close()
+                return {'status': 'error', 'message': 'User not found'}
+            
+            conn.commit()
             conn.close()
-            return {'status': 'error', 'message': 'User not found'}
-        
-        conn.commit()
-        conn.close()
-        
-        return {'status': 'success', 'message': f'Admin status updated for {username}'}
-        
-    except Exception as e:
-        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+            
+            return {'status': 'success', 'message': f'Admin status updated for {username}'}
+            
+        except Exception as e:
+            return {'status': 'error', 'message': f'Database error: {str(e)}'}
 
 @eel.expose
 def remove_user(username):
@@ -2180,23 +2087,24 @@ def remove_user(username):
     if username == 'admin':
         return {'status': 'error', 'message': 'Cannot delete admin user'}
     
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("DELETE FROM users WHERE username = ?", (username,))
-        
-        if cursor.rowcount == 0:
+    with db_write_lock:  # Ensure only one write at a time
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+            
+            if cursor.rowcount == 0:
+                conn.close()
+                return {'status': 'error', 'message': 'User not found'}
+            
+            conn.commit()
             conn.close()
-            return {'status': 'error', 'message': 'User not found'}
-        
-        conn.commit()
-        conn.close()
-        
-        return {'status': 'success', 'message': f'User {username} removed successfully'}
-        
-    except Exception as e:
-        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+            
+            return {'status': 'success', 'message': f'User {username} removed successfully'}
+            
+        except Exception as e:
+            return {'status': 'error', 'message': f'Database error: {str(e)}'}
 
 # ==================== END USER MANAGEMENT ====================
 
@@ -2287,8 +2195,6 @@ def shutdown():
     if _shutting_down:
         return
     _shutting_down = True
-    if not is_read_only:
-        delete_lock_file()
 
 if __name__ == '__main__':
     # Check if database exists
@@ -2335,6 +2241,4 @@ if __name__ == '__main__':
         )
     except Exception as e:
         print(f"Error starting dashboard: {e}")
-        if not is_read_only:
-            delete_lock_file()
         sys.exit(1)
