@@ -187,19 +187,34 @@ def get_active_users():
         with open(active_users_file, 'r') as f:
             active_users = json.load(f)
         
-        # Clean up stale users before returning
+        # Clean up stale users (not seen in 10 minutes)
         now = datetime.now()
         stale_threshold = now - timedelta(minutes=10)
         active_list = []
+        stale_users = []
         
         for username, data in active_users.items():
             last_seen = datetime.fromisoformat(data['lastSeen'])
             if last_seen >= stale_threshold:
+                # User is active
                 active_list.append({
                     'username': username,
                     'loginTime': data['loginTime'],
                     'lastSeen': data['lastSeen']
                 })
+            else:
+                # User is stale - mark for removal
+                stale_users.append(username)
+        
+        # Remove stale users from the file
+        if stale_users:
+            for user in stale_users:
+                del active_users[user]
+                print(f'⏰ Removed stale user from active_users.json: {user}')
+            
+            # Save updated file
+            with open(active_users_file, 'w') as f:
+                json.dump(active_users, f, indent=2)
         
         return {
             'status': 'success',
