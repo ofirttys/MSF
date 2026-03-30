@@ -100,6 +100,32 @@ def row_to_dict(row):
     """Convert sqlite3.Row to dict"""
     return {key: row[key] for key in row.keys()}
 
+def create_daily_backup():
+    """Create daily backup of database if one doesn't exist for today"""
+    try:
+        today = datetime.now().strftime('%Y%m%d')
+        backup_filename = f'referrals-{today}.db'
+        backup_path = os.path.join(DB_FOLDER, backup_filename)
+        
+        # Check if backup for today already exists
+        if os.path.exists(backup_path):
+            print(f'Daily backup already exists: {backup_filename}')
+            return True
+        
+        # Create backup by copying current database
+        if os.path.exists(DATABASE_FILE):
+            import shutil
+            shutil.copy2(DATABASE_FILE, backup_path)
+            print(f'✅ Daily backup created: {backup_filename}')
+            return True
+        else:
+            print(f'⚠️ Warning: Database file not found, cannot create backup')
+            return False
+            
+    except Exception as e:
+        print(f'❌ Error creating daily backup: {e}')
+        return False
+
 @eel.expose
 def login(username, password):
     """Handle user login - checks database users first, then code-based admin"""
@@ -132,6 +158,9 @@ def login(username, password):
                 conn.commit()
             conn.close()
             
+            # Create daily backup (if not already created today)
+            create_daily_backup()
+            
             return {
                 'status': 'success',
                 'username': username,
@@ -146,6 +175,9 @@ def login(username, password):
     if username in VALID_USERS and entered_hash == VALID_USERS[username]:
         current_user = username
         current_user_is_admin = True  # Code-based users are always admin
+        
+        # Create daily backup (if not already created today)
+        create_daily_backup()
         
         return {
             'status': 'success',
