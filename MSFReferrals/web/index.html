@@ -5256,7 +5256,7 @@ Have a great day.`
 				
 				if (result.status === 'success') {
 					// Try to claim the file
-					const claimResult = await eel.claim_file(result.fileName, currentUsername)();
+					const claimResult = await eel.claim_file(result.fileName, currentUser)();
 					
 					if (claimResult.status === 'claimed') {
 						// File is being used by another user
