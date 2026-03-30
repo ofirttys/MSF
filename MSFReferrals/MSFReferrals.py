@@ -126,6 +126,95 @@ def create_daily_backup():
         print(f'❌ Error creating daily backup: {e}')
         return False
 
+def update_active_users(username, action='login'):
+    """Track active users in a JSON file (login/logout/heartbeat)"""
+    try:
+        active_users_file = os.path.join(DB_FOLDER, 'active_users.json')
+        now = datetime.now()
+        
+        # Load existing active users
+        if os.path.exists(active_users_file):
+            with open(active_users_file, 'r') as f:
+                active_users = json.load(f)
+        else:
+            active_users = {}
+        
+        if action == 'login':
+            # Add/update user with current timestamp
+            active_users[username] = {
+                'lastSeen': now.isoformat(),
+                'loginTime': now.isoformat()
+            }
+            print(f'👤 User logged in: {username}')
+        elif action == 'logout':
+            # Remove user
+            if username in active_users:
+                del active_users[username]
+                print(f'👋 User logged out: {username}')
+        elif action == 'heartbeat':
+            # Update last seen time (keep user alive)
+            if username in active_users:
+                active_users[username]['lastSeen'] = now.isoformat()
+        
+        # Clean up stale users (not seen in 10 minutes)
+        stale_threshold = now - timedelta(minutes=10)
+        stale_users = [
+            user for user, data in active_users.items()
+            if datetime.fromisoformat(data['lastSeen']) < stale_threshold
+        ]
+        for user in stale_users:
+            del active_users[user]
+            print(f'⏰ Removed stale user: {user}')
+        
+        # Save updated active users
+        with open(active_users_file, 'w') as f:
+            json.dump(active_users, f, indent=2)
+        
+        return True
+    except Exception as e:
+        print(f'Error updating active users: {e}')
+        return False
+
+@eel.expose
+def get_active_users():
+    """Get list of currently active users"""
+    try:
+        active_users_file = os.path.join(DB_FOLDER, 'active_users.json')
+        
+        if not os.path.exists(active_users_file):
+            return {'status': 'success', 'users': []}
+        
+        with open(active_users_file, 'r') as f:
+            active_users = json.load(f)
+        
+        # Clean up stale users before returning
+        now = datetime.now()
+        stale_threshold = now - timedelta(minutes=10)
+        active_list = []
+        
+        for username, data in active_users.items():
+            last_seen = datetime.fromisoformat(data['lastSeen'])
+            if last_seen >= stale_threshold:
+                active_list.append({
+                    'username': username,
+                    'loginTime': data['loginTime'],
+                    'lastSeen': data['lastSeen']
+                })
+        
+        return {
+            'status': 'success',
+            'users': active_list
+        }
+    except Exception as e:
+        print(f'Error getting active users: {e}')
+        return {'status': 'error', 'users': []}
+
+@eel.expose
+def heartbeat(username):
+    """Update user's last seen time (called periodically from frontend)"""
+    update_active_users(username, 'heartbeat')
+    return {'status': 'success'}
+
 @eel.expose
 def login(username, password):
     """Handle user login - checks database users first, then code-based admin"""
@@ -161,6 +250,9 @@ def login(username, password):
             # Create daily backup (if not already created today)
             create_daily_backup()
             
+            # Track active user
+            update_active_users(username, 'login')
+            
             return {
                 'status': 'success',
                 'username': username,
@@ -179,6 +271,9 @@ def login(username, password):
         # Create daily backup (if not already created today)
         create_daily_backup()
         
+        # Track active user
+        update_active_users(username, 'login')
+        
         return {
             'status': 'success',
             'username': username,
@@ -192,6 +287,10 @@ def login(username, password):
 def logout():
     """Handle user logout"""
     global current_user, current_user_is_admin
+    
+    # Track user logout
+    if current_user:
+        update_active_users(current_user, 'logout')
     
     current_user = None
     current_user_is_admin = False
@@ -717,6 +816,16 @@ def add_referral(referral_data):
             conn = get_db_connection()
             cursor = conn.cursor()
             
+            # Move file to Linked/ folder if fileFullPath is provided
+            file_full_path = referral_data.pop('fileFullPath', None)
+            if file_full_path:
+                moved_filename = move_file_to_linked(file_full_path)
+                if moved_filename:
+                    referral_data['fileName'] = moved_filename  # Update with actual filename in Linked/
+                else:
+                    # File move failed, but continue with save (fileName might be empty or user can re-attach later)
+                    print(f'⚠️ Warning: Could not move file to Linked/, continuing with save')
+            
             # Add timestamp
             referral_data['addedToDBDate'] = int(datetime.now().timestamp())
             
@@ -779,6 +888,10 @@ def add_referral(referral_data):
             conn.commit()
             conn.close()
             
+            # Release file claim (if file was attached)
+            if referral_data.get('fileName'):
+                release_file_claim(referral_data['fileName'])
+            
             referral_data['referralID'] = referral_id
             return {'status': 'success', 'referral': referral_data}
             
@@ -795,6 +908,16 @@ def update_referral(referral_id, referral_data):
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
+            
+            # Move file to Linked/ folder if fileFullPath is provided (new file attached during edit)
+            file_full_path = referral_data.pop('fileFullPath', None)
+            if file_full_path:
+                moved_filename = move_file_to_linked(file_full_path)
+                if moved_filename:
+                    referral_data['fileName'] = moved_filename  # Update with actual filename in Linked/
+                else:
+                    # File move failed, but continue with save
+                    print(f'⚠️ Warning: Could not move file to Linked/, continuing with save')
             
             # Extract attempt history
             attempt_history = referral_data.pop('attemptHistory', [])
@@ -855,6 +978,10 @@ def update_referral(referral_id, referral_data):
             
             conn.commit()
             conn.close()
+            
+            # Release file claim (if file was attached/changed)
+            if referral_data.get('fileName'):
+                release_file_claim(referral_data['fileName'])
             
             return {'status': 'success', 'referral': referral_data}
             
@@ -953,9 +1080,150 @@ def get_file_content(file_path):
         print(f"Error reading file: {e}")
         return {'status': 'error', 'message': str(e)}
 
+# ============================================================================
+# FILE CLAIMING SYSTEM - Prevents duplicate referrals from concurrent users
+# ============================================================================
+
+def get_active_files_path():
+    """Get path to active_files.json"""
+    return os.path.join(exe_dir, 'DB', 'active_files.json')
+
+def load_active_files():
+    """Load active files tracking"""
+    try:
+        path = get_active_files_path()
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        print(f'Error loading active files: {e}')
+        return {}
+
+def save_active_files(active_files):
+    """Save active files tracking"""
+    try:
+        path = get_active_files_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w') as f:
+            json.dump(active_files, f, indent=2)
+    except Exception as e:
+        print(f'Error saving active files: {e}')
+
+@eel.expose
+def claim_file(filename, username):
+    """Claim a file for processing. Returns status."""
+    try:
+        active_files = load_active_files()
+        
+        # Check if file is already claimed
+        if filename in active_files:
+            claimed_by = active_files[filename]['username']
+            claimed_at = active_files[filename]['timestamp']
+            
+            # If claimed by same user, allow (they might have opened modal again)
+            if claimed_by == username:
+                return {
+                    'status': 'success',
+                    'message': f'File already claimed by you'
+                }
+            
+            return {
+                'status': 'claimed',
+                'by': claimed_by,
+                'at': claimed_at,
+                'message': f'This file is currently being processed by {claimed_by}. Please select a different file.'
+            }
+        
+        # Claim the file
+        active_files[filename] = {
+            'username': username,
+            'timestamp': int(datetime.now().timestamp())
+        }
+        save_active_files(active_files)
+        
+        print(f'✅ File claimed: {filename} by {username}')
+        return {
+            'status': 'success',
+            'message': f'File claimed successfully'
+        }
+        
+    except Exception as e:
+        print(f'Error claiming file: {e}')
+        return {
+            'status': 'error',
+            'message': str(e)
+        }
+
+@eel.expose
+def release_file_claim(filename):
+    """Release a file claim when user saves or cancels"""
+    try:
+        active_files = load_active_files()
+        
+        if filename in active_files:
+            del active_files[filename]
+            save_active_files(active_files)
+            print(f'✅ File claim released: {filename}')
+            return {'status': 'success'}
+        
+        return {'status': 'success'}  # Not claimed, nothing to do
+        
+    except Exception as e:
+        print(f'Error releasing file claim: {e}')
+        return {'status': 'error', 'message': str(e)}
+
+@eel.expose
+def get_active_files():
+    """Get list of currently claimed files"""
+    try:
+        return {
+            'status': 'success',
+            'files': load_active_files()
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': str(e)
+        }
+
+def move_file_to_linked(source_path):
+    """Move a file to the Linked/ folder. Returns filename if successful, None if error."""
+    try:
+        if not source_path or not os.path.exists(source_path):
+            return None
+        
+        referrals_folder = os.path.join(exe_dir, 'Referrals')
+        linked_folder = os.path.join(referrals_folder, 'Linked')
+        os.makedirs(linked_folder, exist_ok=True)
+        
+        filename = os.path.basename(source_path)
+        dest_path = os.path.join(linked_folder, filename)
+        
+        # Check if file is already in Linked/ folder
+        if os.path.dirname(source_path) == linked_folder:
+            return filename  # Already there, just return filename
+        
+        # Check if file with same name already exists in Linked/
+        if os.path.exists(dest_path):
+            # Generate unique filename by adding timestamp
+            base, ext = os.path.splitext(filename)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"{base}_{timestamp}{ext}"
+            dest_path = os.path.join(linked_folder, filename)
+        
+        # Move file to Linked/
+        shutil.move(source_path, dest_path)
+        print(f'✅ File moved to Linked/: {filename}')
+        return filename
+        
+    except Exception as e:
+        print(f'❌ Error moving file to Linked/: {e}')
+        return None
+
 @eel.expose
 def select_file():
-    """Open file dialog in Referrals/ folder and move selected file to Linked/"""
+    """Open file dialog in Referrals/ folder and return the selected file path"""
     try:
         import tkinter as tk
         from tkinter import filedialog
@@ -984,33 +1252,12 @@ def select_file():
         # Get filename
         filename = os.path.basename(filepath)
         
-        # Check if file is already in Linked/ folder
-        if os.path.dirname(filepath) == linked_folder:
-            # File already in Linked/, just return the filename
-            return {
-                'status': 'success',
-                'fileName': filename,  # Store just the filename
-                'message': f'File already in Linked folder: {filename}'
-            }
-        
-        # Destination path in Linked/
-        dest_path = os.path.join(linked_folder, filename)
-        
-        # Check if file with same name already exists in Linked/
-        if os.path.exists(dest_path):
-            return {
-                'status': 'error',
-                'message': f'A file named "{filename}" already exists in Referrals/Linked/. Please rename the original file or choose a different file.'
-            }
-        
-        # Move file to Linked/
-        shutil.move(filepath, dest_path)
-        
-        # Return just the filename for DB storage
+        # Return the full path - we'll move it to Linked/ when saving the referral
         return {
             'status': 'success',
-            'fileName': filename,  # Store just the filename
-            'message': f'File moved to Linked folder: {filename}'
+            'fileName': filename,
+            'fullPath': filepath,  # Return full path for later processing
+            'message': f'File selected: {filename}'
         }
         
     except PermissionError:

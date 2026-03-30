@@ -1240,6 +1240,9 @@
                 <div class="status-text" id="statusBar">
                     <strong>Database: <span id="currentFile">No file loaded</span></strong>
                 </div>
+                <div class="status-text" id="activeUsersBar" style="margin-left: 30px; cursor: pointer;" onclick="showActiveUsers()" title="Click to see details">
+                    <strong>👤 Active Users: <span id="activeUsersCount">-</span></strong>
+                </div>
             </div>
 
             <!-- KPI Summary -->
@@ -2564,6 +2567,9 @@
                 autoSaveInterval = null;
             }
             
+            // Stop active users tracking
+            stopActiveUsersTracking();
+            
             await eel.logout()();
             
             currentUser = null;
@@ -2764,6 +2770,114 @@
         }
         
         // ==================== END USER MANAGEMENT ====================
+        
+        // ==================== ACTIVE USERS TRACKING ====================
+        
+        let activeUsersData = [];
+        
+        async function updateActiveUsersDisplay() {
+            try {
+                const result = await eel.get_active_users()();
+                if (result.status === 'success') {
+                    activeUsersData = result.users;
+                    const count = activeUsersData.length;
+                    document.getElementById('activeUsersCount').textContent = count;
+                    
+                    // Update color based on count
+                    const countSpan = document.getElementById('activeUsersCount');
+                    if (count === 0) {
+                        countSpan.style.color = '#95a5a6';
+                    } else if (count === 1) {
+                        countSpan.style.color = '#27ae60';
+                    } else {
+                        countSpan.style.color = '#3498db';
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching active users:', error);
+            }
+        }
+        
+        function showActiveUsers() {
+            if (activeUsersData.length === 0) {
+                showErrorModal('No Active Users', 'No users are currently logged in.');
+                return;
+            }
+            
+            const usersList = activeUsersData.map(user => {
+                const loginTime = new Date(user.loginTime);
+                const lastSeen = new Date(user.lastSeen);
+                const timeAgo = getTimeAgo(lastSeen);
+                
+                return `<div style="padding: 10px; border-bottom: 1px solid #eee;">
+                    <strong style="color: #2c3e50;">👤 ${user.username}</strong>
+                    <div style="font-size: 12px; color: #7f8c8d; margin-top: 5px;">
+                        Logged in: ${loginTime.toLocaleTimeString()}<br>
+                        Last active: ${timeAgo}
+                    </div>
+                </div>`;
+            }).join('');
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; min-width: 400px;">
+                    <h3 style="margin: 0 0 20px 0; color: #2c3e50;">👥 Active Users (${activeUsersData.length})</h3>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        ${usersList}
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; float: right; margin-top: 20px;">Close</button>
+                    <div style="clear: both;"></div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+        }
+        
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            
+            if (seconds < 60) return 'just now';
+            if (seconds < 120) return '1 minute ago';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' minutes ago';
+            if (seconds < 7200) return '1 hour ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' hours ago';
+            return 'over a day ago';
+        }
+        
+        async function sendHeartbeat() {
+            if (currentUser) {
+                await eel.heartbeat(currentUser)();
+            }
+        }
+        
+        // Start heartbeat and active users refresh
+        let heartbeatInterval;
+        let activeUsersInterval;
+        
+        function startActiveUsersTracking() {
+            // Update active users display immediately
+            updateActiveUsersDisplay();
+            
+            // Send heartbeat every 2 minutes to keep user "alive"
+            heartbeatInterval = setInterval(sendHeartbeat, 2 * 60 * 1000);
+            
+            // Refresh active users display every 30 seconds
+            activeUsersInterval = setInterval(updateActiveUsersDisplay, 30 * 1000);
+        }
+        
+        function stopActiveUsersTracking() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+            if (activeUsersInterval) {
+                clearInterval(activeUsersInterval);
+                activeUsersInterval = null;
+            }
+        }
+        
+        // ==================== END ACTIVE USERS TRACKING ====================
 
         // Initialize app
         async function initializeApp() {
@@ -2796,6 +2910,9 @@
                 allowInput: true,
                 onChange: function() { filterReferrals(); updateKPIs(); }
             });				
+            
+            // Start active users tracking
+            startActiveUsersTracking();
         }
 
 		// Initialize date pickers (add after initializeApp function)
@@ -3189,7 +3306,14 @@
 			togglePhysicianFields();
 			
 			closePdfViewer();
+			
+			// Release any previous file claim and clear file state
+			if (currentFilePath) {
+				eel.release_file_claim(currentFilePath)();
+			}
 			currentFileObjectURL = null;
+			currentFileFullPath = null;  // Clear file path when opening new referral
+			currentFilePath = null;
 			document.getElementById('viewFileBtn').style.display = 'none';
 			
 			openModal('referralModal');
@@ -5028,6 +5152,7 @@ Have a great day.`
 			
 			currentFilePath = null;
 			currentFileObjectURL = null;
+			currentFileFullPath = null;  // Clear file path when editing (in case user selects new file)
 			closePdfViewer();
 
 			if (referral.fileName) {
@@ -5058,6 +5183,12 @@ Have a great day.`
 
 		function closeModal(id) {
 			if (id === 'referralModal') {
+				// Release file claim when closing modal (user canceled)
+				if (currentFilePath && !currentEditingReferral) {
+					// Only release if this is a NEW referral (not editing existing)
+					eel.release_file_claim(currentFilePath)();
+				}
+				
 				// Close PDF viewer too when referral modal closes
 				closePdfViewer();
 				
@@ -5099,6 +5230,7 @@ Have a great day.`
 		// Current file path stored for reuse
 		let currentFilePath = null;
 		let currentFileObjectURL = null;
+		let currentFileFullPath = null;  // Store full path for moving file when saving
 
 		// Select file via Python dialog
 		async function selectFile() {
@@ -5116,16 +5248,37 @@ Have a great day.`
 				}
 				
 				if (result.status === 'success') {
-					// Store the relative path for database
+					// Try to claim the file
+					const claimResult = await eel.claim_file(result.fileName, currentUsername)();
+					
+					if (claimResult.status === 'claimed') {
+						// File is being used by another user
+						showErrorModal(
+							'File In Use',
+							`This file is currently being processed by ${claimResult.by}.\n\nPlease select a different file or wait until they finish.`
+						);
+						return;
+					}
+					
+					if (claimResult.status === 'error') {
+						showErrorModal('File Claim Error', claimResult.message);
+						return;
+					}
+					
+					// File successfully claimed
+					// Store the filename for database (will be stored after save)
 					currentFilePath = result.fileName;
 					
-					// Show the relative path in the input
+					// Store full path for moving file when saving
+					currentFileFullPath = result.fullPath;
+					
+					// Show the filename in the input
 					document.getElementById('fileName').value = result.fileName;
 					
 					// Show view button
 					document.getElementById('viewFileBtn').style.display = 'inline-block';
 					
-					// Show success message if file was moved
+					// Show success message
 					if (result.message) {
 						document.getElementById('currentFile').textContent = result.message;
 						document.getElementById('statusBar').style.color = '#27ae60';
@@ -5249,8 +5402,11 @@ Have a great day.`
 			if (currentFileObjectURL) {
 				// Already loaded - just reopen viewer
 				openPdfViewer();
+			} else if (currentFileFullPath) {
+				// File selected but not saved yet - use full path from original location
+				await openFileFromPath(currentFileFullPath);
 			} else if (currentFilePath) {
-				// Has path but no loaded content - load it
+				// File saved - use filename (will be found in Linked/ folder)
 				await openFileFromPath(currentFilePath);
 			}
 		}
@@ -5446,6 +5602,7 @@ Have a great day.`
 				referralDate: document.getElementById('referralDate').value,
 				receivedDate: receivedDate,
 				fileName: document.getElementById('fileName').value,
+				fileFullPath: currentFileFullPath,  // Send full path so backend can move file to Linked/
 				referringPhysicianName: referringPhysician,
 				referringPhysicianBilling: document.getElementById('billingNumber').value,
 				referringPhysicianFax: document.getElementById('physicianFax').value,
