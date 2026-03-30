@@ -4241,9 +4241,19 @@ Have a great day.`
         }
         
         function escapeHtml(text) {
+            // Preserve <br> tags by replacing them with placeholder
+            const BR_PLACEHOLDER = '___BR_TAG___';
+            text = text.replace(/<br\s*\/?>/gi, BR_PLACEHOLDER);
+            
+            // Escape all HTML
             const div = document.createElement('div');
             div.textContent = text;
-            return div.innerHTML;
+            let escaped = div.innerHTML;
+            
+            // Restore <br> tags
+            escaped = escaped.replace(new RegExp(BR_PLACEHOLDER, 'g'), '<br>');
+            
+            return escaped;
         }
         
         function updateReferringPhoneScript() {

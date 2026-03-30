@@ -9,7 +9,7 @@ import time
 import traceback
 import shutil
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 import psutil
 
 # DB Folder configuration
@@ -1772,8 +1772,8 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
                 img = ImageReader(logo_path)
                 # Get original image dimensions in pixels
                 img_width_px, img_height_px = img.getSize()
-                # Scale to reasonable size for PDF (1.5 inches wide, maintain aspect ratio)
-                logo_width = 1.5 * inch
+                # Scale to reasonable size for PDF (2.25 inches wide = 1.5x larger, maintain aspect ratio)
+                logo_width = 2.25 * inch
                 logo_height = logo_width * (img_height_px / img_width_px)
                 # Position in upper left with small margin
                 x_position = 0.5 * inch
