@@ -7,7 +7,9 @@ Python + Eel + SQLite desktop application
 import eel
 import sys
 import os
+import json
 from pathlib import Path
+from datetime import datetime
 
 # Import our modules
 from database import Database
@@ -25,6 +27,9 @@ patient_mgr = None
 appointment_mgr = None
 action_items_mgr = None
 clinic_days_mgr = None
+
+# Session tracking
+SESSIONS_FILE = "DB/active_sessions.json"
 
 
 def initialize_app():
@@ -179,6 +184,122 @@ def get_dashboard_stats():
         'appointments_today': appointment_mgr.count_today(),
         'action_items_pending': action_items_mgr.count_pending()
     }
+
+
+# ============================================================================
+# SESSION MANAGEMENT
+# ============================================================================
+
+def load_sessions():
+    """Load active sessions from file"""
+    try:
+        if os.path.exists(SESSIONS_FILE):
+            with open(SESSIONS_FILE, 'r') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        print(f"Error loading sessions: {e}")
+        return {}
+
+def save_sessions(sessions):
+    """Save active sessions to file"""
+    try:
+        with open(SESSIONS_FILE, 'w') as f:
+            json.dump(sessions, f, indent=2)
+    except Exception as e:
+        print(f"Error saving sessions: {e}")
+
+@eel.expose
+def register_session(username):
+    """Register user session on login"""
+    try:
+        sessions = load_sessions()
+        now = datetime.now().isoformat()
+        
+        # Check if user already has an active session
+        if username in sessions:
+            last_active = datetime.fromisoformat(sessions[username]['last_active'])
+            time_diff = (datetime.now() - last_active).total_seconds() / 60
+            
+            # If last active > 30 minutes ago, consider session expired
+            if time_diff > 30:
+                print(f"✓ Previous session for {username} expired ({time_diff:.0f}min ago)")
+            else:
+                print(f"⚠ User {username} already has active session (last active {time_diff:.0f}min ago)")
+                return {
+                    'success': False,
+                    'error': f'User already logged in (active {time_diff:.0f} minutes ago)'
+                }
+        
+        sessions[username] = {
+            'login_time': now,
+            'last_active': now,
+            'last_heartbeat': now
+        }
+        save_sessions(sessions)
+        
+        print(f"✓ Session registered: {username}")
+        return {'success': True}
+    except Exception as e:
+        print(f"Error registering session: {e}")
+        return {'success': False, 'error': str(e)}
+
+@eel.expose
+def update_session_heartbeat(username):
+    """Update user's last active timestamp"""
+    try:
+        sessions = load_sessions()
+        if username in sessions:
+            sessions[username]['last_heartbeat'] = datetime.now().isoformat()
+            sessions[username]['last_active'] = datetime.now().isoformat()
+            save_sessions(sessions)
+        return {'success': True}
+    except Exception as e:
+        print(f"Error updating heartbeat: {e}")
+        return {'success': False}
+
+@eel.expose
+def unregister_session(username):
+    """Unregister user session on logout"""
+    try:
+        sessions = load_sessions()
+        if username in sessions:
+            del sessions[username]
+            save_sessions(sessions)
+            print(f"✓ Session closed: {username}")
+        return {'success': True}
+    except Exception as e:
+        print(f"Error unregistering session: {e}")
+        return {'success': False}
+
+@eel.expose
+def get_active_users():
+    """Get list of currently active users"""
+    try:
+        sessions = load_sessions()
+        active_users = []
+        now = datetime.now()
+        
+        # Clean up stale sessions (> 30 minutes inactive)
+        for username in list(sessions.keys()):
+            last_active = datetime.fromisoformat(sessions[username]['last_active'])
+            time_diff = (now - last_active).total_seconds() / 60
+            
+            if time_diff > 30:
+                del sessions[username]
+            else:
+                active_users.append({
+                    'username': username,
+                    'login_time': sessions[username]['login_time'],
+                    'last_active': sessions[username]['last_active'],
+                    'minutes_ago': int(time_diff)
+                })
+        
+        save_sessions(sessions)
+        return active_users
+    except Exception as e:
+        print(f"Error getting active users: {e}")
+        return []
 
 
 # ============================================================================

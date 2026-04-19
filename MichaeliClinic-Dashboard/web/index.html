@@ -66,13 +66,15 @@
                     <button class="btn" style="background: #17a2b8; color: white;" onclick="openActionItemsModal()">Action Items</button>
                     <!-- Save button removed - everything auto-saves to database -->
                     <button class="btn btn-secondary" onclick="backupDatabase()">Backup</button>
-                    <span id="currentUserDisplay" style="color: #2c3e50; font-size: 14px; margin: 0 10px; font-weight: 500;"></span>
                     <button class="btn btn-secondary" onclick="logout()">Logout</button>
                 </div>
             </header>
 
             <div class="file-path-display">
                 Database: <span id="filePathDisplay"></span>
+                <span style="margin: 0 10px; color: #bdc3c7;">|</span>
+                User: <span id="currentUserInfo" style="font-weight: 500;"></span>
+                <span id="otherUsersInfo" style="margin-left: 15px; color: #7f8c8d; font-size: 12px;"></span>
             </div>
 
             <div class="status-counts" id="statusCounts"></div>

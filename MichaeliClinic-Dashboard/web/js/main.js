@@ -258,16 +258,35 @@
                 
                 isLoggedIn = true;
                 currentUser = username;
+                
+                // Register session
+                var sessionResult = await eel.register_session(username)();
+                if (!sessionResult.success) {
+                    errorDiv.textContent = sessionResult.error || 'Session error';
+                    errorDiv.style.display = 'block';
+                    return false;
+                }
+                
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
                 
-                // Display username in header
-                var userDisplay = document.getElementById('currentUserDisplay');
-                if (userDisplay) {
-                    userDisplay.textContent = '👤 ' + username;
+                // Display username in database bar
+                var userInfo = document.getElementById('currentUserInfo');
+                if (userInfo) {
+                    userInfo.textContent = username;
                 }
                 
                 await initializeApp();
+                
+                // Start session heartbeat (every 5 minutes)
+                setInterval(async function() {
+                    await eel.update_session_heartbeat(username)();
+                    updateActiveUsers();
+                }, 5 * 60 * 1000);
+                
+                // Update active users immediately and every minute
+                updateActiveUsers();
+                setInterval(updateActiveUsers, 60 * 1000);
             } else {
                 errorDiv.textContent = 'Invalid username or password';
                 errorDiv.style.display = 'block';
@@ -277,12 +296,17 @@
             return false;
         }
 
-        function logout() {
+        async function logout() {
             if (unsavedChanges > 0) {
                 var choice = confirm('You have ' + unsavedChanges + ' unsaved change(s)!\n\nClick OK to save and logout, or Cancel to logout without saving.');
                 if (choice) {
                     saveDatabase(true);
                 }
+            }
+            
+            // Unregister session
+            if (currentUser) {
+                await eel.unregister_session(currentUser)();
             }
             
             // Clear auto-save timer
@@ -309,6 +333,27 @@
             var banner = document.getElementById('readOnlyBanner');
             if (banner) {
                 banner.style.display = 'none';
+            }
+        }
+        
+        async function updateActiveUsers() {
+            try {
+                var activeUsers = await eel.get_active_users()();
+                var otherUsers = activeUsers.filter(function(u) { return u.username !== currentUser; });
+                
+                var userInfo = document.getElementById('otherUsersInfo');
+                if (userInfo) {
+                    if (otherUsers.length === 0) {
+                        userInfo.textContent = '';
+                    } else {
+                        var names = otherUsers.map(function(u) { 
+                            return u.username + ' (' + u.minutes_ago + 'm ago)';
+                        }).join(', ');
+                        userInfo.textContent = 'Also active: ' + names;
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating active users:', error);
             }
         }
         
@@ -629,18 +674,16 @@
 
         function updateUnsavedIndicator() {
             var indicator = document.getElementById('unsavedIndicator');
-            var saveButton = document.getElementById('saveButton');
             var countSpan = document.getElementById('unsavedCount');
             
-            if (unsavedChanges > 0) {
-                indicator.style.display = 'block';
-                countSpan.textContent = unsavedChanges;
-                saveButton.style.background = '#e74c3c';
-                saveButton.style.animation = 'pulse 2s infinite';
-            } else {
-                indicator.style.display = 'none';
-                saveButton.style.background = '#27ae60';
-                saveButton.style.animation = 'none';
+            // Save button removed - just update indicator
+            if (indicator && countSpan) {
+                if (unsavedChanges > 0) {
+                    indicator.style.display = 'block';
+                    countSpan.textContent = unsavedChanges;
+                } else {
+                    indicator.style.display = 'none';
+                }
             }
         }
 
@@ -808,6 +851,31 @@
                 try {
                     flatpickr(editDateElement, {
                         dateFormat: 'Y-m-d',
+                        onOpen: async function(selectedDates, dateStr, instance) {
+                            // Load clinic days for current month + adjacent
+                            var currentDate = instance.currentYear && instance.currentMonth !== undefined 
+                                ? new Date(instance.currentYear, instance.currentMonth, 1)
+                                : new Date();
+                            
+                            var year = currentDate.getFullYear();
+                            var month = currentDate.getMonth() + 1;
+                            
+                            await loadMonthClinicDays(year, month);
+                            await loadMonthClinicDays(year, month - 1 || 12, month === 1 ? year - 1 : year);
+                            await loadMonthClinicDays(year, month === 12 ? 1 : month + 1, month === 12 ? year + 1 : year);
+                            
+                            setTimeout(function() { instance.redraw(); }, 50);
+                        },
+                        onMonthChange: async function(selectedDates, dateStr, instance) {
+                            var year = instance.currentYear;
+                            var month = instance.currentMonth + 1;
+                            
+                            await loadMonthClinicDays(year, month);
+                            await loadMonthClinicDays(year, month - 1 || 12, month === 1 ? year - 1 : year);
+                            await loadMonthClinicDays(year, month === 12 ? 1 : month + 1, month === 12 ? year + 1 : year);
+                            
+                            setTimeout(function() { instance.redraw(); }, 50);
+                        },
 						onChange: function(selectedDates, dateStr, instance) {
 							updateDayViewPanel(dateStr);
 						},
@@ -852,6 +920,31 @@
                 try {
                     flatpickr(transitionDateElement, {
                         dateFormat: 'Y-m-d',
+                        onOpen: async function(selectedDates, dateStr, instance) {
+                            // Load clinic days for current month + adjacent
+                            var currentDate = instance.currentYear && instance.currentMonth !== undefined 
+                                ? new Date(instance.currentYear, instance.currentMonth, 1)
+                                : new Date();
+                            
+                            var year = currentDate.getFullYear();
+                            var month = currentDate.getMonth() + 1;
+                            
+                            await loadMonthClinicDays(year, month);
+                            await loadMonthClinicDays(year, month - 1 || 12, month === 1 ? year - 1 : year);
+                            await loadMonthClinicDays(year, month === 12 ? 1 : month + 1, month === 12 ? year + 1 : year);
+                            
+                            setTimeout(function() { instance.redraw(); }, 50);
+                        },
+                        onMonthChange: async function(selectedDates, dateStr, instance) {
+                            var year = instance.currentYear;
+                            var month = instance.currentMonth + 1;
+                            
+                            await loadMonthClinicDays(year, month);
+                            await loadMonthClinicDays(year, month - 1 || 12, month === 1 ? year - 1 : year);
+                            await loadMonthClinicDays(year, month === 12 ? 1 : month + 1, month === 12 ? year + 1 : year);
+                            
+                            setTimeout(function() { instance.redraw(); }, 50);
+                        },
 						onChange: function(selectedDates, dateStr, instance) {
 							updateDayViewPanel(dateStr);
     					},
@@ -3556,6 +3649,11 @@
                 if (confirmSave) {
                     saveDatabase(true);
                 }
+            }
+            
+            // Unregister session when closing
+            if (currentUser) {
+                eel.unregister_session(currentUser)();
             }
             
             // Delete lock file when closing (if we own it)
