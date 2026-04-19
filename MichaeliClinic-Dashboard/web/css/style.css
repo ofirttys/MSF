@@ -732,7 +732,7 @@
 
         .status-count {
             background: white;
-            padding: 2px 18px;
+            padding: 15px 18px;
 			margin-right: 15px;
 			margin-bottom: 15px;
 			flex-basis: 100px;
@@ -746,7 +746,7 @@
 
         .status-count-wide {
             background: white;
-            padding: 2px 18px;
+            padding: 15px 18px;
 			margin-right: 15px;
 			margin-bottom: 15px;
 			flex-basis: 120px;
@@ -759,17 +759,17 @@
         }
 
         .status-count-number {
-            font-size: 24px;
+            font-size: 42px;
             font-weight: 700;
             display: block;
-            margin-bottom: 2px;
-			margin-top: 0;
+            margin-bottom: 5px;
+			margin-top: 5px;
         }
 
         .status-count-label {
-            font-size: 11px;
-			margin-top: 0;
-			margin-bottom: 0;
+            font-size: 12px;
+			margin-top: 2px;
+			margin-bottom: 2px;
         }
 
         .filter-buttons {
