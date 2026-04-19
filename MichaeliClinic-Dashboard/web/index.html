@@ -601,6 +601,23 @@
         </div>
     </div>
 
+    <!-- Error Modal -->
+    <div class="modal" id="errorModal">
+        <div class="modal-content" style="width: 400px; max-width: 90%;">
+            <div class="modal-header">
+                <h2 class="modal-title" style="color: #e74c3c; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">⚠️</span>
+                    <span>Error</span>
+                </h2>
+                <button class="close-btn" onclick="closeModal('errorModal')">&times;</button>
+            </div>
+            <div style="padding: 20px; text-align: center;">
+                <p id="errorMessage" style="font-size: 14px; color: #333; margin-bottom: 20px;"></p>
+                <button class="btn btn-primary" onclick="closeModal('errorModal')" style="min-width: 80px;">OK</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Flatpickr JS for date/time pickers -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
 

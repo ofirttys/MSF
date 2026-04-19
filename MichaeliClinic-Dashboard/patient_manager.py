@@ -17,9 +17,12 @@ class PatientManager:
         """Get all patients with basic info"""
         patients = self.db.fetchall("""
             SELECT 
-                patientID, patientName, partnerName,
-                patientPhone, patientEmail,
+                patientID, patientName, partnerName, partnerID,
+                patientAlias, patientFirstName, patientMiddleName, patientLastName,
+                partnerAlias, partnerFirstName, partnerMiddleName, partnerLastName,
+                patientPhone, patientEmail, partnerPhone, partnerEmail,
                 currentState, nextAppointment, appointmentTime, appointmentLocation,
+                dateAdded, notes,
                 isSurvivorshipClinic, isPriorityList, isOTC
             FROM patients
             ORDER BY patientName
@@ -37,6 +40,14 @@ class PatientManager:
                 FROM appointment_history
                 WHERE patientID = ?
                 ORDER BY date DESC
+            """, (patient['patientID'],))
+            
+            # Load state history for reminders
+            patient['stateHistory'] = self.db.fetchall("""
+                SELECT state, timestamp, notes
+                FROM state_history
+                WHERE patientID = ?
+                ORDER BY timestamp
             """, (patient['patientID'],))
         
         return patients
@@ -98,15 +109,16 @@ class PatientManager:
         """Add a new patient"""
         try:
             timestamp = datetime.now().isoformat() + 'Z'
+            date_added = datetime.now().strftime('%Y-%m-%d')
             
             self.db.execute("""
                 INSERT INTO patients (
                     patientID, patientName, patientAlias, patientFirstName, patientMiddleName, patientLastName,
                     partnerName, partnerAlias, partnerFirstName, partnerMiddleName, partnerLastName,
                     patientPhone, patientEmail, partnerPhone, partnerEmail,
-                    currentState, notes,
+                    currentState, notes, dateAdded,
                     isSurvivorshipClinic, isPriorityList, isOTC
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 patient_data['patientID'],
                 patient_data['patientName'],
@@ -125,6 +137,7 @@ class PatientManager:
                 patient_data.get('partnerEmail', ''),
                 patient_data.get('currentState', 'WAITING_FIRST_APPT_SCHEDULE'),
                 patient_data.get('notes', ''),
+                date_added,
                 1 if patient_data.get('isSurvivorshipClinic', False) else 0,
                 1 if patient_data.get('isPriorityList', False) else 0,
                 1 if patient_data.get('isOTC', False) else 0

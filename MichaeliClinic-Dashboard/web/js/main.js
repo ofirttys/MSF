@@ -2095,6 +2095,11 @@
 			}			
         }
 
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorModal').classList.add('active');
+        }
+
 		// ============================================================================
         // WEEK VIEW FUNCTIONS
         // ============================================================================
@@ -2786,7 +2791,7 @@
                         // Reopen the patient view
                         viewPatientDetails(patientData.patientID);
                     } else {
-                        alert('Failed to update patient in database');
+                        showError('Failed to update patient in database');
                     }
                 });
             } else {
@@ -2816,7 +2821,7 @@
                         renderAppointments();
                         updateStatusCounts();
                     } else {
-                        alert('Failed to add patient to database');
+                        showError('Failed to add patient to database');
                     }
                 });
             }
