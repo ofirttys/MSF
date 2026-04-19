@@ -1,8 +1,3 @@
-    <!-- Flatpickr JS for date/time pickers -->
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js">
-
-    
-
         
 // ============================================================================
 // EEL INTEGRATION LAYER

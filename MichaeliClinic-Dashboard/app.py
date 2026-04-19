@@ -176,20 +176,7 @@ def main():
     
     # Start Eel
     try:
-        # Chrome app args to disable cache
-        chrome_args = [
-            '--disable-cache',
-            '--disable-application-cache',
-            '--disable-offline-load-stale-cache',
-            '--disk-cache-size=0'
-        ]
-        
-        eel.start('index.html', 
-                  mode='chrome',
-                  cmdline_args=chrome_args,
-                  size=(1400, 900), 
-                  port=8080,
-                  close_callback=lambda x, y: None)
+        eel.start('index.html', size=(1400, 900), port=8080)
     except (SystemExit, KeyboardInterrupt):
         print("\nShutting down...")
         if db:
