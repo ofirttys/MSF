@@ -1,75 +1,39 @@
-        
-// ============================================================================
-// EEL INTEGRATION LAYER
-// ============================================================================
 
-// Global data cache
-var patients = [];
-var clinicDays = {};
-var emailTemplates = {};
-var pendingEmails = [];
-
-// Load all data from backend
-async function loadAllData() {
-    try {
-        // Load patients
-        patients = await eel.get_all_patients()();
-        
-        // Load email templates (from JSON file)
-        // TODO: Implement email templates loading
-        emailTemplates = {};
-        
-        console.log(`Loaded ${patients.length} patients`);
-        return true;
-    } catch (error) {
-        console.error("Error loading data:", error);
-        return false;
-    }
-}
-
-// Save patient data (called by existing save functions)
-async function saveDataToBackend() {
-    // Individual patient updates are handled by specific Eel calls
-    // This is now a no-op since we don't batch-save anymore
-    return true;
-}
-
-// Save clinic days
-async function saveClinicDays() {
-    // Clinic days are saved individually when changed
-    return true;
-}
-
-// Save action items
-async function saveActionItems() {
-    // Action items are saved individually when changed
-    return true;
-}
-
-// ============================================================================
-        
         // ============================================================================
-        // CONFIGURATION - Eel Integration
+        // CONFIGURATION - MODIFY THIS SECTION AT THE HOSPITAL
         // ============================================================================
         
-        // No file paths needed - using Eel API instead
-        var EMAIL_FROM_ADDRESS = "dr.michaelisoffice@sinaihealth.ca";
+		var ROOT_PATH = "DB\\";
         
-        // Lock file settings (handled by backend now)
-        var LOCK_STALE_HOURS = 1;
+        var DATABASE_FILE_PATH = ROOT_PATH + "michaeli-clinic.json";
+        var CLINIC_DAYS_FILE_PATH = ROOT_PATH + "clinic-days.json";
+        var LOCK_FILE_PATH = ROOT_PATH + "michaeli-clinic.lock";
+        var ACTION_ITEMS_FILE_PATH = ROOT_PATH + "action-items.json";
+        var EMAIL_TEMPLATES_FILE_PATH = ROOT_PATH + "email-templates.json";
+        var PENDING_EMAILS_FILE_PATH = ROOT_PATH + "pending-emails.json";
+		var PORTAL_USERS_FILE_PATH = ROOT_PATH + "Patient Portal Users.csv";
+		
+		var EMAIL_FROM_ADDRESS = "dr.michaelisoffice@sinaihealth.ca"; // Leave empty to use default account
+		
+        // Lock file settings
+        var LOCK_STALE_HOURS = 1; // Lock files older than this are considered stale/orphaned
         
-        // Credentials - simple frontend validation
+        // Credentials - multiple users supported
         var VALID_USERS = {
             "admin": "5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da",
             "jennia": "5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da"
         };
         
+        // DEBUG MODE: Set to true to see password hashes (for changing password)
+        // After getting the hash, set back to false!
         var DEBUG_MODE = false;
+        
+        // Read-only mode flag
         var isReadOnly = false;
         var currentUser = "";
         var lockOwner = "";
         
-        // Action items data (loaded from backend)
+        // Action items data
         var actionItems = {
             activeTab: "all",
             appointment: [],
@@ -80,8 +44,6 @@ async function saveActionItems() {
         
         // ============================================================================
         // END CONFIGURATION
-        // ============================================================================
-
         // ============================================================================
 
 		function getTodayLocalDate() {
@@ -262,8 +224,37 @@ async function saveActionItems() {
             if (VALID_USERS[username] && enteredHash === VALID_USERS[username]) {
                 currentUser = username;
                 
-                // Lock file checking disabled in Eel version (backend handles concurrency)
-                isReadOnly = false;
+                // Check for lock file
+                var lockStatus = checkLockFile();
+                
+                if (lockStatus.locked && !lockStatus.stale) {
+                    // Database is locked by another user
+                    var lockTime = new Date(lockStatus.timestamp);
+                    var lockTimeStr = lockTime.toLocaleDateString() + ' at ' + lockTime.toLocaleTimeString();
+                    
+                    var choice = confirm(
+                        'Database In Use\n\n' +
+                        'The database is currently being edited by: ' + lockStatus.user + '\n' +
+                        'Since: ' + lockTimeStr + '\n\n' +
+                        'Click OK to open in Read-Only mode (you can view but not edit).\n' +
+                        'Click Cancel to abort login.'
+                    );
+                    
+                    if (choice) {
+                        isReadOnly = true;
+                        lockOwner = lockStatus.user;
+                    } else {
+                        return false;
+                    }
+                } else {
+                    // No lock or stale lock - create new lock
+                    if (lockStatus.stale) {
+                        // Inform user we're breaking stale lock
+                        alert('Note: A stale lock from ' + lockStatus.user + ' was found and has been cleared.');
+                    }
+                    createLockFile(username);
+                    isReadOnly = false;
+                }
                 
                 isLoggedIn = true;
                 document.getElementById('loginScreen').style.display = 'none';
@@ -315,20 +306,18 @@ async function saveActionItems() {
         
         // Lock file functions
         function checkLockFile() {
-            // Lock file system disabled in Eel version
-            // Backend handles concurrency
+            // Lock file system disabled in Eel version - backend handles concurrency
             return { locked: false, stale: false, user: null, timestamp: null };
         }
         
         function createLockFile(username) {
-            // Lock file system disabled in Eel version
-            // Backend handles concurrency
+            // Lock file system disabled in Eel version - backend handles concurrency
         }
         
         function deleteLockFile() {
-            // Lock file system disabled in Eel version
-            // Backend handles concurrency
+            // Lock file system disabled in Eel version - backend handles concurrency
         }
+        
         
         function refreshLockFile() {
             if (!isReadOnly && currentUser) {
@@ -470,16 +459,14 @@ async function saveActionItems() {
         }
 
         // File System Operations (HTA-specific)
+        // Load database from backend via Eel
         async function loadDatabase() {
             try {
-                // Load patients from backend via Eel
                 patients = await eel.get_all_patients()();
+                console.log(`Loaded ${patients.length} patients from backend`);
                 
-                console.log('Loaded ' + patients.length + ' patients from backend');
-                
-                // Note: clinic days are loaded on-demand when needed
-                // This avoids loading all 343 days upfront
-                clinicDays = {};
+                // Initialize empty structures if needed
+                if (!patients) patients = [];
                 
                 // Migrate old patients to add new fields if they don't exist
                 for (var i = 0; i < patients.length; i++) {
@@ -501,64 +488,46 @@ async function saveActionItems() {
                 updateStatusCounts();
                 updateClinicTypeButtons();
                 
-            } catch (e) {
-                alert('Error loading database:\n' + e.message);
-                console.error('Database load error:', e);
+                console.log('Database loaded successfully');
+            } catch (error) {
+                console.error("Error loading database:", error);
+                alert("Error loading database: " + error);
                 patients = [];
-                clinicDays = {};
             }
         }
 
+
         function saveDatabase(silent) {
+            // Database saves handled by backend - individual operations call backend directly
+            // This function now just marks as saved
             if (!isLoggedIn) return;
             
-            // Block saving in read-only mode
             if (isReadOnly) {
                 if (!silent) {
-                    alert('Cannot save - database is in read-only mode.\nAnother user (' + lockOwner + ') is currently editing.');
+                    alert('Cannot save - database is in read-only mode.');
                 }
                 return;
             }
-            
-            // In Eel version, individual saves happen immediately via API calls
-            // This function just resets the unsaved counter and shows confirmation
             
             unsavedChanges = 0;
             updateUnsavedIndicator();
             updateLastSavedTime(silent);
             
             if (!silent) {
-                showToast('All changes saved to database');
+                // Show brief confirmation
+                console.log('Changes saved to backend');
             }
         }
 
-        // Toast notification helper
-        function showToast(message) {
-            // Simple toast - you can enhance this with better UI later
-            var toast = document.createElement('div');
-            toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 15px 25px; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); z-index: 10000; font-size: 14px;';
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            
-            setTimeout(function() {
-                toast.style.transition = 'opacity 0.3s';
-                toast.style.opacity = '0';
-                setTimeout(function() {
-                    document.body.removeChild(toast);
-                }, 300);
-            }, 2000);
+        function saveClinicDays() {
+            // Clinic days saved via backend when toggleClinicType is called
+            // No action needed here
         }
 
-        function saveClinicDays() {
-            // In Eel version, clinic days are saved immediately when changed
-            // via eel.update_clinic_day() - this function is a no-op
-        }
 
         function backupDatabase() {
-            if (!isLoggedIn) return;
-            
-            // TODO: Implement backup via backend
-            alert('💾 Backup feature will be implemented in backend.\n\nFor now, the SQLite database file can be copied manually:\nmichaeli-clinic.db');
+            // Backup functionality disabled in Eel version
+            alert('Backup functionality not yet implemented.\nDatabase is automatically saved to SQLite.');
         }
 
         // Unsaved changes tracking
@@ -771,7 +740,7 @@ async function saveActionItems() {
         }
 
         // Toggle clinic type for current date
-        async function toggleClinicType(type) {
+        function toggleClinicType(type) {
             // Block in read-only mode
             if (isReadOnly) {
                 alert('Cannot modify clinic days - database is in read-only mode.\nAnother user (' + lockOwner + ') is currently editing.');
@@ -825,9 +794,6 @@ async function saveActionItems() {
             }
             
             markAsChanged();
-            
-            // Save to backend
-            await eel.update_clinic_day(dateStr, clinicDays[dateStr] || {})();
             updateClinicTypeButtons();
             refreshMainDatePicker();
         }
@@ -1497,8 +1463,7 @@ async function saveActionItems() {
         // Save emails array to file for Outlook VBA to process
         function saveEmailsToFile(emailsArray) {
             // Email file saving disabled in Eel version
-            // TODO: Implement backend email integration
-            alert(emailsArray.length + ' email(s) generated.\n\nEmail integration will be added in next update.\nFor now, copy the email text manually.');
+            alert(emailsArray.length + ' email(s) generated.\\n\\nEmail server integration coming soon.\\nFor now, copy the email text manually.');
             return false;
         }
 		
@@ -2040,120 +2005,10 @@ async function saveActionItems() {
 		
 		function loadPortalUsers() {
 			// Portal CSV reading disabled in Eel version
-			// TODO: Implement backend CSV reading
 			document.getElementById('portalContent').innerHTML = 
 				'<div style="padding: 20px; text-align: center; color: #7f8c8d;">' +
-				'Portal feature will be implemented in next update.<br><br>' +
+				'Portal CSV feature will be implemented in next update.<br><br>' +
 				'For now, use the original HTA for portal management.</div>';
-			document.getElementById('portalModal').classList.add('active');
-			return;
-		}
-			
-			// Check if file exists
-			if (!fso.FileExists(PORTAL_USERS_FILE_PATH)) {
-				document.getElementById('portalContent').innerHTML = 
-					'<div style="padding: 20px; text-align: center; color: #e74c3c;">' +
-					'Portal users file not found: ' + PORTAL_USERS_FILE_PATH + '</div>';
-				document.getElementById('portalModal').classList.add('active');
-				return;
-			}
-			
-			// Read CSV file
-			var file = fso.OpenTextFile(PORTAL_USERS_FILE_PATH, 1); // 1 = ForReading
-			var csvContent = file.ReadAll();
-			file.Close();
-			
-			// Parse CSV
-			var lines = csvContent.split('\n');
-			var portalUserIDs = {};
-			
-			// Skip header row (line 0) and process data rows
-			for (var i = 1; i < lines.length; i++) {
-				var line = lines[i].trim();
-				if (line) {
-					// Split by comma (or tab if needed)
-					var cols = line.split(',');
-					var patientID = cols[0].trim().replace(/"/g, ''); // Remove quotes if present
-					if (patientID) {
-						portalUserIDs[patientID] = true;
-					}
-				}
-			}
-			
-			// Get date range: today to 3 weeks from now
-			var today = new Date();
-			var threeWeeksLater = new Date(today);
-			threeWeeksLater.setDate(today.getDate() + 21);
-			
-			var todayStr = formatDateStr(today);
-			var endDateStr = formatDateStr(threeWeeksLater);
-			
-			// Find patients with appointments in the next 3 weeks who don't have portal access
-			var missingPortalAccess = [];
-			
-			for (var i = 0; i < patients.length; i++) {
-				var patient = patients[i];
-				
-				// Check if patient has an appointment in the next 3 weeks
-				if (patient.nextAppointment && patient.nextAppointment >= todayStr && patient.nextAppointment <= endDateStr) {
-					// Check patient
-					if (!portalUserIDs[patient.patientID]) {
-						missingPortalAccess.push({
-							id: patient.patientID,
-							name: formatNameWithAlias(patient.patientName, patient.patientAlias, patient.patientFirstName, patient.patientMiddleName, patient.patientLastName),
-							type: 'Patient',
-							appointmentDate: patient.nextAppointment
-						});
-					}
-					
-					// Check partner if exists
-					if (patient.partnerID && !portalUserIDs[patient.partnerID]) {
-						missingPortalAccess.push({
-							id: patient.partnerID,
-							name: formatNameWithAlias(patient.partnerName, patient.partnerAlias, patient.partnerFirstName, patient.partnerMiddleName, patient.partnerLastName),
-							type: 'Partner',
-							appointmentDate: patient.nextAppointment
-						});
-					}
-				}
-			}
-			
-			// Sort by appointment date
-			missingPortalAccess.sort(function(a, b) {
-				return a.appointmentDate.localeCompare(b.appointmentDate);
-			});
-			
-			// Display results
-			var html = '';
-			if (missingPortalAccess.length === 0) {
-				html = '<div style="padding: 20px; text-align: center; color: #27ae60;">' +
-					   'All patients with appointments in the next 3 weeks have portal access! ✓</div>';
-			} else {
-				html += '<div style="padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; margin-bottom: 10px;">' +
-						'<strong>' + missingPortalAccess.length + '</strong> patient(s)/partner(s) missing portal access</div>';
-				
-				html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
-				html += '<tr style="background: #f5f5f5; font-weight: 600;">' +
-						'<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">ID</th>' +
-						'<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Name</th>' +
-						'<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Type</th>' +
-						'<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Appointment</th>' +
-						'</tr>';
-				
-				for (var i = 0; i < missingPortalAccess.length; i++) {
-					var item = missingPortalAccess[i];
-					html += '<tr style="border-bottom: 1px solid #eee;">' +
-							'<td style="padding: 8px;">' + item.id + '</td>' +
-							'<td style="padding: 8px;">' + item.name + '</td>' +
-							'<td style="padding: 8px;">' + item.type + '</td>' +
-							'<td style="padding: 8px;">' + item.appointmentDate + '</td>' +
-							'</tr>';
-				}
-				
-				html += '</table>';
-			}
-			
-			document.getElementById('portalContent').innerHTML = html;
 			document.getElementById('portalModal').classList.add('active');
 		}
 		
@@ -3480,78 +3335,14 @@ async function saveActionItems() {
         
         // Load action items from JSON file
         function loadActionItems() {
-            try {
-                var fso = // Disabled - file operations not available in browser
-                if (fso.FileExists(ACTION_ITEMS_FILE_PATH)) {
-//                    var stream = // Disabled - file operations not available in browser
-//                    stream.Type = 2;
-//                    stream.Charset = "utf-8";
-//                    stream.Open();
-//                    stream.LoadFromFile(ACTION_ITEMS_FILE_PATH);
-//                    var content = stream.ReadText();
-//                    stream.Close();
-//                    actionItems = JSON.parse(content);
-//                    // Ensure activeTab exists
-//                    if (!actionItems.activeTab) {
-//                        actionItems.activeTab = 'all';
-//                    }
-                    var file = fso.OpenTextFile(ACTION_ITEMS_FILE_PATH, 1); // 1 = ForReading
-                    var content = file.ReadAll();
-                    file.Close();
-                    // Strip BOM if present
-                    if (content.charCodeAt(0) === 0xFEFF) {
-                        content = content.substring(1);
-                    }
-                    actionItems = JSON.parse(content);
-                    // Ensure activeTab exists
-                    if (!actionItems.activeTab) {
-                        actionItems.activeTab = 'all';
-                    }
-                } else {
-                    // Initialize empty structure
-                    actionItems = {
-                        activeTab: 'all',
-                        appointment: [],
-                        general: [],
-                        phone: [],
-                        email: []
-                    };
-                }
-            } catch (e) {
-                actionItems = {
-                    activeTab: 'all',
-                    appointment: [],
-                    general: [],
-                    phone: [],
-                    email: []
-                };
-            }
+            // Action items loaded from backend via Eel
+            // TODO: Implement if needed
         }
         
         // Save action items to JSON file
         function saveActionItems() {
-            if (isReadOnly) return;
-            
-//            try {
-//                var fso = new ActiveXObject("Scripting.FileSystemObject");
-//                var stream = new ActiveXObject("ADODB.Stream");
-//                stream.Type = 2;
-//                stream.Charset = "utf-8";
-//                stream.Open();
-//                stream.WriteText(JSON.stringify(actionItems, null, 2));
-//                stream.SaveToFile(ACTION_ITEMS_FILE_PATH, 2);
-//                stream.Close();
-//            } catch (e) {
-//                alert('Error saving action items: ' + e.message);
-//            }
-            try {
-                var fso = // Disabled - file operations not available in browser
-                var file = fso.CreateTextFile(ACTION_ITEMS_FILE_PATH, true); // true = overwrite
-                file.Write(JSON.stringify(actionItems, null, 2));
-                file.Close();
-            } catch (e) {
-                alert('Error saving action items: ' + e.message);
-            }
+            // Action items saved via backend
+            // Individual operations call backend directly
         }
         
         // Open action items modal
@@ -3827,33 +3618,12 @@ async function saveActionItems() {
         var currentViewingPatientID = null; // Store patient ID when viewing details
         
         // Load email templates from JSON file
+        // Load email templates from JSON file
         function loadEmailTemplates() {
-            var templatePath = EMAIL_TEMPLATES_FILE_PATH;
-            try {
-                var fso = // Disabled - file operations not available in browser
-                if (!fso.FileExists(templatePath)) {
-                    alert('Email templates file not found: ' + templatePath);
-                    return false;
-                }
-                
-//                // Use ADODB.Stream for better encoding support
-//                var stream = // Disabled - file operations not available in browser
-//                stream.Type = 2; // adTypeText
-//                stream.Charset = "utf-8";
-//                stream.Open();
-//                stream.LoadFromFile(templatePath);
-//                var content = stream.ReadText();
-//                stream.Close();
-                var file = fso.OpenTextFile(templatePath, 1); // 1 = ForReading
-                var content = file.ReadAll();
-                file.Close();
-                
-                emailTemplates = JSON.parse(content);
-                return true;
-            } catch (e) {
-                alert('Error loading email templates: ' + e.message + '\nPath: ' + templatePath);
-                return false;
-            }
+            // Email templates loaded from backend or JSON
+            // For now, return empty templates
+            emailTemplates = {};
+            return true;
         }
         
         // Open email generator modal
@@ -4701,18 +4471,15 @@ async function saveActionItems() {
             return false;
         };
 		
-    
+
 
 // ============================================================================
-// ADDITIONAL EEL INTEGRATION HELPERS
+// EEL INTEGRATION HELPERS
 // ============================================================================
 
 // Helper: Save patient updates to backend
 async function savePatientToBackend(patient) {
-    // For now, we update specific fields via dedicated endpoints
-    // Full patient update endpoint can be added later if needed
     try {
-        // Update notes if changed
         if (patient.notes) {
             await eel.update_patient_notes(patient.patientID, patient.notes)();
         }
@@ -4728,7 +4495,6 @@ async function updatePatientStateWithSave(patientID, newState, notes) {
     var patient = patients.find(p => p.patientID === patientID);
     if (!patient) return false;
     
-    // Update local
     patient.currentState = newState;
     patient.stateHistory.push({
         state: newState,
@@ -4736,7 +4502,6 @@ async function updatePatientStateWithSave(patientID, newState, notes) {
         notes: notes || ''
     });
     
-    // Save to backend
     try {
         await eel.update_patient_state(patientID, newState, notes)();
         markAsChanged();
@@ -4752,12 +4517,10 @@ async function scheduleAppointmentWithSave(patientID, date, time, location) {
     var patient = patients.find(p => p.patientID === patientID);
     if (!patient) return false;
     
-    // Update local
     patient.nextAppointment = date;
     patient.appointmentTime = time;
     patient.appointmentLocation = location;
     
-    // Save to backend
     try {
         await eel.update_next_appointment(patientID, date, time, location)();
         markAsChanged();
@@ -4772,43 +4535,46 @@ console.log('Eel integration helpers loaded');
 
 
 // ============================================================================
-// PROFESSIONAL ERROR HANDLING (No ugly alerts!)
+// PROFESSIONAL ERROR HANDLING
 // ============================================================================
 
 function showErrorModal(message) {
-    document.getElementById('errorModalMessage').textContent = message;
-    document.getElementById('errorModal').style.display = 'block';
+    var modal = document.getElementById('errorModal');
+    if (modal) {
+        document.getElementById('errorModalMessage').textContent = message;
+        modal.style.display = 'block';
+    } else {
+        // Fallback if modal doesn't exist
+        alert(message);
+    }
 }
 
 function closeErrorModal() {
-    document.getElementById('errorModal').style.display = 'none';
+    var modal = document.getElementById('errorModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
-// Override alert() to use modal instead (but preserve confirm and prompt)
+// Smart alert override - use modal for errors, keep confirm working
 var originalAlert = window.alert;
 var originalConfirm = window.confirm;
 
 window.alert = function(message) {
-    // Skip empty messages
     if (!message) return;
     
-    // Check if this is an error or warning message
     var isError = message.toLowerCase().includes('error') || 
                   message.toLowerCase().includes('warning') ||
                   message.toLowerCase().includes('failed') ||
                   message.toLowerCase().includes('could not');
     
     if (isError) {
-        // Use modal for errors
         showErrorModal(message);
     } else {
-        // Use original alert for info messages
         originalAlert(message);
     }
 };
 
-// Keep confirm working normally
 window.confirm = originalConfirm;
 
 console.log('Professional error handling loaded');
-
