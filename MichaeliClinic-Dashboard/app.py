@@ -16,8 +16,8 @@ from appointment_manager import AppointmentManager
 from action_items_manager import ActionItemsManager
 from clinic_days_manager import ClinicDaysManager
 
-# Initialize Eel
-eel.init('web')
+# Initialize Eel with allowed file extensions
+eel.init('web', allowed_extensions=['.js', '.html', '.css'])
 
 # Global managers
 db = None
@@ -176,7 +176,20 @@ def main():
     
     # Start Eel
     try:
-        eel.start('index.html', size=(1400, 900), port=8080)
+        # Chrome app args to disable cache
+        chrome_args = [
+            '--disable-cache',
+            '--disable-application-cache',
+            '--disable-offline-load-stale-cache',
+            '--disk-cache-size=0'
+        ]
+        
+        eel.start('index.html', 
+                  mode='chrome',
+                  cmdline_args=chrome_args,
+                  size=(1400, 900), 
+                  port=8080,
+                  close_callback=lambda x, y: None)
     except (SystemExit, KeyboardInterrupt):
         print("\nShutting down...")
         if db:
