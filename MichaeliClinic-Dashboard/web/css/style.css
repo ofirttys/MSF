@@ -294,10 +294,14 @@
 
         .patient-status-badge {
             font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 10px;
+            padding: 0;
+            border-radius: 0;
             display: inline-block;
             margin-left: 8px;
+            text-shadow: none;
+            box-shadow: none;
+            outline: none;
+            background: transparent !important;
         }
 
         .patient-info {

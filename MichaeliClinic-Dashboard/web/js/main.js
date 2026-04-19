@@ -360,6 +360,15 @@
                     refreshLockFile();
                 }, 5 * 60 * 1000); // 5 minutes
             }
+            
+            // Start 60-second auto-refresh for patient/appointment data
+            setInterval(async function() {
+                console.log('Auto-refreshing patient and appointment data...');
+                await loadDatabase();
+                renderAppointments();
+                renderPatientList();
+                updateStatusCounts();
+            }, 60 * 1000); // 60 seconds
         }
         
         // Apply read-only mode restrictions
@@ -2752,20 +2761,34 @@
 			
             if (currentEditingPatient) {
                 // Update existing patient
-                for (var i = 0; i < patients.length; i++) {
-                    if (patients[i].patientID === currentEditingPatient.patientID) {
-                        patients[i] = mergeObjects({}, patients[i], patientData);
-                        
-                        // Add notes to history if changed
-                        if (patientData.notes !== currentEditingPatient.notes && patientData.notes) {
-                            patients[i].notesHistory.push({
-                                timestamp: new Date().toISOString(),
-                                note: patientData.notes
-                            });
+                eel.update_patient(currentEditingPatient.patientID, patientData)(function(success) {
+                    if (success) {
+                        for (var i = 0; i < patients.length; i++) {
+                            if (patients[i].patientID === currentEditingPatient.patientID) {
+                                patients[i] = mergeObjects({}, patients[i], patientData);
+                                
+                                // Add notes to history if changed
+                                if (patientData.notes !== currentEditingPatient.notes && patientData.notes) {
+                                    patients[i].notesHistory.push({
+                                        timestamp: new Date().toISOString(),
+                                        note: patientData.notes
+                                    });
+                                }
+                                break;
+                            }
                         }
-                        break;
+                        
+                        closeModal('patientModal');
+                        renderPatientList();
+                        renderAppointments();
+                        updateStatusCounts();
+                        
+                        // Reopen the patient view
+                        viewPatientDetails(patientData.patientID);
+                    } else {
+                        alert('Failed to update patient in database');
                     }
-                }
+                });
             } else {
                 // Create new patient
                 var newPatient = mergeObjects({}, patientData, {
@@ -2783,18 +2806,19 @@
                         note: patientData.notes
                     }] : []
                 });
-                patients.push(newPatient);
-            }
-
-            markAsChanged();
-            closeModal('patientModal');
-            renderPatientList();
-            renderAppointments();
-            updateStatusCounts();
-
-            // If we were editing (not adding new), reopen the patient view
-            if (currentEditingPatient) {
-                viewPatientDetails(patientData.patientID);
+                
+                eel.add_patient(newPatient)(function(success) {
+                    if (success) {
+                        patients.push(newPatient);
+                        
+                        closeModal('patientModal');
+                        renderPatientList();
+                        renderAppointments();
+                        updateStatusCounts();
+                    } else {
+                        alert('Failed to add patient to database');
+                    }
+                });
             }
 		}
 

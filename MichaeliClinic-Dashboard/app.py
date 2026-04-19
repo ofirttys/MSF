@@ -76,6 +76,16 @@ def search_patients(query):
     return patient_mgr.search(query)
 
 @eel.expose
+def add_patient(patient_data):
+    """Add a new patient"""
+    return patient_mgr.add(patient_data)
+
+@eel.expose
+def update_patient(patient_id, patient_data):
+    """Update existing patient"""
+    return patient_mgr.update(patient_id, patient_data)
+
+@eel.expose
 def update_patient_state(patient_id, new_state, notes=None):
     """Update patient state"""
     return patient_mgr.update_state(patient_id, new_state, notes)

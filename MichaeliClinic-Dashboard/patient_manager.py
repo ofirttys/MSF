@@ -94,6 +94,100 @@ class PatientManager:
             LIMIT 50
         """, (search_term, search_term, search_term, search_term))
     
+    def add(self, patient_data: Dict) -> bool:
+        """Add a new patient"""
+        try:
+            timestamp = datetime.now().isoformat() + 'Z'
+            
+            self.db.execute("""
+                INSERT INTO patients (
+                    patientID, patientName, patientAlias, patientFirstName, patientMiddleName, patientLastName,
+                    partnerName, partnerAlias, partnerFirstName, partnerMiddleName, partnerLastName,
+                    patientPhone, patientEmail, partnerPhone, partnerEmail,
+                    currentState, notes,
+                    isSurvivorshipClinic, isPriorityList, isOTC
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                patient_data['patientID'],
+                patient_data['patientName'],
+                patient_data.get('patientAlias', ''),
+                patient_data.get('patientFirstName', ''),
+                patient_data.get('patientMiddleName', ''),
+                patient_data.get('patientLastName', ''),
+                patient_data.get('partnerName', ''),
+                patient_data.get('partnerAlias', ''),
+                patient_data.get('partnerFirstName', ''),
+                patient_data.get('partnerMiddleName', ''),
+                patient_data.get('partnerLastName', ''),
+                patient_data['patientPhone'],
+                patient_data['patientEmail'],
+                patient_data.get('partnerPhone', ''),
+                patient_data.get('partnerEmail', ''),
+                patient_data.get('currentState', 'WAITING_FIRST_APPT_SCHEDULE'),
+                patient_data.get('notes', ''),
+                1 if patient_data.get('isSurvivorshipClinic', False) else 0,
+                1 if patient_data.get('isPriorityList', False) else 0,
+                1 if patient_data.get('isOTC', False) else 0
+            ))
+            
+            # Add initial state to history
+            self.db.execute("""
+                INSERT INTO state_history (patientID, state, timestamp, notes)
+                VALUES (?, ?, ?, ?)
+            """, (
+                patient_data['patientID'],
+                patient_data.get('currentState', 'WAITING_FIRST_APPT_SCHEDULE'),
+                timestamp,
+                'Initial state'
+            ))
+            
+            self.db.commit()
+            return True
+        except Exception as e:
+            self.db.rollback()
+            print(f"Error adding patient: {e}")
+            return False
+    
+    def update(self, patient_id: str, patient_data: Dict) -> bool:
+        """Update existing patient"""
+        try:
+            self.db.execute("""
+                UPDATE patients SET
+                    patientName = ?, patientAlias = ?, patientFirstName = ?, patientMiddleName = ?, patientLastName = ?,
+                    partnerName = ?, partnerAlias = ?, partnerFirstName = ?, partnerMiddleName = ?, partnerLastName = ?,
+                    patientPhone = ?, patientEmail = ?, partnerPhone = ?, partnerEmail = ?,
+                    notes = ?,
+                    isSurvivorshipClinic = ?, isPriorityList = ?, isOTC = ?
+                WHERE patientID = ?
+            """, (
+                patient_data['patientName'],
+                patient_data.get('patientAlias', ''),
+                patient_data.get('patientFirstName', ''),
+                patient_data.get('patientMiddleName', ''),
+                patient_data.get('patientLastName', ''),
+                patient_data.get('partnerName', ''),
+                patient_data.get('partnerAlias', ''),
+                patient_data.get('partnerFirstName', ''),
+                patient_data.get('partnerMiddleName', ''),
+                patient_data.get('partnerLastName', ''),
+                patient_data['patientPhone'],
+                patient_data['patientEmail'],
+                patient_data.get('partnerPhone', ''),
+                patient_data.get('partnerEmail', ''),
+                patient_data.get('notes', ''),
+                1 if patient_data.get('isSurvivorshipClinic', False) else 0,
+                1 if patient_data.get('isPriorityList', False) else 0,
+                1 if patient_data.get('isOTC', False) else 0,
+                patient_id
+            ))
+            
+            self.db.commit()
+            return True
+        except Exception as e:
+            self.db.rollback()
+            print(f"Error updating patient: {e}")
+            return False
+    
     def update_state(self, patient_id: str, new_state: str, notes: Optional[str] = None) -> bool:
         """Update patient state and log to history"""
         try:
