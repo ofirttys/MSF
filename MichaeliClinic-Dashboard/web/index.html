@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MichaeliClinic-Dashboard</title>
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="dashboard.ico">
+    
     <!-- Flatpickr CSS for date/time pickers -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
     
@@ -5383,6 +5386,21 @@
         };
 		
     </script>
+    <!-- Error Modal -->
+    <div id="errorModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 style="color: #e74c3c; margin: 0;">⚠️ Error</h2>
+                <span class="close" onclick="closeErrorModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="errorModalMessage" style="font-size: 14px; line-height: 1.6; color: #2c3e50;"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeErrorModal()">OK</button>
+            </div>
+        </div>
+    </div>
 </body>
 
     <!-- Flatpickr JS for date/time pickers -->

@@ -320,8 +320,10 @@ async function saveActionItems() {
         
         // Lock file functions
         function checkLockFile() {
-            try {
-                var fso = new ActiveXObject("Scripting.FileSystemObject");
+            // Lock file system disabled in Eel version
+            // Backend handles concurrency
+            return { locked: false, stale: false, user: null, timestamp: null };
+        }
                 if (!fso.FileExists(LOCK_FILE_PATH)) {
                     return { locked: false };
                 }
@@ -348,8 +350,10 @@ async function saveActionItems() {
         }
         
         function createLockFile(username) {
-            try {
-                var fso = new ActiveXObject("Scripting.FileSystemObject");
+            // Lock file system disabled in Eel version
+            // Backend handles concurrency
+        }
+        // Disabled - backend handles concurrency
                 var file = fso.CreateTextFile(LOCK_FILE_PATH, true);
                 var lockData = {
                     user: username,
@@ -364,7 +368,7 @@ async function saveActionItems() {
         
         function deleteLockFile() {
             try {
-                var fso = new ActiveXObject("Scripting.FileSystemObject");
+        // Disabled - backend handles concurrency
                 if (fso.FileExists(LOCK_FILE_PATH)) {
                     fso.DeleteFile(LOCK_FILE_PATH);
                 }
@@ -4812,4 +4816,29 @@ async function scheduleAppointmentWithSave(patientID, date, time, location) {
 }
 
 console.log('Eel integration helpers loaded');
+
+
+// ============================================================================
+// PROFESSIONAL ERROR HANDLING (No ugly alerts!)
+// ============================================================================
+
+function showErrorModal(message) {
+    document.getElementById('errorModalMessage').textContent = message;
+    document.getElementById('errorModal').style.display = 'block';
+}
+
+function closeErrorModal() {
+    document.getElementById('errorModal').style.display = 'none';
+}
+
+// Override alert() to use modal instead
+window.alert = function(message) {
+    // Skip empty messages
+    if (!message) return;
+    
+    // Use modal for errors
+    showErrorModal(message);
+};
+
+console.log('Professional error handling loaded');
 
