@@ -141,6 +141,16 @@ def get_clinic_day(date_str):
     return clinic_days_mgr.get(date_str)
 
 @eel.expose
+def get_all_clinic_days():
+    """Get all clinic day configurations"""
+    return clinic_days_mgr.get_all()
+
+@eel.expose
+def get_month_clinic_days(year, month):
+    """Get clinic days for a specific month"""
+    return clinic_days_mgr.get_month(year, month)
+
+@eel.expose
 def update_clinic_day(date_str, config):
     """Update clinic configuration for a date"""
     return clinic_days_mgr.update(date_str, config)
@@ -176,7 +186,8 @@ def main():
     
     # Start Eel
     try:
-        eel.start('index.html', size=(1400, 900), port=8080)
+        # Start in app mode (no browser chrome) with maximized window
+        eel.start('index.html', mode='chrome', size=(1920, 1080), port=8080)
     except (SystemExit, KeyboardInterrupt):
         print("\nShutting down...")
         if db:

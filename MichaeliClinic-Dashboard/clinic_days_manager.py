@@ -81,3 +81,49 @@ class ClinicDaysManager:
             self.db.rollback()
             print(f"Error updating clinic day: {e}")
             return False
+    
+    def get_all(self) -> Dict[str, Dict]:
+        """Get all clinic day configurations"""
+        rows = self.db.fetchall("""
+            SELECT date, downtown, vaughan, ivf, survivorship, md2
+            FROM clinic_days
+        """)
+        
+        result = {}
+        for row in rows:
+            result[row['date']] = {
+                'downtown': bool(row['downtown']),
+                'vaughan': bool(row['vaughan']),
+                'ivf': bool(row['ivf']),
+                'survivorship': bool(row['survivorship']),
+                'md2': bool(row['md2'])
+            }
+        
+        return result
+    
+    def get_month(self, year: int, month: int) -> Dict[str, Dict]:
+        """Get clinic day configurations for a specific month"""
+        # Create date range for the month
+        start_date = f"{year}-{month:02d}-01"
+        if month == 12:
+            end_date = f"{year + 1}-01-01"
+        else:
+            end_date = f"{year}-{month + 1:02d}-01"
+        
+        rows = self.db.fetchall("""
+            SELECT date, downtown, vaughan, ivf, survivorship, md2
+            FROM clinic_days
+            WHERE date >= ? AND date < ?
+        """, (start_date, end_date))
+        
+        result = {}
+        for row in rows:
+            result[row['date']] = {
+                'downtown': bool(row['downtown']),
+                'vaughan': bool(row['vaughan']),
+                'ivf': bool(row['ivf']),
+                'survivorship': bool(row['survivorship']),
+                'md2': bool(row['md2'])
+            }
+        
+        return result

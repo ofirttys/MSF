@@ -468,6 +468,12 @@
                 // Initialize empty structures if needed
                 if (!patients) patients = [];
                 
+                // Initialize clinic days - will be loaded on demand
+                clinicDays = {};
+                
+                // Load current day's clinic configuration
+                await loadCurrentDayClinicData();
+                
                 // Migrate old patients to add new fields if they don't exist
                 for (var i = 0; i < patients.length; i++) {
                     if (patients[i].isSurvivorshipClinic === undefined) {
@@ -493,6 +499,38 @@
                 console.error("Error loading database:", error);
                 alert("Error loading database: " + error);
                 patients = [];
+            }
+        }
+        
+        // Load current day's clinic configuration
+        async function loadCurrentDayClinicData() {
+            var dateStr = currentViewDate.getFullYear() + '-' +
+                ('0' + (currentViewDate.getMonth() + 1)).slice(-2) + '-' +
+                ('0' + currentViewDate.getDate()).slice(-2);
+            
+            try {
+                var config = await eel.get_clinic_day(dateStr)();
+                if (config) {
+                    clinicDays[dateStr] = config;
+                }
+            } catch (error) {
+                console.error('Error loading current day clinic data:', error);
+            }
+        }
+        
+        // Load clinic days for a specific month
+        async function loadMonthClinicDays(year, month) {
+            try {
+                var monthData = await eel.get_month_clinic_days(year, month)();
+                // Merge into clinicDays
+                for (var date in monthData) {
+                    clinicDays[date] = monthData[date];
+                }
+                console.log(`Loaded ${Object.keys(monthData).length} clinic days for ${year}-${month}`);
+                return monthData;
+            } catch (error) {
+                console.error('Error loading month clinic days:', error);
+                return {};
             }
         }
 
@@ -566,10 +604,12 @@
         }
 
         // Date navigation
-        function changeDate(days) {
+        async function changeDate(days) {
             currentViewDate.setDate(currentViewDate.getDate() + days);
             updateDateDisplay();
             renderAppointments();
+            // Reload clinic data from DB
+            await loadCurrentDayClinicData();
             updateClinicTypeButtons();
             
             // Sync the flatpickr selected date
@@ -593,11 +633,26 @@
                     flatpickr(dateElement, {
                         dateFormat: 'Y-m-d',
                         defaultDate: currentViewDate,
-                        onChange: function(selectedDates) {
+                        onOpen: async function(selectedDates, dateStr, instance) {
+                            // Load current month when calendar opens
+                            var currentDate = instance.currentYear && instance.currentMonth !== undefined 
+                                ? new Date(instance.currentYear, instance.currentMonth, 1)
+                                : currentViewDate;
+                            await loadMonthClinicDays(currentDate.getFullYear(), currentDate.getMonth() + 1);
+                            instance.redraw();
+                        },
+                        onMonthChange: async function(selectedDates, dateStr, instance) {
+                            // Load new month's clinic days when month changes
+                            await loadMonthClinicDays(instance.currentYear, instance.currentMonth + 1);
+                            instance.redraw();
+                        },
+                        onChange: async function(selectedDates) {
                             if (selectedDates.length > 0) {
                                 currentViewDate = selectedDates[0];
                                 updateDateDisplay();
                                 renderAppointments();
+                                // Reload current day's clinic data from DB (in case another user changed it)
+                                await loadCurrentDayClinicData();
                                 updateClinicTypeButtons();
                             }
                         },
@@ -793,9 +848,39 @@
                 delete clinicDays[dateStr];
             }
             
+            // Save to backend
+            saveClinicDayToBackend(dateStr, clinicDays[dateStr] || {});
+            
             markAsChanged();
             updateClinicTypeButtons();
             refreshMainDatePicker();
+        }
+        
+        // Save clinic day configuration to backend
+        async function saveClinicDayToBackend(dateStr, config) {
+            try {
+                await eel.update_clinic_day(dateStr, config)();
+                console.log(`Saved clinic day ${dateStr}:`, config);
+            } catch (error) {
+                console.error('Error saving clinic day:', error);
+            }
+        }
+        
+        // Load clinic day configuration from backend
+        async function loadClinicDayFromBackend(date) {
+            var dateStr = date.getFullYear() + '-' +
+                ('0' + (date.getMonth() + 1)).slice(-2) + '-' +
+                ('0' + date.getDate()).slice(-2);
+            
+            try {
+                var config = await eel.get_clinic_day(dateStr)();
+                if (config) {
+                    clinicDays[dateStr] = config;
+                }
+                updateClinicTypeButtons();
+            } catch (error) {
+                console.error('Error loading clinic day:', error);
+            }
         }
 
         // Update clinic type button states based on current date
@@ -1958,15 +2043,17 @@
         var currentWeekStart = null; // Monday of the current week being viewed
         
         // Go to today
-        function goToToday() {
+        async function goToToday() {
             currentViewDate = new Date();
             updateDateDisplay();
             renderAppointments();
+            // Reload clinic data from DB
+            await loadCurrentDayClinicData();
             updateClinicTypeButtons();
         }
         
 		// Go to next clinic day
-        function goToNextClinic() {
+        async function goToNextClinic() {
             var currentDateStr = formatDateStr(currentViewDate);
             var nextClinicDate = null;
             
@@ -1984,6 +2071,8 @@
                 currentViewDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
                 updateDateDisplay();
                 renderAppointments();
+                // Reload clinic data from DB
+                await loadCurrentDayClinicData();
                 updateClinicTypeButtons();
             } else {
                 alert('No upcoming clinic days found.');
@@ -1991,9 +2080,20 @@
         }
         
         // Open week view modal
-        function openWeekViewModal() {
+        async function openWeekViewModal() {
             // Set week start to Monday of the week containing currentViewDate
             currentWeekStart = getMonday(currentViewDate);
+            
+            // Load clinic days for the week (might span 2 months)
+            var weekEnd = new Date(currentWeekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            
+            // Load both months if week spans two months
+            await loadMonthClinicDays(currentWeekStart.getFullYear(), currentWeekStart.getMonth() + 1);
+            if (weekEnd.getMonth() !== currentWeekStart.getMonth()) {
+                await loadMonthClinicDays(weekEnd.getFullYear(), weekEnd.getMonth() + 1);
+            }
+            
             renderWeekView();
             document.getElementById('weekViewModal').classList.add('active');
         }
@@ -2021,8 +2121,19 @@
         }
         
         // Change week (direction: -1 for prev, 1 for next)
-        function changeWeek(direction) {
+        async function changeWeek(direction) {
             currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
+            
+            // Load clinic days for the new week
+            var weekEnd = new Date(currentWeekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            
+            // Load both months if week spans two months
+            await loadMonthClinicDays(currentWeekStart.getFullYear(), currentWeekStart.getMonth() + 1);
+            if (weekEnd.getMonth() !== currentWeekStart.getMonth()) {
+                await loadMonthClinicDays(weekEnd.getFullYear(), weekEnd.getMonth() + 1);
+            }
+            
             renderWeekView();
         }
         
