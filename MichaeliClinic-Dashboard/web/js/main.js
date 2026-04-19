@@ -512,6 +512,9 @@
                 var config = await eel.get_clinic_day(dateStr)();
                 if (config) {
                     clinicDays[dateStr] = config;
+                } else {
+                    // Day has no configuration - remove it from cache
+                    delete clinicDays[dateStr];
                 }
             } catch (error) {
                 console.error('Error loading current day clinic data:', error);
@@ -634,16 +637,63 @@
                         dateFormat: 'Y-m-d',
                         defaultDate: currentViewDate,
                         onOpen: async function(selectedDates, dateStr, instance) {
-                            // Load current month when calendar opens
+                            // Load current month + adjacent months (for days shown from prev/next month)
                             var currentDate = instance.currentYear && instance.currentMonth !== undefined 
                                 ? new Date(instance.currentYear, instance.currentMonth, 1)
                                 : currentViewDate;
-                            await loadMonthClinicDays(currentDate.getFullYear(), currentDate.getMonth() + 1);
+                            
+                            var year = currentDate.getFullYear();
+                            var month = currentDate.getMonth() + 1;
+                            
+                            // Load current month
+                            await loadMonthClinicDays(year, month);
+                            
+                            // Load previous month (for dates shown at start of calendar)
+                            var prevMonth = month - 1;
+                            var prevYear = year;
+                            if (prevMonth === 0) {
+                                prevMonth = 12;
+                                prevYear--;
+                            }
+                            await loadMonthClinicDays(prevYear, prevMonth);
+                            
+                            // Load next month (for dates shown at end of calendar)
+                            var nextMonth = month + 1;
+                            var nextYear = year;
+                            if (nextMonth === 13) {
+                                nextMonth = 1;
+                                nextYear++;
+                            }
+                            await loadMonthClinicDays(nextYear, nextMonth);
+                            
                             instance.redraw();
                         },
                         onMonthChange: async function(selectedDates, dateStr, instance) {
-                            // Load new month's clinic days when month changes
-                            await loadMonthClinicDays(instance.currentYear, instance.currentMonth + 1);
+                            // Load new month + adjacent months when month changes
+                            var year = instance.currentYear;
+                            var month = instance.currentMonth + 1;
+                            
+                            // Load current month
+                            await loadMonthClinicDays(year, month);
+                            
+                            // Load previous month
+                            var prevMonth = month - 1;
+                            var prevYear = year;
+                            if (prevMonth === 0) {
+                                prevMonth = 12;
+                                prevYear--;
+                            }
+                            await loadMonthClinicDays(prevYear, prevMonth);
+                            
+                            // Load next month
+                            var nextMonth = month + 1;
+                            var nextYear = year;
+                            if (nextMonth === 13) {
+                                nextMonth = 1;
+                                nextYear++;
+                            }
+                            await loadMonthClinicDays(nextYear, nextMonth);
+                            
                             instance.redraw();
                         },
                         onChange: async function(selectedDates) {

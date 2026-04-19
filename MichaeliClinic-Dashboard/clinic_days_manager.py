@@ -30,14 +30,8 @@ class ClinicDaysManager:
                 'md2': bool(config['md2'])
             }
         else:
-            # Default: all available except special clinics
-            return {
-                'downtown': True,
-                'vaughan': True,
-                'ivf': False,
-                'survivorship': False,
-                'md2': False
-            }
+            # Return None for unset days (no defaults)
+            return None
     
     def update(self, date_str: str, config: Dict) -> bool:
         """Update clinic configuration for a date"""
