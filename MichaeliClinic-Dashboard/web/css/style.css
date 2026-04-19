@@ -112,13 +112,11 @@
         .main-content > .card:first-child {
             flex: 2;
             -ms-flex: 2;
-            margin-right: 15px;
         }
 
         .main-content > .card:last-child {
             flex: 3;
             -ms-flex: 3;
-            margin-left: 15px;
         }
 
         .card {
