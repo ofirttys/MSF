@@ -257,8 +257,16 @@
                 }
                 
                 isLoggedIn = true;
+                currentUser = username;
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
+                
+                // Display username in header
+                var userDisplay = document.getElementById('currentUserDisplay');
+                if (userDisplay) {
+                    userDisplay.textContent = '👤 ' + username;
+                }
+                
                 await initializeApp();
             } else {
                 errorDiv.textContent = 'Invalid username or password';
@@ -369,6 +377,11 @@
                 renderPatientList();
                 updateStatusCounts();
             }, 60 * 1000); // 60 seconds
+            
+            // Check and create daily backup (first use each day)
+            if (!isReadOnly) {
+                checkAndCreateDailyBackup();
+            }
         }
         
         // Apply read-only mode restrictions
@@ -575,9 +588,37 @@
         }
 
 
-        function backupDatabase() {
-            // Backup functionality disabled in Eel version
-            alert('Backup functionality not yet implemented.\nDatabase is automatically saved to SQLite.');
+        async function backupDatabase() {
+            try {
+                showError('Creating backup...');
+                var result = await eel.create_backup()();
+                
+                if (result.success) {
+                    closeModal('errorModal');
+                    alert(`Backup created successfully!\n\nFile: ${result.filename}\nSize: ${result.size_mb} MB\n\nLocation: DB/backups/`);
+                } else {
+                    showError(`Backup failed: ${result.error}`);
+                }
+            } catch (error) {
+                showError('Backup failed: ' + error);
+            }
+        }
+        
+        async function checkAndCreateDailyBackup() {
+            try {
+                var today = new Date().toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+                var lastBackupDate = await eel.get_last_backup_date()();
+                
+                if (!lastBackupDate || lastBackupDate < today) {
+                    console.log('Creating daily auto-backup...');
+                    var result = await eel.create_backup()();
+                    if (result.success) {
+                        console.log(`✓ Daily backup created: ${result.filename} (${result.size_mb} MB)`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking daily backup:', error);
+            }
         }
 
         // Unsaved changes tracking
@@ -675,7 +716,10 @@
                             }
                             await loadMonthClinicDays(nextYear, nextMonth);
                             
-                            instance.redraw();
+                            // Force redraw after all data loaded
+                            setTimeout(function() {
+                                instance.redraw();
+                            }, 50);
                         },
                         onMonthChange: async function(selectedDates, dateStr, instance) {
                             // Load new month + adjacent months when month changes
@@ -703,7 +747,10 @@
                             }
                             await loadMonthClinicDays(nextYear, nextMonth);
                             
-                            instance.redraw();
+                            // Force redraw after all data loaded
+                            setTimeout(function() {
+                                instance.redraw();
+                            }, 50);
                         },
                         onChange: async function(selectedDates) {
                             if (selectedDates.length > 0) {
@@ -1907,7 +1954,7 @@
                     '<div>' +
                     '<span class="patient-name">' + formatNameWithAlias(patient.patientName, patient.patientAlias, patient.patientFirstName, patient.patientMiddleName, patient.patientLastName) + '</span>' +
                     '<span class="patient-id">(' + patient.patientID + ')</span>' +
-                    '<span class="patient-status-badge" style="background: ' + state.color + '20; color: ' + state.color + ';">●</span>' +
+                    '<span class="patient-status-badge" style="background: ' + state.color + '20; color: ' + state.color + ';">● </span>' +
                     '<span class="patient-status-inline" style="color: ' + state.color + ';">' + state.shortLabel + '</span>' +
                     (badges ? '<span class="patient-badges">' + badges + '</span>' : '') +
                     '</div>' +

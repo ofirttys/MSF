@@ -182,6 +182,74 @@ def get_dashboard_stats():
 
 
 # ============================================================================
+# BACKUP API
+# ============================================================================
+
+@eel.expose
+def create_backup():
+    """Create a backup of the database"""
+    import shutil
+    from datetime import datetime
+    
+    try:
+        # Create backups folder if it doesn't exist
+        backup_folder = "DB/backups"
+        if not os.path.exists(backup_folder):
+            os.makedirs(backup_folder)
+        
+        # Generate backup filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_path = os.path.join(backup_folder, f"michaeli-clinic_{timestamp}.db")
+        
+        # Copy database file
+        db_path = "DB/michaeli-clinic.db"
+        shutil.copy2(db_path, backup_path)
+        
+        # Get file size
+        file_size = os.path.getsize(backup_path)
+        size_mb = file_size / (1024 * 1024)
+        
+        print(f"✓ Backup created: {backup_path} ({size_mb:.2f} MB)")
+        
+        return {
+            'success': True,
+            'filename': os.path.basename(backup_path),
+            'path': backup_path,
+            'size_mb': round(size_mb, 2)
+        }
+    except Exception as e:
+        print(f"Error creating backup: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+@eel.expose
+def get_last_backup_date():
+    """Get the date of the most recent backup"""
+    try:
+        backup_folder = "DB/backups"
+        if not os.path.exists(backup_folder):
+            return None
+        
+        # Get all backup files
+        backup_files = [f for f in os.listdir(backup_folder) if f.endswith('.db')]
+        if not backup_files:
+            return None
+        
+        # Get most recent file
+        backup_files.sort(reverse=True)
+        most_recent = backup_files[0]
+        
+        # Extract date from filename (michaeli-clinic_YYYYMMDD_HHMMSS.db)
+        date_part = most_recent.split('_')[2]  # YYYYMMDD
+        return date_part
+    except Exception as e:
+        print(f"Error getting last backup date: {e}")
+        return None
+
+
+# ============================================================================
 # MAIN
 # ============================================================================
 

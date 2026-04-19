@@ -64,8 +64,9 @@
                     </div>
 					<button class="btn btn-primary" id="addPatientBtn" onclick="openAddPatientModal()">+ Add New Patient</button>
                     <button class="btn" style="background: #17a2b8; color: white;" onclick="openActionItemsModal()">Action Items</button>
-                    <button class="btn btn-success" id="saveButton" onclick="saveDatabase(true)">Save</button>
+                    <!-- Save button removed - everything auto-saves to database -->
                     <button class="btn btn-secondary" onclick="backupDatabase()">Backup</button>
+                    <span id="currentUserDisplay" style="color: #2c3e50; font-size: 14px; margin: 0 10px; font-weight: 500;"></span>
                     <button class="btn btn-secondary" onclick="logout()">Logout</button>
                 </div>
             </header>
