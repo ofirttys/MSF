@@ -37,7 +37,13 @@ def main():
 ╚══════════════════════════════════════════════════════════════╝
 """)
     
-    db_file = "michaeli-clinic.db"
+    # Create DB folder if it doesn't exist (like HTA)
+    db_folder = "DB"
+    if not os.path.exists(db_folder):
+        os.makedirs(db_folder)
+        print(f"✓ Created folder: {db_folder}/")
+    
+    db_file = os.path.join(db_folder, "michaeli-clinic.db")
     
     # Delete existing database for clean import
     if os.path.exists(db_file):

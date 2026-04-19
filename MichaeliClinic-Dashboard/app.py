@@ -31,8 +31,13 @@ def initialize_app():
     """Initialize database and managers"""
     global db, patient_mgr, appointment_mgr, action_items_mgr, clinic_days_mgr
     
-    # Database path
-    db_path = "michaeli-clinic.db"
+    # Database path - use DB subfolder like HTA
+    import os
+    db_folder = "DB"
+    if not os.path.exists(db_folder):
+        os.makedirs(db_folder)
+    
+    db_path = os.path.join(db_folder, "michaeli-clinic.db")
     
     if not os.path.exists(db_path):
         print(f"ERROR: Database not found: {db_path}")
