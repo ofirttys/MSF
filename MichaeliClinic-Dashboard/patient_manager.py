@@ -15,7 +15,7 @@ class PatientManager:
     
     def get_all(self) -> List[Dict]:
         """Get all patients with basic info"""
-        return self.db.fetchall("""
+        patients = self.db.fetchall("""
             SELECT 
                 patientID, patientName, partnerName,
                 patientPhone, patientEmail,
@@ -24,6 +24,14 @@ class PatientManager:
             FROM patients
             ORDER BY patientName
         """)
+        
+        # Convert integer flags to booleans
+        for patient in patients:
+            patient['isSurvivorshipClinic'] = bool(patient.get('isSurvivorshipClinic', 0))
+            patient['isPriorityList'] = bool(patient.get('isPriorityList', 0))
+            patient['isOTC'] = bool(patient.get('isOTC', 0))
+        
+        return patients
     
     def get_by_id(self, patient_id: str) -> Optional[Dict]:
         """Get full patient details including histories"""
