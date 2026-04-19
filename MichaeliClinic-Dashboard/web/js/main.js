@@ -324,57 +324,15 @@ async function saveActionItems() {
             // Backend handles concurrency
             return { locked: false, stale: false, user: null, timestamp: null };
         }
-                if (!fso.FileExists(LOCK_FILE_PATH)) {
-                    return { locked: false };
-                }
-                
-                var file = fso.OpenTextFile(LOCK_FILE_PATH, 1);
-                var content = file.ReadAll();
-                file.Close();
-                
-                var lockData = JSON.parse(content);
-                var lockTime = new Date(lockData.timestamp);
-                var now = new Date();
-                var hoursOld = (now - lockTime) / (1000 * 60 * 60);
-                
-                return {
-                    locked: true,
-                    user: lockData.user,
-                    timestamp: lockData.timestamp,
-                    stale: hoursOld > LOCK_STALE_HOURS
-                };
-            } catch (e) {
-                // If we can't read the lock file, assume no lock
-                return { locked: false };
-            }
-        }
         
         function createLockFile(username) {
             // Lock file system disabled in Eel version
             // Backend handles concurrency
         }
-        // Disabled - backend handles concurrency
-                var file = fso.CreateTextFile(LOCK_FILE_PATH, true);
-                var lockData = {
-                    user: username,
-                    timestamp: new Date().toISOString()
-                };
-                file.Write(JSON.stringify(lockData));
-                file.Close();
-            } catch (e) {
-                alert('Warning: Could not create lock file. Multi-user protection may not work.\n' + e.message);
-            }
-        }
         
         function deleteLockFile() {
-            try {
-        // Disabled - backend handles concurrency
-                if (fso.FileExists(LOCK_FILE_PATH)) {
-                    fso.DeleteFile(LOCK_FILE_PATH);
-                }
-            } catch (e) {
-                // Silently fail - not critical
-            }
+            // Lock file system disabled in Eel version
+            // Backend handles concurrency
         }
         
         function refreshLockFile() {
@@ -1543,18 +1501,10 @@ async function saveActionItems() {
         
         // Save emails array to file for Outlook VBA to process
         function saveEmailsToFile(emailsArray) {
-            try {
-                var fso = new ActiveXObject("Scripting.FileSystemObject");
-                var file = fso.CreateTextFile(PENDING_EMAILS_FILE_PATH, true);
-                file.Write(JSON.stringify(emailsArray, null, 2));
-                file.Close();
-                
-                alert(emailsArray.length + ' email(s) saved.\n\nIn Outlook, click the "Create Emails" button to open them.');
-                return true;
-            } catch (e) {
-                alert('Error saving emails: ' + e.message);
-                return false;
-            }
+            // Email file saving disabled in Eel version
+            // TODO: Implement backend email integration
+            alert(emailsArray.length + ' email(s) generated.\n\nEmail integration will be added in next update.\nFor now, copy the email text manually.');
+            return false;
         }
 		
         // Appointments rendering - SORTED BY TIME, LIMITED TO 5 WITH SCROLLING
@@ -2094,7 +2044,15 @@ async function saveActionItems() {
 		}
 		
 		function loadPortalUsers() {
-			var fso = new ActiveXObject("Scripting.FileSystemObject");
+			// Portal CSV reading disabled in Eel version
+			// TODO: Implement backend CSV reading
+			document.getElementById('portalContent').innerHTML = 
+				'<div style="padding: 20px; text-align: center; color: #7f8c8d;">' +
+				'Portal feature will be implemented in next update.<br><br>' +
+				'For now, use the original HTA for portal management.</div>';
+			document.getElementById('portalModal').classList.add('active');
+			return;
+		}
 			
 			// Check if file exists
 			if (!fso.FileExists(PORTAL_USERS_FILE_PATH)) {
@@ -3528,9 +3486,9 @@ async function saveActionItems() {
         // Load action items from JSON file
         function loadActionItems() {
             try {
-                var fso = new ActiveXObject("Scripting.FileSystemObject");
+                var fso = // Disabled - file operations not available in browser
                 if (fso.FileExists(ACTION_ITEMS_FILE_PATH)) {
-//                    var stream = new ActiveXObject("ADODB.Stream");
+//                    var stream = // Disabled - file operations not available in browser
 //                    stream.Type = 2;
 //                    stream.Charset = "utf-8";
 //                    stream.Open();
@@ -3592,7 +3550,7 @@ async function saveActionItems() {
 //                alert('Error saving action items: ' + e.message);
 //            }
             try {
-                var fso = new ActiveXObject("Scripting.FileSystemObject");
+                var fso = // Disabled - file operations not available in browser
                 var file = fso.CreateTextFile(ACTION_ITEMS_FILE_PATH, true); // true = overwrite
                 file.Write(JSON.stringify(actionItems, null, 2));
                 file.Close();
@@ -3877,14 +3835,14 @@ async function saveActionItems() {
         function loadEmailTemplates() {
             var templatePath = EMAIL_TEMPLATES_FILE_PATH;
             try {
-                var fso = new ActiveXObject("Scripting.FileSystemObject");
+                var fso = // Disabled - file operations not available in browser
                 if (!fso.FileExists(templatePath)) {
                     alert('Email templates file not found: ' + templatePath);
                     return false;
                 }
                 
 //                // Use ADODB.Stream for better encoding support
-//                var stream = new ActiveXObject("ADODB.Stream");
+//                var stream = // Disabled - file operations not available in browser
 //                stream.Type = 2; // adTypeText
 //                stream.Charset = "utf-8";
 //                stream.Open();
@@ -4831,14 +4789,31 @@ function closeErrorModal() {
     document.getElementById('errorModal').style.display = 'none';
 }
 
-// Override alert() to use modal instead
+// Override alert() to use modal instead (but preserve confirm and prompt)
+var originalAlert = window.alert;
+var originalConfirm = window.confirm;
+
 window.alert = function(message) {
     // Skip empty messages
     if (!message) return;
     
-    // Use modal for errors
-    showErrorModal(message);
+    // Check if this is an error or warning message
+    var isError = message.toLowerCase().includes('error') || 
+                  message.toLowerCase().includes('warning') ||
+                  message.toLowerCase().includes('failed') ||
+                  message.toLowerCase().includes('could not');
+    
+    if (isError) {
+        // Use modal for errors
+        showErrorModal(message);
+    } else {
+        // Use original alert for info messages
+        originalAlert(message);
+    }
 };
+
+// Keep confirm working normally
+window.confirm = originalConfirm;
 
 console.log('Professional error handling loaded');
 
