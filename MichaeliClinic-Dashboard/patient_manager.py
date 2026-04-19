@@ -25,11 +25,19 @@ class PatientManager:
             ORDER BY patientName
         """)
         
-        # Convert integer flags to booleans
+        # Convert integer flags to booleans and add appointment history
         for patient in patients:
             patient['isSurvivorshipClinic'] = bool(patient.get('isSurvivorshipClinic', 0))
             patient['isPriorityList'] = bool(patient.get('isPriorityList', 0))
             patient['isOTC'] = bool(patient.get('isOTC', 0))
+            
+            # Load appointment history for sorting
+            patient['appointmentHistory'] = self.db.fetchall("""
+                SELECT date, time, location, summary
+                FROM appointment_history
+                WHERE patientID = ?
+                ORDER BY date DESC
+            """, (patient['patientID'],))
         
         return patients
     

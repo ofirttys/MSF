@@ -1724,7 +1724,7 @@
                     locationBadge = '<span style="background: ' + locColor + '; color: ' + locTextColor + '; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px;">' + appt.location.toUpperCase() + '</span>';
                 }
 
-				var editButton = appt.isFuture ? '<button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); editAppointment(\'' + appt.patient.patientID + '\')">Edit</button> <button class="btn btn-small" style="background: #e74c3c; color: white;" onclick="event.stopPropagation(); cancelAppointment(\'' + appt.patient.patientID + '\')">Cancel</button>' : '';
+				var editButton = appt.isFuture ? '<button class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;" onclick="event.stopPropagation(); editAppointment(\'' + appt.patient.patientID + '\')">Edit</button> <button class="btn" style="background: #e74c3c; color: white; padding: 6px 10px; font-size: 12px;" onclick="event.stopPropagation(); cancelAppointment(\'' + appt.patient.patientID + '\')">Cancel</button>' : '';
                 var summaryText = appt.summary ? '<br><small style="color: ' + ((isCancelled || isRescheduled) ? '#e74c3c' : '#27ae60') + ';">✓ ' + appt.summary + '</small>' : '';
                 
                 return '<div class="appointment-item" style="background: ' + bgColor + '; border-left-color: ' + borderColor + ';">' +

@@ -98,8 +98,8 @@
         }
 
         .btn-small {
-            padding: 6px 12px;
-            font-size: 12px;
+            padding: 5px 10px !important;
+            font-size: 11px !important;
         }
 
         .main-content {
@@ -131,7 +131,7 @@
         }
 
         .card-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
             margin-bottom: 15px;
             color: #2c3e50;
@@ -146,7 +146,7 @@
 
         .date-nav {
             display: flex;
-            gap: 10px;
+            gap: 6px;
             align-items: center;
         }
 
@@ -318,6 +318,8 @@
             border-radius: 10px;
             font-weight: 600;
             margin-right: 3px;
+            outline: none;
+            box-shadow: none;
         }
 
         .badge-survivorship {
@@ -733,7 +735,7 @@
 
         .status-count {
             background: white;
-            padding: 8px 20px;
+            padding: 4px 20px;
 			margin-right: 15px;
 			margin-bottom: 15px;
 			flex-basis: 140px;
@@ -748,7 +750,7 @@
 
         .status-count-wide {
             background: white;
-            padding: 8px 20px;
+            padding: 4px 20px;
 			margin-right: 15px;
 			margin-bottom: 15px;
 			flex-basis: 180px;
@@ -783,7 +785,7 @@
         }
 
         .filter-btn {
-            padding: 6px 10px;
+            padding: 4px 8px;
             border: 2px solid #e0e0e0;
             background: white;
             border-radius: 4px;
@@ -829,12 +831,12 @@
 
         /* Clinic day type buttons */
         .clinic-type-btn {
-            padding: 8px 12px;
+            padding: 5px 8px;
             border: 2px solid #e0e0e0;
             background: white;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 11px;
             line-height: 1.2;
             transition: all 0.2s;
         }
