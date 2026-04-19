@@ -48,13 +48,13 @@
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 12px 24px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
             font-weight: 500;
-            line-height: normal;
+            line-height: 1.2;
             transition: all 0.3s ease;
             margin-left: 10px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -151,13 +151,13 @@
         }
 
         .date-nav button {
-            padding: 8px 12px;
+            padding: 10px 16px;
             background: #ecf0f1;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 13px;
-            line-height: normal;
+            font-size: 14px;
+            line-height: 1.2;
         }
 
         .date-nav button:hover {
@@ -733,10 +733,10 @@
 
         .status-count {
             background: white;
-            padding: 2px 18px;
+            padding: 8px 20px;
 			margin-right: 15px;
 			margin-bottom: 15px;
-			flex-basis: 100px;
+			flex-basis: 140px;
 			flex-grow: 0;
 			flex-shrink: 0;
             border-radius: 8px;
@@ -748,10 +748,10 @@
 
         .status-count-wide {
             background: white;
-            padding: 2px 18px;
+            padding: 8px 20px;
 			margin-right: 15px;
 			margin-bottom: 15px;
-			flex-basis: 120px;
+			flex-basis: 180px;
 			flex-grow: 0;
 			flex-shrink: 0;
 			flex-grow: 0;
@@ -829,13 +829,13 @@
 
         /* Clinic day type buttons */
         .clinic-type-btn {
-            padding: 5px 8px;
+            padding: 8px 12px;
             border: 2px solid #e0e0e0;
             background: white;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 11px;
-            line-height: normal;
+            font-size: 12px;
+            line-height: 1.2;
             transition: all 0.2s;
         }
 
