@@ -17,11 +17,18 @@ class Database:
     
     def connect(self):
         """Connect to database"""
-        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.conn = sqlite3.connect(
+            self.db_path, 
+            check_same_thread=False,
+            timeout=10.0  # Wait up to 10 seconds if database is locked
+        )
         self.conn.row_factory = sqlite3.Row  # Return rows as dictionaries
         
         # Enable foreign keys
         self.conn.execute("PRAGMA foreign_keys = ON")
+        
+        # Enable WAL mode for better concurrent access
+        self.conn.execute("PRAGMA journal_mode=WAL")
     
     def close(self):
         """Close database connection"""

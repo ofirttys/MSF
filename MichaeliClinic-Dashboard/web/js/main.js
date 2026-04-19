@@ -898,10 +898,10 @@
                 delete clinicDays[dateStr];
             }
             
-            // Save to backend
+            // Save to backend immediately
             saveClinicDayToBackend(dateStr, clinicDays[dateStr] || {});
             
-            markAsChanged();
+            // No need for markAsChanged() - already saved to backend!
             updateClinicTypeButtons();
             refreshMainDatePicker();
         }
