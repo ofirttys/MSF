@@ -372,6 +372,14 @@
             display: flex;
         }
 
+        /* System modals always on top of other modals */
+        #errorModal,
+        #confirmModal,
+        #infoModal,
+        #promptModal {
+            z-index: 9999 !important;
+        }
+
         .modal-content {
             background: white;
             padding: 30px;

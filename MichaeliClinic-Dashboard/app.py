@@ -597,9 +597,9 @@ def update_user_password(username, new_password):
     
     try:
         new_hash = hash_password(new_password)
-        db.execute("UPDATE users SET passwordHash = ? WHERE username = ?", (new_hash, username))
+        cursor = db.execute("UPDATE users SET passwordHash = ? WHERE username = ?", (new_hash, username))
         
-        if db.cursor.rowcount == 0:
+        if cursor.rowcount == 0:
             return {'status': 'error', 'message': 'User not found'}
         
         db.commit()
@@ -662,9 +662,9 @@ def update_user_admin(username, is_admin):
         return {'status': 'error', 'message': 'Cannot modify admin user'}
     
     try:
-        db.execute("UPDATE users SET isAdmin = ? WHERE username = ?", (1 if is_admin else 0, username))
+        cursor = db.execute("UPDATE users SET isAdmin = ? WHERE username = ?", (1 if is_admin else 0, username))
         
-        if db.cursor.rowcount == 0:
+        if cursor.rowcount == 0:
             return {'status': 'error', 'message': 'User not found'}
         
         db.commit()
@@ -686,9 +686,9 @@ def remove_user(username):
         return {'status': 'error', 'message': 'Cannot delete admin user'}
     
     try:
-        db.execute("DELETE FROM users WHERE username = ?", (username,))
+        cursor = db.execute("DELETE FROM users WHERE username = ?", (username,))
         
-        if db.cursor.rowcount == 0:
+        if cursor.rowcount == 0:
             return {'status': 'error', 'message': 'User not found'}
         
         db.commit()
