@@ -3656,6 +3656,70 @@
         // Warn before closing if there are unsaved changes and delete lock file
         
         // ============================================================================
+        // PROFESSIONAL MODAL HELPERS (Replace alert/confirm/prompt)
+        // ============================================================================
+        
+        var confirmModalCallback = null;
+        var promptModalCallback = null;
+        
+        function showConfirm(message, title, callback) {
+            document.getElementById('confirmModalTitle').textContent = title || 'Confirm Action';
+            document.getElementById('confirmModalMessage').textContent = message;
+            document.getElementById('confirmModal').style.display = 'flex';
+            confirmModalCallback = callback;
+        }
+        
+        function closeConfirmModal(result) {
+            document.getElementById('confirmModal').style.display = 'none';
+            if (confirmModalCallback) {
+                confirmModalCallback(result);
+                confirmModalCallback = null;
+            }
+        }
+        
+        function showInfo(message, title) {
+            document.getElementById('infoModalTitle').textContent = title || 'Success';
+            document.getElementById('infoModalMessage').textContent = message;
+            document.getElementById('infoModal').style.display = 'flex';
+        }
+        
+        function closeInfoModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+        
+        function showPrompt(message, title, defaultValue, callback) {
+            document.getElementById('promptModalTitle').textContent = title || 'Enter Value';
+            document.getElementById('promptModalMessage').textContent = message;
+            document.getElementById('promptModalInput').value = defaultValue || '';
+            document.getElementById('promptModal').style.display = 'flex';
+            promptModalCallback = callback;
+            
+            // Focus input
+            setTimeout(function() {
+                document.getElementById('promptModalInput').focus();
+            }, 100);
+            
+            // Handle Enter key
+            document.getElementById('promptModalInput').onkeypress = function(e) {
+                if (e.keyCode === 13) {
+                    closePromptModal('submit');
+                }
+            };
+        }
+        
+        function closePromptModal(action) {
+            var value = null;
+            if (action === 'submit') {
+                value = document.getElementById('promptModalInput').value;
+            }
+            document.getElementById('promptModal').style.display = 'none';
+            if (promptModalCallback) {
+                promptModalCallback(value);
+                promptModalCallback = null;
+            }
+        }
+        
+        // ============================================================================
         // USER MANAGEMENT FUNCTIONS
         // ============================================================================
         
@@ -3673,7 +3737,7 @@
                 var result = await eel.get_users()();
                 
                 if (result.status === 'error') {
-                    alert('Error loading users: ' + result.message);
+                    showErrorModal('Error loading users: ' + result.message);
                     return;
                 }
                 
@@ -3754,7 +3818,7 @@
                 
             } catch (error) {
                 console.error('Error loading users:', error);
-                alert('Error loading users');
+                showErrorModal('Error loading users');
             }
         }
         
@@ -3769,11 +3833,11 @@
                 var result = await eel.add_user(username, password, isAdmin)();
                 
                 if (result.status === 'error') {
-                    alert('Error: ' + result.message);
+                    showErrorModal(result.message);
                     return;
                 }
                 
-                alert(result.message);
+                showInfo(result.message, 'Success');
                 
                 // Clear form
                 document.getElementById('addUserForm').reset();
@@ -3783,29 +3847,34 @@
                 
             } catch (error) {
                 console.error('Error adding user:', error);
-                alert('Error adding user');
+                showErrorModal('Error adding user');
             }
         }
         
         async function resetUserPassword(username) {
-            var newPassword = prompt('Enter new password for ' + username + ':\n\nMust be at least 8 characters with lowercase, uppercase, and numbers.');
-            
-            if (!newPassword) return;
-            
-            try {
-                var result = await eel.update_user_password(username, newPassword)();
-                
-                if (result.status === 'error') {
-                    alert('Error: ' + result.message);
-                    return;
+            showPrompt(
+                'Must be at least 8 characters with lowercase, uppercase, and numbers.',
+                'Reset Password for ' + username,
+                '',
+                async function(newPassword) {
+                    if (!newPassword) return;
+                    
+                    try {
+                        var result = await eel.update_user_password(username, newPassword)();
+                        
+                        if (result.status === 'error') {
+                            showErrorModal(result.message);
+                            return;
+                        }
+                        
+                        showInfo(result.message, 'Success');
+                        
+                    } catch (error) {
+                        console.error('Error resetting password:', error);
+                        showErrorModal('Error resetting password');
+                    }
                 }
-                
-                alert(result.message);
-                
-            } catch (error) {
-                console.error('Error resetting password:', error);
-                alert('Error resetting password');
-            }
+            );
         }
         
         async function toggleAdminStatus(username, currentChecked) {
@@ -3814,41 +3883,45 @@
                 var result = await eel.update_user_admin(username, newStatus)();
                 
                 if (result.status === 'error') {
-                    alert('Error: ' + result.message);
+                    showErrorModal(result.message);
                     // Reload to reset checkbox
                     await loadUsers();
                     return;
                 }
                 
-                alert(result.message);
+                showInfo(result.message, 'Success');
                 
             } catch (error) {
                 console.error('Error updating admin status:', error);
-                alert('Error updating admin status');
+                showErrorModal('Error updating admin status');
                 await loadUsers();
             }
         }
         
         async function deleteUser(username) {
-            if (!confirm('Are you sure you want to delete user "' + username + '"?\n\nThis action cannot be undone.')) {
-                return;
-            }
-            
-            try {
-                var result = await eel.remove_user(username)();
-                
-                if (result.status === 'error') {
-                    alert('Error: ' + result.message);
-                    return;
+            showConfirm(
+                'Are you sure you want to delete user "' + username + '"?\n\nThis action cannot be undone.',
+                'Confirm Delete',
+                async function(confirmed) {
+                    if (!confirmed) return;
+                    
+                    try {
+                        var result = await eel.remove_user(username)();
+                        
+                        if (result.status === 'error') {
+                            showErrorModal(result.message);
+                            return;
+                        }
+                        
+                        showInfo(result.message, 'Success');
+                        await loadUsers();
+                        
+                    } catch (error) {
+                        console.error('Error deleting user:', error);
+                        showErrorModal('Error deleting user');
+                    }
                 }
-                
-                alert(result.message);
-                await loadUsers();
-                
-            } catch (error) {
-                console.error('Error deleting user:', error);
-                alert('Error deleting user');
-            }
+            );
         }
         
         function openChangePasswordModal() {
@@ -3868,7 +3941,7 @@
             var confirmPassword = document.getElementById('confirmPassword').value;
             
             if (newPassword !== confirmPassword) {
-                alert('New passwords do not match!');
+                showErrorModal('New passwords do not match!');
                 return;
             }
             
@@ -3876,16 +3949,16 @@
                 var result = await eel.change_password(currentPassword, newPassword)();
                 
                 if (result.status === 'error') {
-                    alert('Error: ' + result.message);
+                    showErrorModal(result.message);
                     return;
                 }
                 
-                alert(result.message);
+                showInfo(result.message, 'Success');
                 closeChangePasswordModal();
                 
             } catch (error) {
                 console.error('Error changing password:', error);
-                alert('Error changing password');
+                showErrorModal('Error changing password');
             }
         }
         
