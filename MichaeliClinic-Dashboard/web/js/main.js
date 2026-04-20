@@ -1622,24 +1622,26 @@
             }
         }
         
-		function sendReminders() {
+		async function sendReminders() {
             var checkboxes = document.querySelectorAll('.reminder-checkbox:checked');
             
             if (checkboxes.length === 0) {
-                alert('Please select at least one patient.');
+                showErrorModal('Please select at least one patient.');
                 return;
             }
             
             // Load email templates if not loaded
             if (!emailTemplates) {
-                if (!loadEmailTemplates()) {
+                var loaded = await loadEmailTemplates();
+                if (!loaded) {
+                    showErrorModal('Failed to load email templates');
                     return;
                 }
             }
             
             var template = emailTemplates.templates.reminder;
             if (!template) {
-                alert('Reminder email template not found.');
+                showErrorModal('Reminder email template not found.');
                 return;
             }
             
@@ -1668,7 +1670,7 @@
             }
             
             if (emailsArray.length > 0) {
-                saveEmailsToFile(emailsArray);
+                await saveEmailsToFile(emailsArray);
             }
             
             closeModal('remindersModal');
@@ -1756,10 +1758,28 @@
         }
         
         // Save emails array to file for Outlook VBA to process
-        function saveEmailsToFile(emailsArray) {
-            // Email file saving disabled in Eel version
-            alert(emailsArray.length + ' email(s) generated.\\n\\nEmail server integration coming soon.\\nFor now, copy the email text manually.');
-            return false;
+        async function saveEmailsToFile(emailsArray) {
+            // Save as JSON to match HTA format
+            var content = JSON.stringify(emailsArray, null, 2);
+            
+            // Save to DB/pending-emails.json (matches HTA)
+            try {
+                var result = await eel.save_email_to_file(content, 'pending-emails.json')();
+                
+                if (result.status === 'success') {
+                    showInfo(
+                        emailsArray.length + ' email(s) saved to:\n\n' + 
+                        result.filepath + '\n\n' +
+                        'In Outlook, click the "Create Emails" button to open them.',
+                        'Emails Saved'
+                    );
+                } else {
+                    showErrorModal('Error saving emails: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error saving emails:', error);
+                showErrorModal('Error saving emails to file');
+            }
         }
 		
         // Appointments rendering - SORTED BY TIME, LIMITED TO 5 WITH SCROLLING
@@ -4273,20 +4293,28 @@
         
         // Load email templates from JSON file
         // Load email templates from JSON file
-        function loadEmailTemplates() {
-            // Email templates loaded from backend or JSON
-            // For now, return empty templates
-            emailTemplates = {};
-            return true;
+        async function loadEmailTemplates() {
+            // Load email templates from backend
+            try {
+                emailTemplates = await eel.get_email_templates()();
+                if (!emailTemplates) {
+                    console.error('Failed to load email templates');
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                console.error('Error loading email templates:', error);
+                return false;
+            }
         }
         
         // Open email generator modal
-        function openEmailGenerator() {
+        async function openEmailGenerator() {
             // Get current patient from stored ID
             currentEmailPatient = null;
             
             if (!currentViewingPatientID) {
-                alert('No patient selected');
+                showErrorModal('No patient selected');
                 return;
             }
             
@@ -4298,13 +4326,15 @@
             }
             
             if (!currentEmailPatient) {
-                alert('Patient not found');
+                showErrorModal('Patient not found');
                 return;
             }
             
             // Load templates if not already loaded
             if (!emailTemplates) {
-                if (!loadEmailTemplates()) {
+                var loaded = await loadEmailTemplates();
+                if (!loaded) {
+                    showErrorModal('Failed to load email templates');
                     return;
                 }
             }
@@ -5072,10 +5102,10 @@
             alert('Email copied to clipboard!');
         }
         
-		function generateAndOpenOutlook() {
+		async function generateAndOpenOutlook() {
             var emailType = document.getElementById('emailType').value;
             if (!emailType) {
-                alert('Please select an email type');
+                showErrorModal('Please select an email type');
                 return;
             }
             
@@ -5092,7 +5122,7 @@
             }
             
             if (toList.length === 0) {
-                alert('No email addresses available for selected recipients');
+                showErrorModal('No email addresses available for selected recipients');
                 return;
             }
             
@@ -5108,7 +5138,7 @@
                 account: EMAIL_FROM_ADDRESS
             }];
             
-            saveEmailsToFile(emailsArray);
+            await saveEmailsToFile(emailsArray);
 			closeModal('emailGeneratorModal');
         }
 

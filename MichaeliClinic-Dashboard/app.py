@@ -667,6 +667,63 @@ def remove_user(username):
         print(f"Error removing user: {e}")
         return {'status': 'error', 'message': f'Database error: {str(e)}'}
 
+# ============================================================================
+# EMAIL TEMPLATES API
+# ============================================================================
+
+@eel.expose
+def get_email_templates():
+    """Load email templates from JSON file"""
+    templates_file = "DB/email-templates.json"
+    try:
+        if os.path.exists(templates_file):
+            with open(templates_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        else:
+            print(f"Email templates file not found: {templates_file}")
+            return None
+    except Exception as e:
+        print(f"Error loading email templates: {e}")
+        return None
+
+@eel.expose
+def save_email_to_file(content, filename=None):
+    """Save email content to Downloads folder"""
+    global current_user
+    
+    try:
+        # Get Downloads folder path
+        if os.name == 'nt':  # Windows
+            downloads_path = os.path.join(os.environ['USERPROFILE'], 'Downloads')
+        else:  # Mac/Linux
+            downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
+        
+        # Use HTA filename: pending-emails.json
+        if not filename:
+            filename = 'pending-emails.json'
+        
+        # Full path
+        filepath = os.path.join(downloads_path, filename)
+        
+        # Write content (will overwrite existing file)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        print(f"✓ Email saved to: {filepath}")
+        
+        return {
+            'status': 'success',
+            'filepath': filepath,
+            'filename': filename
+        }
+        
+    except Exception as e:
+        print(f"Error saving email: {e}")
+        return {
+            'status': 'error',
+            'message': str(e)
+        }
+
 
 # ============================================================================
 # MAIN
