@@ -5226,7 +5226,7 @@ function showErrorModal(message) {
     var modal = document.getElementById('errorModal');
     if (modal) {
         document.getElementById('errorModalMessage').textContent = message;
-        modal.style.display = 'block';
+        modal.style.display = 'flex';  // Use flex for centering
     } else {
         // Fallback if modal doesn't exist
         alert(message);

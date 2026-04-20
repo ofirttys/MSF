@@ -373,8 +373,13 @@ def get_last_backup_date():
         most_recent = backup_files[0]
         
         # Extract date from filename (michaeli-clinic_YYYYMMDD_HHMMSS.db)
-        date_part = most_recent.split('_')[2]  # YYYYMMDD
-        return date_part
+        # Split: ['michaeli-clinic', 'YYYYMMDD', 'HHMMSS.db']
+        parts = most_recent.split('_')
+        if len(parts) >= 2:
+            date_part = parts[1]  # YYYYMMDD (was incorrectly [2])
+            return date_part
+        
+        return None
     except Exception as e:
         print(f"Error getting last backup date: {e}")
         return None
@@ -443,6 +448,19 @@ def login(username, password):
                       (int(datetime.now().timestamp()), username))
             db.commit()
             
+            # Create daily backup (if not already created today)
+            try:
+                last_backup = get_last_backup_date()
+                today = datetime.now().strftime('%Y%m%d')
+                
+                if last_backup != today:
+                    print(f"Creating daily backup...")
+                    create_backup()
+                else:
+                    print(f"Daily backup already exists for {today}")
+            except Exception as e:
+                print(f"Backup check/create error: {e}")
+            
             print(f"✓ User logged in: {username} (admin: {current_user_is_admin})")
             
             return {
@@ -457,6 +475,19 @@ def login(username, password):
     if username in VALID_USERS and entered_hash == VALID_USERS[username]:
         current_user = username
         current_user_is_admin = True  # Code-based users are always admin
+        
+        # Create daily backup for code-based users too
+        try:
+            last_backup = get_last_backup_date()
+            today = datetime.now().strftime('%Y%m%d')
+            
+            if last_backup != today:
+                print(f"Creating daily backup...")
+                create_backup()
+            else:
+                print(f"Daily backup already exists for {today}")
+        except Exception as e:
+            print(f"Backup check/create error: {e}")
         
         print(f"✓ User logged in (code-based): {username}")
         
