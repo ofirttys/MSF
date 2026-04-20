@@ -32,6 +32,7 @@
         var isReadOnly = false;
         var currentUser = "";
         var lockOwner = "";
+        var isAdmin = false;  // Track if current user is admin
         
         // Action items data
         var actionItems = {
@@ -213,16 +214,27 @@
             var password = document.getElementById('loginPassword').value;
             var errorDiv = document.getElementById('loginError');
             
-            var enteredHash = hashPassword(password);
-            
-            // DEBUG MODE: Show the hash for the entered password
-            if (DEBUG_MODE) {
-                alert('DEBUG MODE ON\n\nPassword: ' + password + '\nHash: ' + enteredHash + '\n\nTo use this hash:\n1. Copy the hash above\n2. Replace password hash in VALID_USERS\n3. Set DEBUG_MODE = false\n4. Save and reload');
-            }
-            
-            // Check if user exists and password matches
-            if (VALID_USERS[username] && enteredHash === VALID_USERS[username]) {
-                currentUser = username;
+            // Call backend login
+            try {
+                var result = await eel.login(username, password)();
+                
+                if (result.status === 'error') {
+                    errorDiv.textContent = result.message || 'Invalid username or password';
+                    errorDiv.style.display = 'block';
+                    return false;
+                }
+                
+                // Login successful
+                currentUser = result.username;
+                isAdmin = result.isAdmin;
+                
+                // Register session (prevent duplicate logins)
+                var sessionResult = await eel.register_session(username)();
+                if (!sessionResult.success) {
+                    errorDiv.textContent = sessionResult.error;
+                    errorDiv.style.display = 'block';
+                    return false;
+                }
                 
                 // Check for lock file
                 var lockStatus = checkLockFile();
@@ -259,14 +271,6 @@
                 isLoggedIn = true;
                 currentUser = username;
                 
-                // Register session
-                var sessionResult = await eel.register_session(username)();
-                if (!sessionResult.success) {
-                    errorDiv.textContent = sessionResult.error || 'Session error';
-                    errorDiv.style.display = 'block';
-                    return false;
-                }
-                
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
                 
@@ -274,6 +278,12 @@
                 var userInfo = document.getElementById('currentUserInfo');
                 if (userInfo) {
                     userInfo.textContent = username;
+                }
+                
+                // Show/hide Users button based on admin status
+                var usersBtn = document.getElementById('usersBtn');
+                if (usersBtn) {
+                    usersBtn.style.display = isAdmin ? 'inline-block' : 'none';
                 }
                 
                 await initializeApp();
@@ -287,10 +297,11 @@
                 // Update active users immediately and every minute
                 updateActiveUsers();
                 setInterval(updateActiveUsers, 60 * 1000);
-            } else {
-                errorDiv.textContent = 'Invalid username or password';
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                errorDiv.textContent = 'An error occurred during login';
                 errorDiv.style.display = 'block';
-                document.getElementById('loginPassword').value = '';
             }
             
             return false;
@@ -3643,6 +3654,241 @@
         }
 
         // Warn before closing if there are unsaved changes and delete lock file
+        
+        // ============================================================================
+        // USER MANAGEMENT FUNCTIONS
+        // ============================================================================
+        
+        async function openUsersModal() {
+            document.getElementById('usersModal').style.display = 'flex';
+            await loadUsers();
+        }
+        
+        function closeUsersModal() {
+            document.getElementById('usersModal').style.display = 'none';
+        }
+        
+        async function loadUsers() {
+            try {
+                var result = await eel.get_users()();
+                
+                if (result.status === 'error') {
+                    alert('Error loading users: ' + result.message);
+                    return;
+                }
+                
+                var tbody = document.getElementById('usersTableBody');
+                tbody.innerHTML = '';
+                
+                if (result.users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No users found</td></tr>';
+                    return;
+                }
+                
+                result.users.forEach(function(user) {
+                    var row = document.createElement('tr');
+                    
+                    // Username
+                    var usernameCell = document.createElement('td');
+                    usernameCell.textContent = user.username;
+                    row.appendChild(usernameCell);
+                    
+                    // Last Login
+                    var loginCell = document.createElement('td');
+                    if (user.lastLogin) {
+                        var date = new Date(user.lastLogin * 1000);
+                        loginCell.textContent = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                    } else {
+                        loginCell.textContent = 'Never';
+                    }
+                    row.appendChild(loginCell);
+                    
+                    // Admin checkbox
+                    var adminCell = document.createElement('td');
+                    adminCell.style.textAlign = 'center';
+                    var adminCheckbox = document.createElement('input');
+                    adminCheckbox.type = 'checkbox';
+                    adminCheckbox.checked = user.isAdmin;
+                    adminCheckbox.disabled = (user.username === 'admin');
+                    adminCheckbox.onchange = (function(username, checked) {
+                        return function() {
+                            toggleAdminStatus(username, checked);
+                        };
+                    })(user.username, adminCheckbox.checked);
+                    adminCell.appendChild(adminCheckbox);
+                    row.appendChild(adminCell);
+                    
+                    // Actions
+                    var actionsCell = document.createElement('td');
+                    actionsCell.style.textAlign = 'center';
+                    
+                    // Reset Password button
+                    var resetBtn = document.createElement('button');
+                    resetBtn.className = 'btn btn-sm';
+                    resetBtn.style.cssText = 'background: #17a2b8; color: white; margin-right: 5px; padding: 4px 8px; font-size: 12px;';
+                    resetBtn.textContent = 'Reset Password';
+                    resetBtn.onclick = (function(username) {
+                        return function() {
+                            resetUserPassword(username);
+                        };
+                    })(user.username);
+                    actionsCell.appendChild(resetBtn);
+                    
+                    // Delete button (not for 'admin')
+                    if (user.username !== 'admin') {
+                        var deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'btn btn-sm';
+                        deleteBtn.style.cssText = 'background: #dc3545; color: white; padding: 4px 8px; font-size: 12px;';
+                        deleteBtn.textContent = 'Delete';
+                        deleteBtn.onclick = (function(username) {
+                            return function() {
+                                deleteUser(username);
+                            };
+                        })(user.username);
+                        actionsCell.appendChild(deleteBtn);
+                    }
+                    
+                    row.appendChild(actionsCell);
+                    tbody.appendChild(row);
+                });
+                
+            } catch (error) {
+                console.error('Error loading users:', error);
+                alert('Error loading users');
+            }
+        }
+        
+        async function addUserFromForm(event) {
+            event.preventDefault();
+            
+            var username = document.getElementById('newUsername').value.trim();
+            var password = document.getElementById('newPassword').value;
+            var isAdmin = document.getElementById('newIsAdmin').checked;
+            
+            try {
+                var result = await eel.add_user(username, password, isAdmin)();
+                
+                if (result.status === 'error') {
+                    alert('Error: ' + result.message);
+                    return;
+                }
+                
+                alert(result.message);
+                
+                // Clear form
+                document.getElementById('addUserForm').reset();
+                
+                // Reload users list
+                await loadUsers();
+                
+            } catch (error) {
+                console.error('Error adding user:', error);
+                alert('Error adding user');
+            }
+        }
+        
+        async function resetUserPassword(username) {
+            var newPassword = prompt('Enter new password for ' + username + ':\n\nMust be at least 8 characters with lowercase, uppercase, and numbers.');
+            
+            if (!newPassword) return;
+            
+            try {
+                var result = await eel.update_user_password(username, newPassword)();
+                
+                if (result.status === 'error') {
+                    alert('Error: ' + result.message);
+                    return;
+                }
+                
+                alert(result.message);
+                
+            } catch (error) {
+                console.error('Error resetting password:', error);
+                alert('Error resetting password');
+            }
+        }
+        
+        async function toggleAdminStatus(username, currentChecked) {
+            try {
+                var newStatus = !currentChecked;
+                var result = await eel.update_user_admin(username, newStatus)();
+                
+                if (result.status === 'error') {
+                    alert('Error: ' + result.message);
+                    // Reload to reset checkbox
+                    await loadUsers();
+                    return;
+                }
+                
+                alert(result.message);
+                
+            } catch (error) {
+                console.error('Error updating admin status:', error);
+                alert('Error updating admin status');
+                await loadUsers();
+            }
+        }
+        
+        async function deleteUser(username) {
+            if (!confirm('Are you sure you want to delete user "' + username + '"?\n\nThis action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                var result = await eel.remove_user(username)();
+                
+                if (result.status === 'error') {
+                    alert('Error: ' + result.message);
+                    return;
+                }
+                
+                alert(result.message);
+                await loadUsers();
+                
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                alert('Error deleting user');
+            }
+        }
+        
+        function openChangePasswordModal() {
+            document.getElementById('changePasswordModal').style.display = 'flex';
+        }
+        
+        function closeChangePasswordModal() {
+            document.getElementById('changePasswordModal').style.display = 'none';
+            document.getElementById('changePasswordForm').reset();
+        }
+        
+        async function submitChangePassword(event) {
+            event.preventDefault();
+            
+            var currentPassword = document.getElementById('currentPassword').value;
+            var newPassword = document.getElementById('newPasswordChange').value;
+            var confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (newPassword !== confirmPassword) {
+                alert('New passwords do not match!');
+                return;
+            }
+            
+            try {
+                var result = await eel.change_password(currentPassword, newPassword)();
+                
+                if (result.status === 'error') {
+                    alert('Error: ' + result.message);
+                    return;
+                }
+                
+                alert(result.message);
+                closeChangePasswordModal();
+                
+            } catch (error) {
+                console.error('Error changing password:', error);
+                alert('Error changing password');
+            }
+        }
+        
 		window.onbeforeunload = function() {
             if (unsavedChanges > 0) {
                 var confirmSave = confirm('You have ' + unsavedChanges + ' unsaved change(s)!\n\nClick OK to save and exit, or Cancel to exit without saving.');

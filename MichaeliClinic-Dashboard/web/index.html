@@ -64,6 +64,7 @@
                     </div>
 					<button class="btn btn-primary" id="addPatientBtn" onclick="openAddPatientModal()">+ Add New Patient</button>
                     <button class="btn" style="background: #17a2b8; color: white;" onclick="openActionItemsModal()">Action Items</button>
+                    <button class="btn" id="usersBtn" style="background: #6c757d; color: white; display: none;" onclick="openUsersModal()">Users</button>
                     <!-- Save button removed - everything auto-saves to database -->
                     <button class="btn btn-secondary" onclick="backupDatabase()">Backup</button>
                     <button class="btn btn-secondary" onclick="logout()">Logout</button>
@@ -600,6 +601,94 @@
                 <span style="margin: 0 10px;"><span style="display: inline-block; width: 12px; height: 12px; background: #e67e22; border-radius: 2px; margin-right: 4px;"></span>Downtown</span>
                 <span style="margin: 0 10px;"><span style="display: inline-block; width: 12px; height: 12px; background: #ccc; border-radius: 2px; margin-right: 4px;"></span>No Location</span>
                 <span style="margin: 0 10px;"><span style="display: inline-block; width: 12px; height: 12px; background: #9b59b6; border-radius: 2px; margin-right: 4px;"></span>1st Appt</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Management Modal -->
+    <div class="modal" id="usersModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 class="modal-title">User Management</h2>
+                <button class="close-btn" onclick="closeUsersModal()">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Add User Section -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0;">Add New User</h3>
+                    <form id="addUserForm" onsubmit="addUserFromForm(event); return false;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 10px; align-items: end;">
+                            <div>
+                                <label class="form-label">Username</label>
+                                <input type="text" id="newUsername" class="form-input" required placeholder="e.g., dr_smith">
+                            </div>
+                            <div>
+                                <label class="form-label">Password</label>
+                                <input type="password" id="newPassword" class="form-input" required placeholder="Min 8 chars, A-z, 0-9">
+                            </div>
+                            <div style="display: flex; align-items: center; padding-bottom: 8px;">
+                                <input type="checkbox" id="newIsAdmin" style="margin-right: 8px;">
+                                <label for="newIsAdmin">Admin</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add User</button>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                            Password must be at least 8 characters with lowercase, uppercase, and numbers (e.g., Password1)
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Users List -->
+                <h3>Current Users</h3>
+                <table class="data-table" id="usersTable" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Last Login</th>
+                            <th style="text-align: center;">Admin</th>
+                            <th style="text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 20px;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal" id="changePasswordModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Change Password</h2>
+                <button class="close-btn" onclick="closeChangePasswordModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm" onsubmit="submitChangePassword(event); return false;">
+                    <div class="form-group">
+                        <label class="form-label">Current Password</label>
+                        <input type="password" id="currentPassword" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">New Password</label>
+                        <input type="password" id="newPasswordChange" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Confirm New Password</label>
+                        <input type="password" id="confirmPassword" class="form-input" required>
+                    </div>
+                    <div style="margin-bottom: 15px; font-size: 12px; color: #666;">
+                        Password must be at least 8 characters with lowercase, uppercase, and numbers
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

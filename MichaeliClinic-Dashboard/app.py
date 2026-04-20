@@ -31,6 +31,16 @@ clinic_days_mgr = None
 # Session tracking
 SESSIONS_FILE = "DB/active_sessions.json"
 
+# User management - keep ONLY admin as code-based fallback
+VALID_USERS = {
+    'admin': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da',
+    'jennia': '5f8eb2b05a1678d45a1678d55a1678d65a1678d75a1678d85a1678d95a1678da'
+}
+
+# Current user state
+current_user = None
+current_user_is_admin = False
+
 
 def initialize_app():
     """Initialize database and managers"""
@@ -368,6 +378,294 @@ def get_last_backup_date():
     except Exception as e:
         print(f"Error getting last backup date: {e}")
         return None
+
+
+# ============================================================================
+# PASSWORD HASHING
+# ============================================================================
+
+def hash_password(password):
+    """Simple hash function for passwords - matches referrals dashboard"""
+    hash_val = 0
+    salt = 'michaeli_clinic_2025'
+    combined = password + salt
+    
+    for char in combined:
+        hash_val = ((hash_val << 5) - hash_val) + ord(char)
+        if hash_val > 0x7FFFFFFF:
+            hash_val = hash_val - 0x100000000
+        elif hash_val < -0x80000000:
+            hash_val = hash_val + 0x100000000
+    
+    hex_hash = format(hash_val & 0xFFFFFFFF, 'x')
+    while len(hex_hash) < 8:
+        hex_hash = '0' + hex_hash
+    
+    extended = hex_hash
+    for i in range(7):
+        extended += _simple_hash(hex_hash + str(i))
+    
+    return extended[:64]
+
+def _simple_hash(s):
+    """Helper function for hash extension"""
+    h = 0
+    for char in s:
+        h = ((h << 5) - h) + ord(char)
+        if h > 0x7FFFFFFF:
+            h = h - 0x100000000
+        elif h < -0x80000000:
+            h = h + 0x100000000
+    
+    hex_result = format(h & 0xFFFFFFFF, 'x')
+    while len(hex_result) < 8:
+        hex_result = '0' + hex_result
+    return hex_result[:8]
+
+@eel.expose
+def login(username, password):
+    """Handle user login - checks database users first, then code-based fallback"""
+    global current_user, current_user_is_admin
+    
+    username = username.lower()
+    entered_hash = hash_password(password)
+    
+    # Try database users first
+    try:
+        user = db.fetchone("SELECT username, passwordHash, isAdmin FROM users WHERE username = ?", (username,))
+        
+        if user and user['passwordHash'] == entered_hash:
+            # Valid database user - update last login
+            current_user = username
+            current_user_is_admin = bool(user.get('isAdmin', 0))
+            
+            db.execute("UPDATE users SET lastLogin = ? WHERE username = ?", 
+                      (int(datetime.now().timestamp()), username))
+            db.commit()
+            
+            print(f"✓ User logged in: {username} (admin: {current_user_is_admin})")
+            
+            return {
+                'status': 'success',
+                'username': username,
+                'isAdmin': current_user_is_admin
+            }
+    except Exception as e:
+        print(f"Database user check error: {e}")
+    
+    # Fall back to code-based users (admin/jennia as backup)
+    if username in VALID_USERS and entered_hash == VALID_USERS[username]:
+        current_user = username
+        current_user_is_admin = True  # Code-based users are always admin
+        
+        print(f"✓ User logged in (code-based): {username}")
+        
+        return {
+            'status': 'success',
+            'username': username,
+            'isAdmin': True
+        }
+    
+    # Login failed
+    return {
+        'status': 'error',
+        'message': 'Invalid username or password'
+    }
+
+
+# ============================================================================
+# USER MANAGEMENT API
+# ============================================================================
+
+@eel.expose
+def get_users():
+    """Get all users (admin only)"""
+    global current_user_is_admin
+    
+    if not current_user_is_admin:
+        return {'status': 'error', 'message': 'Admin access required'}
+    
+    try:
+        users = db.fetchall("SELECT username, lastLogin, isAdmin FROM users ORDER BY username")
+        
+        users_list = []
+        for user in users:
+            users_list.append({
+                'username': user['username'],
+                'lastLogin': user['lastLogin'],
+                'isAdmin': bool(user.get('isAdmin', 0))
+            })
+        
+        return {'status': 'success', 'users': users_list}
+    except Exception as e:
+        print(f"Error getting users: {e}")
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+
+@eel.expose
+def add_user(username, password, is_admin):
+    """Add new user (admin only)"""
+    global current_user_is_admin
+    
+    if not current_user_is_admin:
+        return {'status': 'error', 'message': 'Admin access required'}
+    
+    username = username.lower().strip()
+    
+    if not username:
+        return {'status': 'error', 'message': 'Username cannot be empty'}
+    
+    # Validate password
+    if len(password) < 8:
+        return {'status': 'error', 'message': 'Password must be at least 8 characters'}
+    
+    has_lower = any(c.islower() for c in password)
+    has_upper = any(c.isupper() for c in password)
+    has_digit = any(c.isdigit() for c in password)
+    
+    if not (has_lower and has_upper and has_digit):
+        return {'status': 'error', 'message': 'Password must contain lowercase, uppercase, and numbers'}
+    
+    try:
+        # Check if user already exists
+        existing = db.fetchone("SELECT username FROM users WHERE username = ?", (username,))
+        if existing:
+            return {'status': 'error', 'message': 'Username already exists'}
+        
+        # Insert new user
+        password_hash = hash_password(password)
+        db.execute(
+            "INSERT INTO users (username, passwordHash, lastLogin, isAdmin) VALUES (?, ?, NULL, ?)",
+            (username, password_hash, 1 if is_admin else 0)
+        )
+        db.commit()
+        
+        return {'status': 'success', 'message': f'User {username} added successfully'}
+    except Exception as e:
+        db.rollback()
+        print(f"Error adding user: {e}")
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+
+@eel.expose
+def update_user_password(username, new_password):
+    """Update user password (admin only)"""
+    global current_user_is_admin
+    
+    if not current_user_is_admin:
+        return {'status': 'error', 'message': 'Admin access required'}
+    
+    # Validate password
+    if len(new_password) < 8:
+        return {'status': 'error', 'message': 'Password must be at least 8 characters'}
+    
+    has_lower = any(c.islower() for c in new_password)
+    has_upper = any(c.isupper() for c in new_password)
+    has_digit = any(c.isdigit() for c in new_password)
+    
+    if not (has_lower and has_upper and has_digit):
+        return {'status': 'error', 'message': 'Password must contain lowercase, uppercase, and numbers'}
+    
+    try:
+        new_hash = hash_password(new_password)
+        db.execute("UPDATE users SET passwordHash = ? WHERE username = ?", (new_hash, username))
+        
+        if db.cursor.rowcount == 0:
+            return {'status': 'error', 'message': 'User not found'}
+        
+        db.commit()
+        return {'status': 'success', 'message': f'Password updated for {username}'}
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating password: {e}")
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+
+@eel.expose
+def change_password(old_password, new_password):
+    """Change password for current user"""
+    global current_user
+    
+    if not current_user:
+        return {'status': 'error', 'message': 'Not logged in'}
+    
+    # Validate new password
+    if len(new_password) < 8:
+        return {'status': 'error', 'message': 'Password must be at least 8 characters'}
+    
+    has_lower = any(c.islower() for c in new_password)
+    has_upper = any(c.isupper() for c in new_password)
+    has_digit = any(c.isdigit() for c in new_password)
+    
+    if not (has_lower and has_upper and has_digit):
+        return {'status': 'error', 'message': 'Password must contain lowercase, uppercase, and numbers'}
+    
+    try:
+        # Verify old password
+        old_hash = hash_password(old_password)
+        user = db.fetchone("SELECT passwordHash FROM users WHERE username = ?", (current_user,))
+        
+        if not user:
+            return {'status': 'error', 'message': 'User not found in database'}
+        
+        if user['passwordHash'] != old_hash:
+            return {'status': 'error', 'message': 'Current password is incorrect'}
+        
+        # Update password
+        new_hash = hash_password(new_password)
+        db.execute("UPDATE users SET passwordHash = ? WHERE username = ?", (new_hash, current_user))
+        db.commit()
+        
+        return {'status': 'success', 'message': 'Password changed successfully'}
+    except Exception as e:
+        db.rollback()
+        print(f"Error changing password: {e}")
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+
+@eel.expose
+def update_user_admin(username, is_admin):
+    """Update user admin status (admin only)"""
+    global current_user_is_admin
+    
+    if not current_user_is_admin:
+        return {'status': 'error', 'message': 'Admin access required'}
+    
+    if username == 'admin':
+        return {'status': 'error', 'message': 'Cannot modify admin user'}
+    
+    try:
+        db.execute("UPDATE users SET isAdmin = ? WHERE username = ?", (1 if is_admin else 0, username))
+        
+        if db.cursor.rowcount == 0:
+            return {'status': 'error', 'message': 'User not found'}
+        
+        db.commit()
+        return {'status': 'success', 'message': f'Admin status updated for {username}'}
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating admin status: {e}")
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
+
+@eel.expose
+def remove_user(username):
+    """Remove user (admin only)"""
+    global current_user_is_admin
+    
+    if not current_user_is_admin:
+        return {'status': 'error', 'message': 'Admin access required'}
+    
+    if username == 'admin':
+        return {'status': 'error', 'message': 'Cannot delete admin user'}
+    
+    try:
+        db.execute("DELETE FROM users WHERE username = ?", (username,))
+        
+        if db.cursor.rowcount == 0:
+            return {'status': 'error', 'message': 'User not found'}
+        
+        db.commit()
+        return {'status': 'success', 'message': f'User {username} removed successfully'}
+    except Exception as e:
+        db.rollback()
+        print(f"Error removing user: {e}")
+        return {'status': 'error', 'message': f'Database error: {str(e)}'}
 
 
 # ============================================================================
