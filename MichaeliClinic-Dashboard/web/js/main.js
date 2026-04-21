@@ -1536,7 +1536,7 @@
             
             // Only allow for today or future dates
             if (dateStr < today) {
-                alert('Reminders can only be sent for today or future appointments.');
+                showErrorModal('Reminders can only be sent for today or future appointments.');
                 return;
             }
             
@@ -1550,7 +1550,7 @@
             }
             
             if (appointmentsForDate.length === 0) {
-                alert('No appointments scheduled for this date.');
+                showErrorModal('No appointments scheduled for this date.');
                 return;
             }
             
@@ -3699,7 +3699,8 @@
         
         function showInfo(message, title) {
             document.getElementById('infoModalTitle').textContent = title || 'Success';
-            document.getElementById('infoModalMessage').textContent = message;
+            // Replace newlines with <br> for proper display
+            document.getElementById('infoModalMessage').innerHTML = message.replace(/\n/g, '<br>');
             document.getElementById('infoModal').style.display = 'flex';
         }
         
