@@ -3440,7 +3440,7 @@
             return null; // No conflict
         }
 
-        function saveAppointmentEdit(event) {
+        async function saveAppointmentEdit(event) {
             event.preventDefault();
             
             if (!currentEditingApptPatient) return;
@@ -3450,7 +3450,7 @@
             
             // Validate time format if provided
             if (timeValue && !validateTimeFormat(timeValue)) {
-                alert('Invalid time format. Please use HH:mm (e.g., 09:30 or 14:45)');
+                showErrorModal('Invalid time format. Please use HH:mm (e.g., 09:30 or 14:45)');
                 return;
             }
             
@@ -3493,13 +3493,16 @@
                     patients[i].nextAppointment = newDate;
                     patients[i].appointmentTime = newTime;
                     patients[i].appointmentLocation = newLocation;
+                    
+                    // SAVE TO DATABASE!
+                    await scheduleAppointmentWithSave(currentEditingApptPatient.patientID, newDate, newTime, newLocation);
+                    
                     break;
                 }
             }
 			
 			var editedPatientID = currentEditingApptPatient.patientID;
             currentEditingApptPatient = null;
-            markAsChanged();
             closeModal('editApptModal');
             renderAppointments();
             renderPatientList();
@@ -3570,7 +3573,7 @@
             }, 100);
         }
 
-        function completeTransition(event) {
+        async function completeTransition(event) {
             event.preventDefault();
             
             if (!currentTransitionPatient) return;
@@ -3584,7 +3587,7 @@
                 var dateValue = document.getElementById('transitionDate') ? document.getElementById('transitionDate').value : '';
                 
                 if (timeValue && !validateTimeFormat(timeValue)) {
-                    alert('Invalid time format. Please use HH:mm (e.g., 09:30 or 14:45)');
+                    showErrorModal('Invalid time format. Please use HH:mm (e.g., 09:30 or 14:45)');
                     return;
                 }
 
@@ -3608,6 +3611,9 @@
                         patients[i].nextAppointment = date;
                         patients[i].appointmentTime = time;
                         patients[i].appointmentLocation = location;
+                        
+                        // SAVE TO DATABASE!
+                        await scheduleAppointmentWithSave(patient.patientID, date, time, location);
 					} else if (nextState === 'WAITING_APPT_SUMMARY') {
                         var summary = document.getElementById('transitionSummary') ? document.getElementById('transitionSummary').value : '';
                         if (patient.nextAppointment) {
