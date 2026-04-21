@@ -762,27 +762,46 @@ def save_email_to_file(content, filename=None):
 
 def main():
     """Main entry point"""
+    import sys
+    
+    # Check for debug flag
+    debug_mode = '--debug' in sys.argv or '-d' in sys.argv
+    
+    # Hide console window unless in debug mode (Windows only)
+    if not debug_mode and os.name == 'nt':
+        try:
+            import ctypes
+            ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+        except:
+            pass  # Silently fail if hiding console doesn't work
+    
     print("="*60)
-    print("MichaeliClinic-Dashboard")
+    print("MICHAELI CLINIC DASHBOARD")
     print("="*60)
+    print()
+    
+    if debug_mode:
+        print("🐛 DEBUG MODE: Console will stay visible")
+        print()
     
     # Initialize
     initialize_app()
     
-    # Start Eel with browser fallback
+    # Start Eel with Edge as default (faster on corporate computers)
     try:
-        # Try browsers in order: Chrome -> Edge -> Default
-        # This ensures it works on corporate computers without Chrome
+        # Try browsers in order: Edge (default) -> Chrome -> Default browser
         try:
-            print("Attempting to start with Chrome...")
-            eel.start('index.html', mode='chrome', size=(1920, 1080), port=8080)
+            print("Starting with Microsoft Edge...")
+            eel.start('index.html', mode='edge', size=(1920, 1080), port=8080)
         except (OSError, Exception) as e:
-            print(f"Chrome not available: {e}")
+            if debug_mode:
+                print(f"Edge not available: {e}")
             try:
-                print("Attempting to start with Edge...")
-                eel.start('index.html', mode='edge', size=(1920, 1080), port=8080)
+                print("Attempting to start with Chrome...")
+                eel.start('index.html', mode='chrome', size=(1920, 1080), port=8080)
             except (OSError, Exception) as e2:
-                print(f"Edge not available: {e2}")
+                if debug_mode:
+                    print(f"Chrome not available: {e2}")
                 print("Starting with default browser...")
                 eel.start('index.html', mode=None, size=(1920, 1080), port=8080)
     except (SystemExit, KeyboardInterrupt):
