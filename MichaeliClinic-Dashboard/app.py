@@ -769,10 +769,22 @@ def main():
     # Initialize
     initialize_app()
     
-    # Start Eel
+    # Start Eel with browser fallback
     try:
-        # Start in app mode (no browser chrome) with maximized window
-        eel.start('index.html', mode='chrome', size=(1920, 1080), port=8080)
+        # Try browsers in order: Chrome -> Edge -> Default
+        # This ensures it works on corporate computers without Chrome
+        try:
+            print("Attempting to start with Chrome...")
+            eel.start('index.html', mode='chrome', size=(1920, 1080), port=8080)
+        except (OSError, Exception) as e:
+            print(f"Chrome not available: {e}")
+            try:
+                print("Attempting to start with Edge...")
+                eel.start('index.html', mode='edge', size=(1920, 1080), port=8080)
+            except (OSError, Exception) as e2:
+                print(f"Edge not available: {e2}")
+                print("Starting with default browser...")
+                eel.start('index.html', mode=None, size=(1920, 1080), port=8080)
     except (SystemExit, KeyboardInterrupt):
         print("\nShutting down...")
         if db:
