@@ -2674,10 +2674,14 @@
                 var isMD2Day = dayData.md2 || false;
                 var time = ('0' + hour).slice(-2) + ':' + minutes;
                 
-                // Check if greyed out
+                // Get day of week for Tuesday admin time check
+                var dayOfWeek = wd.date.getDay();
+                
+                // Check if greyed out (lunch break, MD2 break, Tuesday admin time)
                 var isLunchBreak = (hour === 12);
                 var isMD2Break = isMD2Day && (hour === 11 || hour === 12 || (hour === 13 && (minutes === '00' || minutes === '15')));
-                var isGreyedOut = isLunchBreak || isMD2Break;
+                var isTuesdayAdminTime = (dayOfWeek === 2) && (hour === 16);
+                var isGreyedOut = isLunchBreak || isMD2Break || isTuesdayAdminTime;
                 
                 var cellBg;
                 if (isGreyedOut) cellBg = '#e8e8e8';
@@ -3317,7 +3321,9 @@
                 // Save to backend
                 await updatePatientStateWithSave(patientID, 'WAITING_NEXT_APPT_SCHEDULE', null);
                 
-                closeModal('detailsModal');
+                // Don't close modal - just refresh the patient details to show new state
+                await loadDatabase();
+                viewPatientDetails(patientID);  // Refresh patient details modal
                 renderPatientList();
                 renderAppointments();
                 updateStatusCounts();
