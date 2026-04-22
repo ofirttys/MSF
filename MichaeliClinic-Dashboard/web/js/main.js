@@ -3251,11 +3251,29 @@
             document.getElementById('cancelApptModal').classList.add('active');
         }
         
-        function confirmCancelAppointment(cancelledBy) {
+        async function confirmCancelAppointment(cancelledBy) {
             if (!currentCancellingApptPatient) return;
             
             var summaryText = cancelledBy === 'doctor' ? 'Cancelled by doctor' : 'Cancelled by patient';
             
+            // Determine the correct state to go back to
+            var newState = 'WAITING_NEXT_APPT_SCHEDULE';
+            
+            // Check if this was their first appointment (no completed appointments in history)
+            var hasCompletedAppt = false;
+            for (var j = 0; j < currentCancellingApptPatient.appointmentHistory.length; j++) {
+                var summary = currentCancellingApptPatient.appointmentHistory[j].summary || '';
+                if (summary.toLowerCase().indexOf('cancelled') === -1) {
+                    hasCompletedAppt = true;
+                    break;
+                }
+            }
+            
+            if (!hasCompletedAppt) {
+                newState = 'WAITING_FIRST_APPT_SCHEDULE';
+            }
+            
+            // Update local array
             for (var i = 0; i < patients.length; i++) {
                 if (patients[i].patientID === currentCancellingApptPatient.patientID) {
                     // Add to appointment history
@@ -3265,29 +3283,12 @@
                         summary: summaryText
                     });
                     
-                    // Determine the correct state to go back to
-                    var newState = 'WAITING_NEXT_APPT_SCHEDULE';
-                    
-                    // Check if this was their first appointment (no completed appointments in history)
-                    var hasCompletedAppt = false;
-                    for (var j = 0; j < patients[i].appointmentHistory.length; j++) {
-                        var summary = patients[i].appointmentHistory[j].summary || '';
-                        if (summary.toLowerCase().indexOf('cancelled') === -1) {
-                            hasCompletedAppt = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!hasCompletedAppt) {
-                        newState = 'WAITING_FIRST_APPT_SCHEDULE';
-                    }
-                    
-                    // Clear appointment
+                    // Clear appointment (local)
                     patients[i].nextAppointment = null;
                     patients[i].appointmentTime = null;
 					patients[i].appointmentLocation = null;
                     
-                    // Update state
+                    // Update state (local)
                     patients[i].currentState = newState;
                     patients[i].stateHistory.push({
                         state: newState,
@@ -3298,6 +3299,12 @@
                     break;
                 }
             }
+            
+            // SAVE TO BACKEND: Clear appointment
+            await eel.update_next_appointment(currentCancellingApptPatient.patientID, null, null, null)();
+            
+            // SAVE TO BACKEND: Update state
+            await updatePatientStateWithSave(currentCancellingApptPatient.patientID, newState, summaryText);
             
 			var cancelledPatientID = currentCancellingApptPatient.patientID;
             currentCancellingApptPatient = null;
@@ -3540,11 +3547,8 @@
                         var date = document.getElementById('transitionDate').value;
                         var time = document.getElementById('transitionTime').value;
                         var location = document.getElementById('transitionLocation').value;
-                        patients[i].nextAppointment = date;
-                        patients[i].appointmentTime = time;
-                        patients[i].appointmentLocation = location;
                         
-                        // SAVE TO DATABASE!
+                        // SAVE APPOINTMENT TO DATABASE (also updates local array)
                         await scheduleAppointmentWithSave(patient.patientID, date, time, location);
 					} else if (nextState === 'WAITING_APPT_SUMMARY') {
                         var summary = document.getElementById('transitionSummary') ? document.getElementById('transitionSummary').value : '';
