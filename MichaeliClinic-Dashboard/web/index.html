@@ -56,12 +56,6 @@
 					<h1 style="margin: 0;">Michaeli Clinic - Dashboard</h1>
 				</div>
                 <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                    <div id="unsavedIndicator" style="display: none; color: #e74c3c; font-weight: 600; font-size: 14px; margin-right: 10px;">
-                        ⚠️ <span id="unsavedCount">0</span> unsaved changes
-                    </div>
-                    <div id="lastSavedTime" style="color: #7f8c8d; font-size: 12px; display: none; margin-right: 10px;">
-                        Last saved: <span id="lastSavedTimeValue">Never</span>
-                    </div>
 					<button class="btn btn-primary" id="addPatientBtn" onclick="openAddPatientModal()">+ Add New Patient</button>
                     <button class="btn" style="background: #17a2b8; color: white;" onclick="openActionItemsModal()">Action Items</button>
                     <button class="btn" id="usersBtn" style="background: #6c757d; color: white; display: none;" onclick="openUsersModal()">Users</button>
@@ -864,7 +858,6 @@
         var currentEditingPatient = null;
         var currentTransitionPatient = null;
         var currentEditingApptPatient = null;
-        var unsavedChanges = 0;
         var isLoggedIn = false;
         var currentFilter = []; // Array to hold multiple active filters
         var currentSortMode = 'name'; // Sort mode: 'name', 'appt-new', 'appt-old'
@@ -1393,27 +1386,7 @@
         }
 
         // Unsaved changes tracking
-        function markAsChanged() {
-            unsavedChanges++;
-            updateUnsavedIndicator();
-        }
 
-        function updateUnsavedIndicator() {
-            var indicator = document.getElementById('unsavedIndicator');
-            var saveButton = document.getElementById('saveButton');
-            var countSpan = document.getElementById('unsavedCount');
-            
-            if (unsavedChanges > 0) {
-                indicator.style.display = 'block';
-                countSpan.textContent = unsavedChanges;
-                saveButton.style.background = '#e74c3c';
-                saveButton.style.animation = 'pulse 2s infinite';
-            } else {
-                indicator.style.display = 'none';
-                saveButton.style.background = '#27ae60';
-                saveButton.style.animation = 'none';
-            }
-        }
 
         function updateLastSavedTime(autoSaved) {
             var lastSavedDiv = document.getElementById('lastSavedTime');

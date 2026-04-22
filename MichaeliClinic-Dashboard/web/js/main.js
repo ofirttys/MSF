@@ -114,7 +114,6 @@
         var currentEditingPatient = null;
         var currentTransitionPatient = null;
         var currentEditingApptPatient = null;
-        var unsavedChanges = 0;
         var isLoggedIn = false;
         var currentFilter = []; // Array to hold multiple active filters
         var currentSortMode = 'name'; // Sort mode: 'name', 'appt-new', 'appt-old'
@@ -308,13 +307,6 @@
         }
 
         async function logout() {
-            if (unsavedChanges > 0) {
-                var choice = confirm('You have ' + unsavedChanges + ' unsaved change(s)!\n\nClick OK to save and logout, or Cancel to logout without saving.');
-                if (choice) {
-                    saveDatabase(true);
-                }
-            }
-            
             // Unregister session
             if (currentUser) {
                 await eel.unregister_session(currentUser)();
@@ -406,21 +398,17 @@
             renderAppointments();
             renderPatientList();
             updateStatusCounts();
-            updateUnsavedIndicator();
             
             // Initialize main date picker for appointments
             initializeMainDatePicker();
             
-            // Start auto-save timer (every 5 minutes) - only if not read-only
+            // Lock file refresh timer (5 minutes) - only if not read-only
             if (autoSaveInterval) {
                 clearInterval(autoSaveInterval);
             }
             if (!isReadOnly) {
                 autoSaveInterval = setInterval(function() {
-                    if (unsavedChanges > 0) {
-                        saveDatabase(true); // silent save
-                    }
-                    // Also refresh lock file to keep it fresh
+                    // Refresh lock file to keep it fresh
                     refreshLockFile();
                 }, 5 * 60 * 1000); // 5 minutes
             }
@@ -531,9 +519,7 @@
                 }
             }
             
-            if (changed) {
-                markAsChanged();
-            }
+            // TODO: If changed, should save to backend via updatePatientStateWithSave()
         }
 
         // File System Operations (HTA-specific)
@@ -565,8 +551,6 @@
                     }
                 }
                 
-                unsavedChanges = 0;
-                updateUnsavedIndicator();
                 renderPatientList();
                 renderAppointments();
                 updateStatusCounts();
@@ -628,8 +612,6 @@
                 return;
             }
             
-            unsavedChanges = 0;
-            updateUnsavedIndicator();
             updateLastSavedTime(silent);
             
             if (!silent) {
@@ -678,37 +660,8 @@
         }
 
         // Unsaved changes tracking
-        function markAsChanged() {
-            unsavedChanges++;
-            updateUnsavedIndicator();
-        }
+        // Auto-save timer removed - all actions save directly to database via backend API
 
-        function updateUnsavedIndicator() {
-            var indicator = document.getElementById('unsavedIndicator');
-            var countSpan = document.getElementById('unsavedCount');
-            
-            // Save button removed - just update indicator
-            if (indicator && countSpan) {
-                if (unsavedChanges > 0) {
-                    indicator.style.display = 'block';
-                    countSpan.textContent = unsavedChanges;
-                } else {
-                    indicator.style.display = 'none';
-                }
-            }
-        }
-
-        function updateLastSavedTime(autoSaved) {
-            var lastSavedDiv = document.getElementById('lastSavedTime');
-            var lastSavedValue = document.getElementById('lastSavedTimeValue');
-            var now = new Date();
-            var timeStr = now.toLocaleTimeString();
-            if (autoSaved) {
-                timeStr += ' (auto)';
-            }
-            lastSavedValue.textContent = timeStr;
-            lastSavedDiv.style.display = 'block';
-        }
 
         // Date navigation
         async function changeDate(days) {
@@ -3166,7 +3119,7 @@
         }
 
         // Transition to Pregnant or Inactive state
-        function transitionToSpecialState(patientID, specialState) {
+        async function transitionToSpecialState(patientID, specialState) {
             if (isReadOnly) {
                 alert('Cannot modify patients - database is in read-only mode.');
                 return;
@@ -3176,18 +3129,9 @@
                 return;
             }
             
-            for (var i = 0; i < patients.length; i++) {
-                if (patients[i].patientID === patientID) {
-                    patients[i].currentState = specialState;
-                    patients[i].stateHistory.push({
-                        state: specialState,
-                        timestamp: new Date().toISOString()
-                    });
-                    break;
-                }
-            }
+            // Save to backend
+            await updatePatientStateWithSave(patientID, specialState, null);
             
-            markAsChanged();
             closeModal('detailsModal');
             renderPatientList();
             renderAppointments();
@@ -3195,7 +3139,7 @@
         }
 
         // Transition from Pregnant or Inactive back to normal flow
-        function transitionFromSpecialState(patientID, fromState) {
+        async function transitionFromSpecialState(patientID, fromState) {
             if (isReadOnly) {
                 alert('Cannot modify patients - database is in read-only mode.');
                 return;
@@ -3205,20 +3149,9 @@
                 return;
             }
             
-            for (var i = 0; i < patients.length; i++) {
-                if (patients[i].patientID === patientID) {
-                    // Update to Waiting Next Appt Schedule
-                    patients[i].currentState = 'WAITING_NEXT_APPT_SCHEDULE';
-                    patients[i].stateHistory.push({
-                        state: 'WAITING_NEXT_APPT_SCHEDULE',
-                        timestamp: new Date().toISOString()
-                    });
-                    
-                    break;
-                }
-            }
+            // Save to backend
+            await updatePatientStateWithSave(patientID, 'WAITING_NEXT_APPT_SCHEDULE', null);
             
-            markAsChanged();
             closeModal('detailsModal');
             renderPatientList();
             renderAppointments();
@@ -3368,7 +3301,6 @@
             
 			var cancelledPatientID = currentCancellingApptPatient.patientID;
             currentCancellingApptPatient = null;
-            markAsChanged();
             closeModal('cancelApptModal');
             renderAppointments();
             renderPatientList();
@@ -3657,18 +3589,19 @@
                         }
                     }
 
-                    // Update state
-                    patients[i].currentState = nextState;
-                    patients[i].stateHistory.push({
-                        state: nextState,
-                        timestamp: new Date().toISOString()
-                    });
+                    // Save state to backend (which also updates local array)
+                    var notes = null;
+                    if (nextState === 'WAITING_NEXT_APPT_SCHEDULE') {
+                        notes = document.getElementById('transitionNotes') ? document.getElementById('transitionNotes').value : null;
+                    } else if (nextState === 'WAITING_APPT_SUMMARY') {
+                        notes = document.getElementById('transitionSummary') ? document.getElementById('transitionSummary').value : null;
+                    }
+                    await updatePatientStateWithSave(patient.patientID, nextState, notes);
                     
                     break;
                 }
             }
 
-            markAsChanged();
             closeModal('transitionModal');
 			// Refresh patient details view instead of closing it
 			if (currentViewingPatientID) {
@@ -3990,13 +3923,6 @@
         }
         
 		window.onbeforeunload = function() {
-            if (unsavedChanges > 0) {
-                var confirmSave = confirm('You have ' + unsavedChanges + ' unsaved change(s)!\n\nClick OK to save and exit, or Cancel to exit without saving.');
-                if (confirmSave) {
-                    saveDatabase(true);
-                }
-            }
-            
             // Unregister session when closing
             if (currentUser) {
                 eel.unregister_session(currentUser)();
@@ -5195,7 +5121,6 @@ async function updatePatientStateWithSave(patientID, newState, notes) {
     
     try {
         await eel.update_patient_state(patientID, newState, notes)();
-        markAsChanged();
         return true;
     } catch (error) {
         console.error('Error updating patient state:', error);
@@ -5214,7 +5139,6 @@ async function scheduleAppointmentWithSave(patientID, date, time, location) {
     
     try {
         await eel.update_next_appointment(patientID, date, time, location)();
-        markAsChanged();
         return true;
     } catch (error) {
         console.error('Error scheduling appointment:', error);
