@@ -230,9 +230,36 @@
                 // Register session (prevent duplicate logins)
                 var sessionResult = await eel.register_session(username)();
                 if (!sessionResult.success) {
-                    errorDiv.textContent = sessionResult.error;
-                    errorDiv.style.display = 'block';
-                    return false;
+                    // Session blocked - offer force logout
+                    var forceLogout = confirm(
+                        sessionResult.error + '\n\n' +
+                        'This can happen if you closed the app without logging out.\n\n' +
+                        'Click OK to force logout the previous session and login now.\n' +
+                        'Click Cancel to wait for the session to expire.'
+                    );
+                    
+                    if (forceLogout) {
+                        // Force logout the previous session
+                        var forceResult = await eel.force_logout_user(username)();
+                        if (forceResult.success) {
+                            // Try registering session again
+                            sessionResult = await eel.register_session(username)();
+                            if (!sessionResult.success) {
+                                errorDiv.textContent = 'Failed to create session after force logout';
+                                errorDiv.style.display = 'block';
+                                return false;
+                            }
+                        } else {
+                            errorDiv.textContent = forceResult.error || 'Failed to force logout';
+                            errorDiv.style.display = 'block';
+                            return false;
+                        }
+                    } else {
+                        // User chose to wait
+                        errorDiv.textContent = sessionResult.error;
+                        errorDiv.style.display = 'block';
+                        return false;
+                    }
                 }
                 
                 // Check for lock file
@@ -2427,15 +2454,6 @@
 			loadPortalUsers();
 		}
 		
-		function loadPortalUsers() {
-			// Portal CSV reading disabled in Eel version
-			document.getElementById('portalContent').innerHTML = 
-				'<div style="padding: 20px; text-align: center; color: #7f8c8d;">' +
-				'Portal CSV feature will be implemented in next update.<br><br>' +
-				'For now, use the original HTA for portal management.</div>';
-			document.getElementById('portalModal').classList.add('active');
-		}
-		
         // Get Monday of the week containing a date
         function getMonday(date) {
             var d = new Date(date);
@@ -4043,15 +4061,20 @@
         // Open portal modal and check missing access
         async function openPortalModal() {
             document.getElementById('portalModal').classList.add('active');
-            
+            await loadPortalUsers(false);  // Use cache by default
+        }
+        
+        async function loadPortalUsers(forceRefresh = false) {
             // Show loading
             document.getElementById('portalContent').innerHTML = 
                 '<div style="padding: 40px; text-align: center;">' +
-                '<div class="spinner"></div><br>Checking portal access...</div>';
+                '<div class="spinner"></div><br>' + 
+                (forceRefresh ? 'Refreshing from file...' : 'Checking portal access...') + 
+                '</div>';
             
             // Call backend
             try {
-                var result = await eel.get_missing_portal_access()();
+                var result = await eel.get_missing_portal_access(forceRefresh)();
                 
                 // Check if result is valid
                 if (!result) {

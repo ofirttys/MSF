@@ -4,8 +4,9 @@ Handles patient portal access checking
 """
 
 import xlrd
+import os
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
 class PortalManager:
@@ -14,9 +15,42 @@ class PortalManager:
     def __init__(self, db, portal_file_path: str):
         self.db = db
         self.portal_file_path = portal_file_path
+        
+        # Cache for portal data
+        self._cached_data: Optional[Dict] = None
+        self._cache_file_mtime: Optional[float] = None
     
-    def get_missing_portal_access(self) -> Dict:
-        """Find patients/partners missing portal access in next 3 weeks"""
+    def _get_file_modification_time(self) -> Optional[float]:
+        """Get the modification time of the portal XLS file"""
+        try:
+            return os.path.getmtime(self.portal_file_path)
+        except:
+            return None
+    
+    def _is_cache_valid(self) -> bool:
+        """Check if cached data is still valid (file hasn't changed)"""
+        if self._cached_data is None or self._cache_file_mtime is None:
+            return False
+        
+        current_mtime = self._get_file_modification_time()
+        if current_mtime is None:
+            return False
+        
+        # Cache is valid if file modification time hasn't changed
+        return current_mtime == self._cache_file_mtime
+    
+    def get_missing_portal_access(self, force_refresh: bool = False) -> Dict:
+        """
+        Find patients/partners missing portal access in next 3 weeks
+        
+        Args:
+            force_refresh: If True, ignore cache and read file again
+        """
+        
+        # Check if we can use cached data
+        if not force_refresh and self._is_cache_valid():
+            print("✓ Using cached portal data (file unchanged)")
+            return self._cached_data
         
         # 1. Read XLS and extract patient IDs from column A
         try:
@@ -94,10 +128,17 @@ class PortalManager:
                     'appointmentDate': patient['nextAppointment']
                 })
         
-        return {
+        result = {
             'missing': missing,
             'total_portal_users': len(portal_user_ids)
         }
+        
+        # Cache the result with current file modification time
+        self._cached_data = result
+        self._cache_file_mtime = self._get_file_modification_time()
+        print(f"✓ Portal data cached ({len(missing)} missing, {len(portal_user_ids)} portal users)")
+        
+        return result
     
     def _format_name(self, patient: Dict, person_type: str) -> str:
         """Format name with alias support"""

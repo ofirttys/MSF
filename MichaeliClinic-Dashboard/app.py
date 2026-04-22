@@ -276,14 +276,14 @@ def register_session(username):
             last_active = datetime.fromisoformat(sessions[username]['last_active'])
             time_diff = (datetime.now() - last_active).total_seconds() / 60
             
-            # If last active > 30 minutes ago, consider session expired
-            if time_diff > 30:
+            # If last active > 5 minutes ago, consider session expired
+            if time_diff > 5:
                 print(f"✓ Previous session for {username} expired ({time_diff:.0f}min ago)")
             else:
                 print(f"⚠ User {username} already has active session (last active {time_diff:.0f}min ago)")
                 return {
                     'success': False,
-                    'error': f'User already logged in (active {time_diff:.0f} minutes ago)'
+                    'error': f'User already logged in (active {time_diff:.0f} minutes ago). Please wait {5 - int(time_diff)} more minute(s) or close the other session.'
                 }
         
         sessions[username] = {
@@ -328,6 +328,21 @@ def unregister_session(username):
         return {'success': False}
 
 @eel.expose
+def force_logout_user(username):
+    """Force logout a user (self-recovery when session is stuck)"""
+    try:
+        sessions = load_sessions()
+        if username in sessions:
+            del sessions[username]
+            save_sessions(sessions)
+            print(f"✓ Force logout: {username}")
+            return {'success': True, 'message': f'Previous session for {username} has been terminated'}
+        return {'success': False, 'error': 'No active session found'}
+    except Exception as e:
+        print(f"Error force logging out user: {e}")
+        return {'success': False, 'error': str(e)}
+
+@eel.expose
 def get_active_users():
     """Get list of currently active users"""
     try:
@@ -335,12 +350,12 @@ def get_active_users():
         active_users = []
         now = datetime.now()
         
-        # Clean up stale sessions (> 30 minutes inactive)
+        # Clean up stale sessions (> 5 minutes inactive)
         for username in list(sessions.keys()):
             last_active = datetime.fromisoformat(sessions[username]['last_active'])
             time_diff = (now - last_active).total_seconds() / 60
             
-            if time_diff > 30:
+            if time_diff > 5:
                 del sessions[username]
             else:
                 active_users.append({
@@ -860,10 +875,15 @@ def save_email_to_file(content, filename=None):
 # ============================================================================
 
 @eel.expose
-def get_missing_portal_access():
-    """Get list of patients/partners missing portal access"""
+def get_missing_portal_access(force_refresh=False):
+    """
+    Get list of patients/partners missing portal access
+    
+    Args:
+        force_refresh: If True, ignore cache and read XLS file again
+    """
     try:
-        return portal_mgr.get_missing_portal_access()
+        return portal_mgr.get_missing_portal_access(force_refresh)
     except Exception as e:
         import traceback
         error_msg = str(e)
