@@ -59,10 +59,8 @@
 					<button class="btn btn-primary" id="addPatientBtn" onclick="openAddPatientModal()">+ Add New Patient</button>
                     <button class="btn" style="background: #17a2b8; color: white;" onclick="openActionItemsModal()">Action Items</button>
                     <button class="btn" style="background: #28a745; color: white;" onclick="openPortalModal()">Portal</button>
-                    <button class="btn" id="usersBtn" style="background: #6c757d; color: white; display: none;" onclick="openUsersModal()">Users</button>
                     <!-- Save button removed - everything auto-saves to database -->
                     <button class="btn btn-secondary" onclick="backupDatabase()">Backup</button>
-                    <button class="btn btn-secondary" onclick="logout()">Logout</button>
                 </div>
             </header>
 
@@ -70,6 +68,27 @@
                 Database: <span id="filePathDisplay"></span>
                 <span style="margin: 0 10px; color: #bdc3c7;">|</span>
                 User: <span id="currentUserInfo" style="font-weight: 500;"></span>
+                
+                <!-- User Settings Dropdown -->
+                <div style="display: inline-block; position: relative; margin-left: 8px;">
+                    <button id="userSettingsBtn" onclick="toggleUserSettingsDropdown()" style="background: none; border: none; cursor: pointer; padding: 4px 8px; color: #7f8c8d; font-size: 16px; vertical-align: middle;" title="Settings">
+                        ⚙️
+                    </button>
+                    <div id="userSettingsDropdown" style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); min-width: 180px; z-index: 1000; margin-top: 4px;">
+                        <!-- Admin only -->
+                        <div id="manageUsersOption" style="display: none; padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee;" onclick="openUsersModal(); toggleUserSettingsDropdown();" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+                            <span style="margin-right: 8px;">👥</span> Manage Users
+                        </div>
+                        <!-- All users -->
+                        <div style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee;" onclick="openChangePasswordModal(); toggleUserSettingsDropdown();" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+                            <span style="margin-right: 8px;">🔑</span> Change Password
+                        </div>
+                        <div style="padding: 10px 15px; cursor: pointer;" onclick="logout(); toggleUserSettingsDropdown();" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+                            <span style="margin-right: 8px;">🚪</span> Logout
+                        </div>
+                    </div>
+                </div>
+                
                 <span id="otherUsersInfo" style="margin-left: 15px; color: #7f8c8d; font-size: 12px;"></span>
             </div>
 
@@ -497,6 +516,46 @@
             <div id="portalContent" style="max-height: 550px; overflow-y: auto;">
                 <div style="padding: 40px; text-align: center; color: #999;">
                     Loading...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal" id="changePasswordModal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Change Password</h2>
+                <button class="close-btn" onclick="closeModal('changePasswordModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="changePasswordError" style="display: none; background: #fee; border: 1px solid #fcc; color: #c33; padding: 10px; margin-bottom: 15px; border-radius: 4px; font-size: 13px;"></div>
+                <div id="changePasswordSuccess" style="display: none; background: #efe; border: 1px solid #cfc; color: #3c3; padding: 10px; margin-bottom: 15px; border-radius: 4px; font-size: 13px;"></div>
+                
+                <div class="form-group">
+                    <label class="form-label">Current Password</label>
+                    <input type="password" id="currentPassword" class="form-input" autocomplete="current-password">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">New Password</label>
+                    <input type="password" id="newPassword" class="form-input" autocomplete="new-password">
+                    <div style="font-size: 11px; color: #666; margin-top: 5px;">
+                        Must be at least 8 characters with uppercase, lowercase, and numbers
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" id="confirmPassword" class="form-input" autocomplete="new-password">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('changePasswordModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitPasswordChange()">Change Password</button>
+            </div>
+        </div>
+    </div>
                 </div>
             </div>
             <div class="modal-footer">

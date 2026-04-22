@@ -338,6 +338,123 @@
                 banner.style.display = 'none';
             }
         }
+
+        // ============================================================================
+        // USER SETTINGS DROPDOWN
+        // ============================================================================
+        
+        function toggleUserSettingsDropdown() {
+            var dropdown = document.getElementById('userSettingsDropdown');
+            if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+                dropdown.style.display = 'block';
+                
+                // Show/hide Manage Users option based on admin status
+                var manageUsersOption = document.getElementById('manageUsersOption');
+                if (manageUsersOption) {
+                    manageUsersOption.style.display = isAdmin ? 'block' : 'none';
+                }
+            } else {
+                dropdown.style.display = 'none';
+            }
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            var dropdown = document.getElementById('userSettingsDropdown');
+            var btn = document.getElementById('userSettingsBtn');
+            
+            if (dropdown && btn) {
+                if (!btn.contains(event.target) && !dropdown.contains(event.target)) {
+                    dropdown.style.display = 'none';
+                }
+            }
+        });
+        
+        // ============================================================================
+        // CHANGE PASSWORD
+        // ============================================================================
+        
+        function openChangePasswordModal() {
+            // Clear form
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            
+            // Hide messages
+            document.getElementById('changePasswordError').style.display = 'none';
+            document.getElementById('changePasswordSuccess').style.display = 'none';
+            
+            // Open modal
+            document.getElementById('changePasswordModal').classList.add('active');
+        }
+        
+        async function submitPasswordChange() {
+            var currentPwd = document.getElementById('currentPassword').value;
+            var newPwd = document.getElementById('newPassword').value;
+            var confirmPwd = document.getElementById('confirmPassword').value;
+            
+            var errorDiv = document.getElementById('changePasswordError');
+            var successDiv = document.getElementById('changePasswordSuccess');
+            
+            // Hide previous messages
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            
+            // Validation
+            if (!currentPwd || !newPwd || !confirmPwd) {
+                errorDiv.textContent = 'Please fill in all fields';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            if (newPwd !== confirmPwd) {
+                errorDiv.textContent = 'New passwords do not match';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            if (newPwd.length < 8) {
+                errorDiv.textContent = 'Password must be at least 8 characters';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            var hasLower = /[a-z]/.test(newPwd);
+            var hasUpper = /[A-Z]/.test(newPwd);
+            var hasDigit = /[0-9]/.test(newPwd);
+            
+            if (!hasLower || !hasUpper || !hasDigit) {
+                errorDiv.textContent = 'Password must contain uppercase, lowercase, and numbers';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Call backend
+            try {
+                var result = await eel.change_password(currentPwd, newPwd)();
+                
+                if (result.status === 'success') {
+                    successDiv.textContent = result.message;
+                    successDiv.style.display = 'block';
+                    
+                    // Clear form
+                    document.getElementById('currentPassword').value = '';
+                    document.getElementById('newPassword').value = '';
+                    document.getElementById('confirmPassword').value = '';
+                    
+                    // Auto-close after 2 seconds
+                    setTimeout(function() {
+                        closeModal('changePasswordModal');
+                    }, 2000);
+                } else {
+                    errorDiv.textContent = result.message;
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Error changing password: ' + error;
+                errorDiv.style.display = 'block';
+            }
+        }
         
         async function updateActiveUsers() {
             try {
