@@ -17,6 +17,7 @@ from patient_manager import PatientManager
 from appointment_manager import AppointmentManager
 from action_items_manager import ActionItemsManager
 from clinic_days_manager import ClinicDaysManager
+from portal_manager import PortalManager
 
 # Initialize Eel with allowed file extensions
 eel.init('web', allowed_extensions=['.js', '.html', '.css'])
@@ -27,6 +28,7 @@ patient_mgr = None
 appointment_mgr = None
 action_items_mgr = None
 clinic_days_mgr = None
+portal_mgr = None
 
 # Session tracking
 SESSIONS_FILE = "DB/active_sessions.json"
@@ -44,7 +46,7 @@ current_user_is_admin = False
 
 def initialize_app():
     """Initialize database and managers"""
-    global db, patient_mgr, appointment_mgr, action_items_mgr, clinic_days_mgr
+    global db, patient_mgr, appointment_mgr, action_items_mgr, clinic_days_mgr, portal_mgr
     
     # Database path - use DB subfolder like HTA
     import os
@@ -62,11 +64,15 @@ def initialize_app():
     # Initialize database connection
     db = Database(db_path)
     
+    # Portal file path - same folder as database
+    portal_file_path = os.path.join(db_folder, "Patient Portal Users.xls")
+    
     # Initialize managers
     patient_mgr = PatientManager(db)
     appointment_mgr = AppointmentManager(db)
     action_items_mgr = ActionItemsManager(db)
     clinic_days_mgr = ClinicDaysManager(db)
+    portal_mgr = PortalManager(db, portal_file_path)
     
     print("✓ Application initialized")
 
@@ -764,6 +770,17 @@ def save_email_to_file(content, filename=None):
             'status': 'error',
             'message': str(e)
         }
+
+
+
+# ============================================================================
+# PORTAL API
+# ============================================================================
+
+@eel.expose
+def get_missing_portal_access():
+    """Get list of patients/partners missing portal access"""
+    return portal_mgr.get_missing_portal_access()
 
 
 # ============================================================================

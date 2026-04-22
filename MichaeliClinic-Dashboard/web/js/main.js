@@ -3930,6 +3930,83 @@
             // Individual operations call backend directly
         }
         
+        // ============================================================================
+        // PORTAL ACCESS CHECKER
+        // ============================================================================
+        
+        // Open portal modal and check missing access
+        async function openPortalModal() {
+            document.getElementById('portalModal').classList.add('active');
+            
+            // Show loading
+            document.getElementById('portalContent').innerHTML = 
+                '<div style="padding: 40px; text-align: center;">' +
+                '<div class="spinner"></div><br>Checking portal access...</div>';
+            
+            // Call backend
+            var result = await eel.get_missing_portal_access()();
+            
+            // Check for errors
+            if (result.error) {
+                document.getElementById('portalContent').innerHTML = 
+                    '<div style="padding: 30px; text-align: center; color: #e74c3c;">' +
+                    '<div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>' +
+                    '<div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">Error Reading Portal File</div>' +
+                    '<div style="font-size: 13px; color: #666; margin-bottom: 20px;">' + result.error + '</div>' +
+                    '<div style="font-size: 12px; color: #999;">Expected file: DB/Patient Portal Users.xls</div>' +
+                    '</div>';
+                return;
+            }
+            
+            // Display results
+            displayPortalResults(result.missing);
+        }
+        
+        function displayPortalResults(missing) {
+            var html = '';
+            
+            if (missing.length === 0) {
+                html = '<div style="padding: 40px; text-align: center; color: #27ae60; font-size: 14px;">' +
+                       '<div style="font-size: 48px; margin-bottom: 15px;">✓</div>' +
+                       '<div style="font-weight: 600;">All patients with appointments in the next 3 weeks have portal access!</div>' +
+                       '</div>';
+            } else {
+                html += '<div style="padding: 15px; background: #fff3cd; border: 1px solid #ffc107; margin: 15px; border-radius: 4px; font-size: 13px;">' +
+                        '⚠️ <strong>' + missing.length + '</strong> patient(s)/partner(s) missing portal access</div>';
+                
+                html += '<div style="padding: 0 15px 15px 15px;">';
+                html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+                html += '<thead><tr style="background: #f5f5f5; font-weight: 600;">' +
+                        '<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">ID</th>' +
+                        '<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Name</th>' +
+                        '<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Type</th>' +
+                        '<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Email</th>' +
+                        '<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Appointment</th>' +
+                        '</tr></thead><tbody>';
+                
+                for (var i = 0; i < missing.length; i++) {
+                    var item = missing[i];
+                    var formattedDate = formatDate(item.appointmentDate);
+                    
+                    html += '<tr style="border-bottom: 1px solid #eee;">' +
+                            '<td style="padding: 8px;">' + item.id + '</td>' +
+                            '<td style="padding: 8px;">' + item.name + '</td>' +
+                            '<td style="padding: 8px;">' + item.type + '</td>' +
+                            '<td style="padding: 8px; color: #666; font-size: 11px;">' + (item.email || '-') + '</td>' +
+                            '<td style="padding: 8px;">' + formattedDate + '</td>' +
+                            '</tr>';
+                }
+                
+                html += '</tbody></table></div>';
+            }
+            
+            document.getElementById('portalContent').innerHTML = html;
+        }
+        
+        // ============================================================================
+        // ACTION ITEMS MODAL
+        // ============================================================================
+        
         // Open action items modal
         function openActionItemsModal() {
             // Always reload from file when opening

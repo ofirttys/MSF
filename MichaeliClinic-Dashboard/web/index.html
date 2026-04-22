@@ -58,6 +58,7 @@
                 <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
 					<button class="btn btn-primary" id="addPatientBtn" onclick="openAddPatientModal()">+ Add New Patient</button>
                     <button class="btn" style="background: #17a2b8; color: white;" onclick="openActionItemsModal()">Action Items</button>
+                    <button class="btn" style="background: #28a745; color: white;" onclick="openPortalModal()">Portal</button>
                     <button class="btn" id="usersBtn" style="background: #6c757d; color: white; display: none;" onclick="openUsersModal()">Users</button>
                     <!-- Save button removed - everything auto-saves to database -->
                     <button class="btn btn-secondary" onclick="backupDatabase()">Backup</button>
@@ -483,6 +484,24 @@
                 <button type="button" class="btn btn-secondary" onclick="closeModal('emailGeneratorModal')">Close</button>
                 <button type="button" class="btn btn-primary" onclick="copyEmailToClipboard()">Copy to Clipboard</button>
                 <button type="button" class="btn btn-success" onclick="generateAndOpenOutlook()">Open in Outlook</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Missing Portal Access Modal -->
+    <div class="modal" id="portalModal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Missing Portal Access</h2>
+                <button class="close-btn" onclick="closeModal('portalModal')">&times;</button>
+            </div>
+            <div id="portalContent" style="max-height: 550px; overflow-y: auto;">
+                <div style="padding: 40px; text-align: center; color: #999;">
+                    Loading...
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('portalModal')">Close</button>
             </div>
         </div>
     </div>
