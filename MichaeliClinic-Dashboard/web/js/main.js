@@ -261,7 +261,7 @@
                     // No lock or stale lock - create new lock
                     if (lockStatus.stale) {
                         // Inform user we're breaking stale lock
-                        alert('Note: A stale lock from ' + lockStatus.user + ' was found and has been cleared.');
+                        showErrorModal('Note: A stale lock from ' + lockStatus.user + ' was found and has been cleared.');
                     }
                     createLockFile(username);
                     isReadOnly = false;
@@ -559,7 +559,7 @@
                 console.log('Database loaded successfully');
             } catch (error) {
                 console.error("Error loading database:", error);
-                alert("Error loading database: " + error);
+                showErrorModal("Error loading database: " + error);
                 patients = [];
             }
         }
@@ -607,7 +607,7 @@
             
             if (isReadOnly) {
                 if (!silent) {
-                    alert('Cannot save - database is in read-only mode.');
+                    showErrorModal('Cannot save - database is in read-only mode.');
                 }
                 return;
             }
@@ -633,7 +633,7 @@
                 
                 if (result.success) {
                     closeModal('errorModal');
-                    alert(`Backup created successfully!\n\nFile: ${result.filename}\nSize: ${result.size_mb} MB\n\nLocation: DB/backups/`);
+                    showInfo(`Backup created successfully!\n\nFile: ${result.filename}\nSize: ${result.size_mb} MB\n\nLocation: DB/backups/`, 'Backup Complete');
                 } else {
                     showError(`Backup failed: ${result.error}`);
                 }
@@ -961,7 +961,7 @@
         function toggleClinicType(type) {
             // Block in read-only mode
             if (isReadOnly) {
-                alert('Cannot modify clinic days - database is in read-only mode.\nAnother user (' + lockOwner + ') is currently editing.');
+                showErrorModal('Cannot modify clinic days - database is in read-only mode.\nAnother user (' + lockOwner + ') is currently editing.');
                 return;
             }
             
@@ -1648,7 +1648,7 @@
             }
             
             if (toList.length === 0) {
-                alert('No email address for patient: ' + patient.patientName);
+                showErrorModal('No email address for patient: ' + patient.patientName);
                 return null;
             }
             
@@ -2197,7 +2197,7 @@
         function openAddPatientModal() {
             // Block in read-only mode
             if (isReadOnly) {
-                alert('Cannot add patients - database is in read-only mode.\nAnother user (' + lockOwner + ') is currently editing.');
+                showErrorModal('Cannot add patients - database is in read-only mode.\nAnother user (' + lockOwner + ') is currently editing.');
                 return;
             }
             
@@ -2263,7 +2263,7 @@
                 await loadCurrentDayClinicData();
                 updateClinicTypeButtons();
             } else {
-                alert('No upcoming clinic days found.');
+                showErrorModal('No upcoming clinic days found.');
             }
         }
         
@@ -3121,41 +3121,42 @@
         // Transition to Pregnant or Inactive state
         async function transitionToSpecialState(patientID, specialState) {
             if (isReadOnly) {
-                alert('Cannot modify patients - database is in read-only mode.');
+                showErrorModal('Cannot modify patients - database is in read-only mode.');
                 return;
             }
             
-            if (!confirm('Are you sure you want to mark this patient as ' + (specialState === 'PREGNANT' ? 'Pregnant' : 'Inactive') + '?')) {
-                return;
-            }
-            
-            // Save to backend
-            await updatePatientStateWithSave(patientID, specialState, null);
-            
-            closeModal('detailsModal');
-            renderPatientList();
-            renderAppointments();
-            updateStatusCounts();
+            var message = 'Are you sure you want to mark this patient as ' + (specialState === 'PREGNANT' ? 'Pregnant' : 'Inactive') + '?';
+            showConfirm(message, 'Confirm', async function(confirmed) {
+                if (!confirmed) return;
+                
+                // Save to backend
+                await updatePatientStateWithSave(patientID, specialState, null);
+                
+                closeModal('detailsModal');
+                renderPatientList();
+                renderAppointments();
+                updateStatusCounts();
+            });
         }
 
         // Transition from Pregnant or Inactive back to normal flow
         async function transitionFromSpecialState(patientID, fromState) {
             if (isReadOnly) {
-                alert('Cannot modify patients - database is in read-only mode.');
+                showErrorModal('Cannot modify patients - database is in read-only mode.');
                 return;
             }
             
-            if (!confirm('Return this patient to active status?')) {
-                return;
-            }
-            
-            // Save to backend
-            await updatePatientStateWithSave(patientID, 'WAITING_NEXT_APPT_SCHEDULE', null);
-            
-            closeModal('detailsModal');
-            renderPatientList();
-            renderAppointments();
-            updateStatusCounts();
+            showConfirm('Return this patient to active status?', 'Confirm', async function(confirmed) {
+                if (!confirmed) return;
+                
+                // Save to backend
+                await updatePatientStateWithSave(patientID, 'WAITING_NEXT_APPT_SCHEDULE', null);
+                
+                closeModal('detailsModal');
+                renderPatientList();
+                renderAppointments();
+                updateStatusCounts();
+            });
         }
 
         function editCurrentPatient() {
@@ -3163,7 +3164,7 @@
             
             // Block in read-only mode
             if (isReadOnly) {
-                alert('Cannot edit patients - database is in read-only mode.\nAnother user (' + lockOwner + ') is currently editing.');
+                showErrorModal('Cannot edit patients - database is in read-only mode.\nAnother user (' + lockOwner + ') is currently editing.');
                 return;
             }
             
@@ -3233,7 +3234,7 @@
         
         function cancelAppointment(patientID) {
             if (isReadOnly) {
-                alert('Cannot cancel appointments - database is in read-only mode.');
+                showErrorModal('Cannot cancel appointments - database is in read-only mode.');
                 return;
             }
             
@@ -3322,7 +3323,7 @@
         // Appointment editing
         function editAppointment(patientID) {
             if (isReadOnly) {
-                alert('Cannot edit appointments - database is in read-only mode.');
+                showErrorModal('Cannot edit appointments - database is in read-only mode.');
                 return;
             }
             
@@ -3456,7 +3457,7 @@
         // State transitions
         function initiateStateTransition(patientID, nextState) {
             if (isReadOnly) {
-                alert('Cannot modify patients - database is in read-only mode.');
+                showErrorModal('Cannot modify patients - database is in read-only mode.');
                 return;
             }
             
@@ -4054,7 +4055,7 @@
         // Add new action item
         function addActionItem() {
             if (isReadOnly) {
-                alert('Cannot add action items - database is in read-only mode.');
+                showErrorModal('Cannot add action items - database is in read-only mode.');
                 return;
             }
             
@@ -4063,17 +4064,17 @@
             var priority = document.getElementById('newActionItemPriority').value;
             
             if (!text) {
-                alert('Please enter an action item description.');
+                showErrorModal('Please enter an action item description.');
                 return;
             }
             
             if (!type) {
-                alert('Please select a type.');
+                showErrorModal('Please select a type.');
                 return;
             }
             
             if (!priority) {
-                alert('Please select a priority.');
+                showErrorModal('Please select a priority.');
                 return;
             }
             
@@ -4099,7 +4100,7 @@
         // Toggle action item done status
         function toggleActionItemDone(type, itemId) {
             if (isReadOnly) {
-                alert('Cannot modify action items - database is in read-only mode.');
+                showErrorModal('Cannot modify action items - database is in read-only mode.');
                 return;
             }
             
@@ -5036,7 +5037,7 @@
             document.execCommand('copy');
             document.body.removeChild(textarea);
             
-            alert('Email copied to clipboard!');
+            showErrorModal('Email copied to clipboard!');
         }
         
 		async function generateAndOpenOutlook() {
