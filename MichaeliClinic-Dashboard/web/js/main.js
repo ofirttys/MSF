@@ -2895,17 +2895,17 @@
                         for (var i = 0; i < patients.length; i++) {
                             if (patients[i].patientID === currentEditingPatient.patientID) {
                                 patients[i] = mergeObjects({}, patients[i], patientData);
-                                
-                                // Add notes to history if changed
-                                if (patientData.notes !== currentEditingPatient.notes && patientData.notes) {
-                                    patients[i].notesHistory.push({
-                                        timestamp: new Date().toISOString(),
-                                        note: patientData.notes
-                                    });
-                                }
                                 break;
                             }
                         }
+                        
+                        // Add notes to history if changed
+                        if (patientData.notes !== currentEditingPatient.notes && patientData.notes) {
+                            await eel.add_note_history(currentEditingPatient.patientID, patientData.notes)();
+                        }
+                        
+                        // Reload data to get updated notesHistory from backend
+                        await loadDatabase();
                         
                         closeModal('patientModal');
                         renderPatientList();
@@ -2938,15 +2938,18 @@
                     nextAppointment: null,
                     appointmentTime: null,
                     appointmentHistory: [],
-                    notesHistory: patientData.notes ? [{
-                        timestamp: new Date().toISOString(),
-                        note: patientData.notes
-                    }] : []
+                    notesHistory: []  // Will be populated from backend after save
                 });
                 
-                eel.add_patient(newPatient)(function(success) {
+                eel.add_patient(newPatient)(async function(success) {
                     if (success) {
-                        patients.push(newPatient);
+                        // Add initial note to history if provided
+                        if (patientData.notes) {
+                            await eel.add_note_history(patientData.patientID, patientData.notes)();
+                        }
+                        
+                        // Reload data to get patient with notesHistory from backend
+                        await loadDatabase();
                         
                         closeModal('patientModal');
                         renderPatientList();
@@ -3556,10 +3559,8 @@
                     } else if (nextState === 'WAITING_NEXT_APPT_SCHEDULE') {
                         var notes = document.getElementById('transitionNotes') ? document.getElementById('transitionNotes').value : '';
                         if (notes) {
-                            patients[i].notesHistory.push({
-                                timestamp: new Date().toISOString(),
-                                note: notes
-                            });
+                            // Save to backend notes_history table
+                            await eel.add_note_history(patient.patientID, notes)();
                         }
                     }
 
@@ -3571,6 +3572,9 @@
                         notes = document.getElementById('transitionSummary') ? document.getElementById('transitionSummary').value : null;
                     }
                     await updatePatientStateWithSave(patient.patientID, nextState, notes);
+                    
+                    // Reload data to get updated notesHistory from backend
+                    await loadDatabase();
                     
                     break;
                 }
