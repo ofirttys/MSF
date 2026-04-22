@@ -2316,7 +2316,7 @@
         }
 
         function showError(message) {
-            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorModalMessage').textContent = message;
             document.getElementById('errorModal').classList.add('active');
         }
 
