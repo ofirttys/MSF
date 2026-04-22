@@ -14,16 +14,15 @@ block_cipher = None
 # DATA FILES AND FOLDERS
 # ============================================================================
 
-# Web assets (HTML, CSS, JS)
-web_files = [
-    ('web', 'web'),
-]
+# Web assets (HTML, CSS, JS) - NOT bundled, kept as external folder
+# This makes startup faster and allows easy updates without rebuilding
+web_files = []
 
 # Database folder structure (empty, will be created at runtime)
 # User will need to copy their database after installation
 db_files = []
 
-# Email templates
+# Email templates - still bundled for convenience
 email_templates = [
     ('DB/email-templates.json', 'DB'),
 ]
@@ -61,12 +60,16 @@ hiddenimports = [
     'sys',
     'shutil',
     
+    # Excel reading
+    'xlrd',
+    
     # Application modules
     'database',
     'patient_manager',
     'appointment_manager',
     'action_items_manager',
     'clinic_days_manager',
+    'portal_manager',
 ]
 
 # ============================================================================
