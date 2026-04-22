@@ -744,17 +744,29 @@
 
 
         async function backupDatabase() {
+            console.log('Backup started...');
+            
+            // Close dropdown immediately so user can see the modal
+            toggleUserSettingsDropdown();
+            
             try {
+                // Show loading indicator
                 showError('Creating backup...');
-                var result = await eel.create_backup()();
                 
-                if (result.success) {
+                console.log('Calling backend create_backup...');
+                var result = await eel.create_backup()();
+                console.log('Backup result:', result);
+                
+                if (result && result.success) {
                     closeModal('errorModal');
                     showInfo(`Backup created successfully!\n\nFile: ${result.filename}\nSize: ${result.size_mb} MB\n\nLocation: DB/backups/`, 'Backup Complete');
                 } else {
-                    showError(`Backup failed: ${result.error}`);
+                    closeModal('errorModal');
+                    showError(`Backup failed: ${result ? result.error : 'Unknown error'}`);
                 }
             } catch (error) {
+                console.error('Backup error:', error);
+                closeModal('errorModal');
                 showError('Backup failed: ' + error);
             }
         }
