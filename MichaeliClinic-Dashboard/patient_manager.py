@@ -49,6 +49,121 @@ class PatientManager:
                 WHERE patientID = ?
                 ORDER BY timestamp
             """, (patient['patientID'],))
+            
+            # Load notes history
+            patient['notesHistory'] = self.db.fetchall("""
+                SELECT note, timestamp
+                FROM notes_history
+                WHERE patientID = ?
+                ORDER BY timestamp DESC
+            """, (patient['patientID'],))
+        
+        return patients
+    
+    def get_filtered(self, state_filters: List[str] = None, search_term: str = None, 
+                    special_filters: List[str] = None) -> List[Dict]:
+        """Get filtered patients using SQL WHERE clauses
+        
+        Args:
+            state_filters: List of state names to filter by (OR logic)
+            search_term: Search term for name/email/phone (searches all fields)
+            special_filters: List of special filters (SURVIVORSHIP, OTC, PRIORITY, OVERDUE_APPOINTMENT)
+        
+        Returns:
+            List of patient dictionaries matching filters
+        """
+        query = """
+            SELECT 
+                patientID, patientName, partnerName, partnerID,
+                patientAlias, patientFirstName, patientMiddleName, patientLastName,
+                partnerAlias, partnerFirstName, partnerMiddleName, partnerLastName,
+                patientPhone, patientEmail, partnerPhone, partnerEmail,
+                currentState, nextAppointment, appointmentTime, appointmentLocation,
+                dateAdded, notes,
+                isSurvivorshipClinic, isPriorityList, isOTC
+            FROM patients
+            WHERE 1=1
+        """
+        params = []
+        
+        # State filters (OR logic - match any state)
+        if state_filters and len(state_filters) > 0:
+            placeholders = ','.join('?' * len(state_filters))
+            query += f" AND currentState IN ({placeholders})"
+            params.extend(state_filters)
+        
+        # Search term (searches multiple fields)
+        if search_term and search_term.strip():
+            search = f"%{search_term.strip()}%"
+            query += """ AND (
+                patientName LIKE ? OR
+                patientAlias LIKE ? OR
+                patientFirstName LIKE ? OR
+                patientLastName LIKE ? OR
+                partnerName LIKE ? OR
+                partnerAlias LIKE ? OR
+                partnerFirstName LIKE ? OR
+                partnerLastName LIKE ? OR
+                patientPhone LIKE ? OR
+                patientEmail LIKE ? OR
+                partnerPhone LIKE ? OR
+                partnerEmail LIKE ? OR
+                patientID LIKE ?
+            )"""
+            params.extend([search] * 13)  # 13 fields to search
+        
+        # Special filters
+        if special_filters:
+            if 'SURVIVORSHIP' in special_filters:
+                query += " AND isSurvivorshipClinic = 1"
+            if 'OTC' in special_filters:
+                query += " AND isOTC = 1"
+            if 'PRIORITY' in special_filters:
+                query += " AND isPriorityList = 1"
+            if 'OVERDUE_APPOINTMENT' in special_filters:
+                # Get today's date in SQL
+                query += """ AND (
+                    (currentState = 'WAITING_FIRST_APPT' OR currentState = 'WAITING_NEXT_APPT')
+                    AND nextAppointment IS NOT NULL
+                    AND nextAppointment < date('now', 'localtime')
+                )"""
+        
+        query += " ORDER BY patientName"
+        
+        patients = self.db.fetchall(query, tuple(params))
+        
+        # Convert integer flags to booleans and add histories
+        for patient in patients:
+            patient['isSurvivorshipClinic'] = bool(patient.get('isSurvivorshipClinic', 0))
+            patient['isPriorityList'] = bool(patient.get('isPriorityList', 0))
+            patient['isOTC'] = bool(patient.get('isOTC', 0))
+            
+            # Load appointment history
+            patient['appointmentHistory'] = self.db.fetchall("""
+                SELECT date, time, location, summary
+                FROM appointment_history
+                WHERE patientID = ?
+                ORDER BY date DESC
+            """, (patient['patientID'],))
+            
+            # Load state history
+            patient['stateHistory'] = self.db.fetchall("""
+                SELECT state, timestamp, notes
+                FROM state_history
+                WHERE patientID = ?
+                ORDER BY timestamp
+            """, (patient['patientID'],))
+            
+            # Load notes history
+            patient['notesHistory'] = self.db.fetchall("""
+                SELECT note, timestamp
+                FROM notes_history
+                WHERE patientID = ?
+                ORDER BY timestamp DESC
+            """, (patient['patientID'],))
+        
+        return patients
+            """, (patient['patientID'],))
         
         return patients
     

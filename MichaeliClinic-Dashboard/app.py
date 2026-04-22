@@ -87,6 +87,24 @@ def get_all_patients():
     return patient_mgr.get_all()
 
 @eel.expose
+def get_filtered_patients(state_filters=None, search_term=None, special_filters=None):
+    """Get filtered patients using SQL
+    
+    Args:
+        state_filters: List of state names (e.g. ['WAITING_FIRST_APPT', 'ACTIVE'])
+        search_term: Search string for name/email/phone
+        special_filters: List of special filters (e.g. ['SURVIVORSHIP', 'OTC', 'PRIORITY'])
+    
+    Returns:
+        List of filtered patients
+    """
+    return patient_mgr.get_filtered(
+        state_filters=state_filters or [],
+        search_term=search_term,
+        special_filters=special_filters or []
+    )
+
+@eel.expose
 def get_patient(patient_id):
     """Get single patient by ID"""
     return patient_mgr.get_by_id(patient_id)
@@ -130,6 +148,18 @@ def add_note_history(patient_id, note):
 def get_appointments_by_date(date_str):
     """Get all appointments for a specific date"""
     return appointment_mgr.get_by_date(date_str)
+
+@eel.expose
+def get_appointments_for_date(date_str):
+    """Get both future and past appointments for a specific date
+    
+    Args:
+        date_str: Date in YYYY-MM-DD format
+    
+    Returns:
+        Dict with 'future' and 'past' appointment lists
+    """
+    return appointment_mgr.get_appointments_by_date(date_str)
 
 @eel.expose
 def get_todays_appointments():
@@ -780,7 +810,23 @@ def save_email_to_file(content, filename=None):
 @eel.expose
 def get_missing_portal_access():
     """Get list of patients/partners missing portal access"""
-    return portal_mgr.get_missing_portal_access()
+    try:
+        return portal_mgr.get_missing_portal_access()
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        traceback_msg = traceback.format_exc()
+        print(f"Portal error: {error_msg}")
+        print(traceback_msg)
+        
+        # Check if it's an xlrd import error
+        if 'xlrd' in error_msg or 'xlrd' in traceback_msg:
+            error_msg = "xlrd library not installed. Please run: pip install xlrd --break-system-packages"
+        
+        return {
+            'error': error_msg,
+            'missing': []
+        }
 
 
 # ============================================================================

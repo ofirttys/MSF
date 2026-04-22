@@ -29,6 +29,60 @@ class AppointmentManager:
             ORDER BY p.appointmentTime
         """, (date_str,))
     
+    def get_appointments_by_date(self, date_str: str) -> Dict:
+        """Get both future and past appointments for a specific date
+        
+        Args:
+            date_str: Date in YYYY-MM-DD format
+        
+        Returns:
+            Dict with 'future' and 'past' appointment lists
+        """
+        # Future appointments (from patients table)
+        future = self.db.fetchall("""
+            SELECT 
+                p.patientID,
+                p.patientName,
+                p.partnerName,
+                p.nextAppointment as date,
+                p.appointmentTime as time,
+                p.appointmentLocation as location,
+                p.currentState,
+                p.notes,
+                1 as isFuture,
+                CASE WHEN p.currentState = 'WAITING_FIRST_APPT' THEN 1 ELSE 0 END as isFirstAppt
+            FROM patients p
+            WHERE p.nextAppointment = ?
+            ORDER BY p.appointmentTime
+        """, (date_str,))
+        
+        # Past appointments (from appointment_history table)
+        # Exclude if patient has same date as nextAppointment (to avoid duplicates)
+        past = self.db.fetchall("""
+            SELECT 
+                ah.patientID,
+                p.patientName,
+                p.partnerName,
+                ah.date,
+                ah.time,
+                ah.location,
+                p.currentState,
+                p.notes,
+                ah.summary,
+                0 as isFuture,
+                0 as isFirstAppt
+            FROM appointment_history ah
+            JOIN patients p ON ah.patientID = p.patientID
+            WHERE ah.date = ?
+                AND p.nextAppointment != ?
+            ORDER BY ah.time
+        """, (date_str, date_str))
+        
+        return {
+            'future': future,
+            'past': past
+        }
+    
     def get_today(self) -> List[Dict]:
         """Get today's appointments"""
         today = date.today().isoformat()

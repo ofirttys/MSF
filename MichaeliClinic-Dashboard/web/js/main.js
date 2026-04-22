@@ -395,8 +395,8 @@
             }
             
             updateDateDisplay();
-            renderAppointments();
-            renderPatientList();
+            await renderAppointments();
+            await renderPatientList();
             updateStatusCounts();
             
             // Initialize main date picker for appointments
@@ -417,8 +417,8 @@
             setInterval(async function() {
                 console.log('Auto-refreshing patient and appointment data...');
                 await loadDatabase();
-                renderAppointments();
-                renderPatientList();
+                await renderAppointments();
+                await renderPatientList();
                 updateStatusCounts();
             }, 60 * 1000); // 60 seconds
             
@@ -551,8 +551,8 @@
                     }
                 }
                 
-                renderPatientList();
-                renderAppointments();
+                await renderPatientList();
+                await renderAppointments();
                 updateStatusCounts();
                 updateClinicTypeButtons();
                 
@@ -1736,7 +1736,7 @@
         }
 		
         // Appointments rendering - SORTED BY TIME, LIMITED TO 5 WITH SCROLLING
-        function renderAppointments() {
+        async function renderAppointments() {
             var container = document.getElementById('appointmentsList');
             var dateStr = currentViewDate.getFullYear() + '-' +
 							('0' + (currentViewDate.getMonth() + 1)).slice(-2) + '-' +
@@ -1747,49 +1747,51 @@
             var appointments = [];
             var firstApptCount = 0;
             
-            // Get future appointments (nextAppointment)
-            var futureAppointments = patients.filter(function(p) { return p.nextAppointment === dateStr; })
-                .map(function(p) {
-                // Check if this is a first appointment (no history OR all history entries are for the same date as nextAppointment)
-                // This handles migration cases where history was created with the same date as the upcoming appointment
-				var isFirstAppt = (p.currentState === 'WAITING_FIRST_APPT');
-// FIXME: Remove once confirmed
-//                    var isFirstAppt = !p.appointmentHistory || p.appointmentHistory.length === 0 || 
-//                        p.appointmentHistory.every(function(hist) { return hist.date === p.nextAppointment; });
+            // Get appointments from backend (SQL query!)
+            var result;
+            try {
+                result = await eel.get_appointments_for_date(dateStr)();
+            } catch (error) {
+                console.error('Error fetching appointments:', error);
+                // Fallback to old method if backend fails
+                result = {future: [], past: []};
+            }
+            
+            // Map future appointments to format expected by UI
+            var futureAppointments = result.future.map(function(appt) {
+                var isFirstAppt = appt.isFirstAppt === 1;
                 if (isFirstAppt) {
                     firstApptCount++;
                 }
+                
+                // Find full patient object for additional info
+                var fullPatient = patients.find(function(p) { return p.patientID === appt.patientID; });
+                
                 return {
-                    patient: p,
-                    date: p.nextAppointment,
-                    time: p.appointmentTime || '00:00',
-					location: p.appointmentLocation || '',
+                    patient: fullPatient || appt,  // Use full patient if available
+                    date: appt.date,
+                    time: appt.time || '00:00',
+                    location: appt.location || '',
                     isFuture: true,
                     isFirstAppt: isFirstAppt,
                     summary: null
                 };
             });
             
-            // Get past appointments from history
-            var pastAppointments = [];
-            patients.forEach(function(p) {
-                if (p.appointmentHistory && p.appointmentHistory.length > 0) {
-                    p.appointmentHistory.forEach(function(appt) {
-                        // Only add if the date matches AND this patient doesn't have the same date as nextAppointment
-                        // This prevents showing the same appointment twice (once as future, once as past)
-                        if (appt.date === dateStr && p.nextAppointment !== dateStr) {
-                            pastAppointments.push({
-                                patient: p,
-                                date: appt.date,
-                                time: appt.time || '00:00',
-								location: appt.location || '',
-                                isFuture: false,
-                                isFirstAppt: false,
-                                summary: appt.summary
-                            });
-                        }
-                    });
-                }
+            // Map past appointments to format expected by UI
+            var pastAppointments = result.past.map(function(appt) {
+                // Find full patient object for additional info
+                var fullPatient = patients.find(function(p) { return p.patientID === appt.patientID; });
+                
+                return {
+                    patient: fullPatient || appt,  // Use full patient if available
+                    date: appt.date,
+                    time: appt.time || '00:00',
+                    location: appt.location || '',
+                    isFuture: false,
+                    isFirstAppt: false,
+                    summary: appt.summary
+                };
             });
             
             // Combine and sort by time
@@ -1877,84 +1879,38 @@
         }
 
         // Patient list rendering - SORTED BY NAME, LIMITED TO 5 WITH SCROLLING
-        function renderPatientList() {
+        async function renderPatientList() {
             var container = document.getElementById('patientList');
             var searchTerm = document.getElementById('searchBox').value.toLowerCase();
             
-            var filtered = patients;
+            // Separate state filters from special filters
+            var stateFilters = [];
+            var specialFilters = [];
             
-            // Filter by status - AND logic (patient must match ALL active filters)
-            if (currentFilter.length > 0) {
-                filtered = filtered.filter(function(p) {
-                    // Patient must match ALL active filters
-                    for (var i = 0; i < currentFilter.length; i++) {
-                        var filter = currentFilter[i];
-                        var matches = false;
-                        
-                        if (filter === 'SURVIVORSHIP') {
-                            matches = p.isSurvivorshipClinic === true;
-                        } else if (filter === 'OTC') {
-                            matches = p.isOTC === true;
-                        } else if (filter === 'PRIORITY') {
-                            matches = p.isPriorityList === true;
-                        } else if (filter === 'OVERDUE_APPOINTMENT') {
-                            var today = getTodayLocalDate();
-                            matches = (p.currentState === 'WAITING_FIRST_APPT' || p.currentState === 'WAITING_NEXT_APPT') 
-                                   && p.nextAppointment && p.nextAppointment < today;
-                        } else {
-                            // State filters
-                            matches = p.currentState === filter;
-                        }
-                        
-                        // If doesn't match this filter, exclude the patient
-                        if (!matches) {
-                            return false;
-                        }
-                    }
-                    // Patient matches all filters
-                    return true;
-                });
+            for (var i = 0; i < currentFilter.length; i++) {
+                var filter = currentFilter[i];
+                if (filter === 'SURVIVORSHIP' || filter === 'OTC' || filter === 'PRIORITY' || filter === 'OVERDUE_APPOINTMENT') {
+                    specialFilters.push(filter);
+                } else {
+                    // State filter
+                    stateFilters.push(filter);
+                }
             }
             
-			// Filter by search term
-			if (searchTerm) {
-				filtered = filtered.filter(function(p) {
-					var phone = p.patientPhone || p.phone || '';
-					var email = p.patientEmail || p.email || '';
-					
-					// Split search term into words for AND matching
-					var searchWords = searchTerm.split(' ').filter(function(word) { return word.length > 0; });
-					
-					// Combine all searchable fields (including new name fields and aliases)
-					var searchableText = (
-						(p.patientName || '') + ' ' +
-						(p.patientFirstName || '') + ' ' +
-						(p.patientMiddleName || '') + ' ' +
-						(p.patientLastName || '') + ' ' +
-						(p.patientAlias || '') + ' ' +
-						(p.patientID || '') + ' ' +
-						phone + ' ' +
-						email + ' ' +
-						(p.partnerName || '') + ' ' +
-						(p.partnerFirstName || '') + ' ' +
-						(p.partnerMiddleName || '') + ' ' +
-						(p.partnerLastName || '') + ' ' +
-						(p.partnerAlias || '') + ' ' +
-						(p.partnerID || '') + ' ' +
-						(p.partnerPhone || '') + ' ' +
-						(p.partnerEmail || '')
-					).toLowerCase();
-					
-					// Check if ALL search words are found (AND logic)
-					for (var i = 0; i < searchWords.length; i++) {
-						if (searchableText.indexOf(searchWords[i]) === -1) {
-							return false;
-						}
-					}
-					return true;
-				});
-			}
-
+            // Get filtered patients from backend (SQL filtering!)
+            var filtered;
+            try {
+                filtered = await eel.get_filtered_patients(
+                    stateFilters.length > 0 ? stateFilters : null,
+                    searchTerm || null,
+                    specialFilters.length > 0 ? specialFilters : null
+                )();
+            } catch (error) {
+                console.error('Error fetching filtered patients:', error);
+                // Fallback to client-side filtering if backend fails
+                filtered = patients;
+            }
+            
             // SORT based on currentSortMode
             filtered.sort(function(a, b) {
                 if (currentSortMode === 'name') {
@@ -2083,8 +2039,19 @@
             renderPatientList();
         }
 
-        function filterPatients() {
-            renderPatientList();
+        // Search debounce timer
+        var searchTimeout;
+        
+        // Debounced search handler
+        function onSearchInput() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async function() {
+                await renderPatientList();
+            }, 300);  // Wait 300ms after last keystroke
+        }
+        
+        async function filterPatients() {
+            await renderPatientList();
         }
 
         function setSortMode(mode) {
