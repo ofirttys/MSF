@@ -241,7 +241,7 @@
                 if (lockStatus.locked && !lockStatus.stale) {
                     // Database is locked by another user
                     var lockTime = new Date(lockStatus.timestamp);
-                    var lockTimeStr = lockTime.toLocaleDateString() + ' at ' + lockTime.toLocaleTimeString();
+                    var lockTimeStr = lockTime.toLocaleDateString('en-US', {timeZone: 'America/Toronto'}) + ' at ' + lockTime.toLocaleTimeString('en-US', {timeZone: 'America/Toronto'});
                     
                     var choice = confirm(
                         'Database In Use\n\n' +
@@ -680,7 +680,7 @@
         }
 
         function updateDateDisplay() {
-            var options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+            var options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', timeZone: 'America/Toronto' };
             document.getElementById('currentDate').textContent = currentViewDate.toLocaleDateString('en-US', options);
         }
 
@@ -3029,7 +3029,7 @@
                 apptHistory += '<div style="max-height: 300px; overflow-y: auto;">';
                 apptHistory += patient.appointmentHistory.map(function(appt) {
                     return '<div class="history-item">' +
-                        '<div class="history-timestamp">' + new Date(appt.timestamp).toLocaleString() + '</div>' +
+                        '<div class="history-timestamp">' + new Date(appt.timestamp).toLocaleString('en-US', {timeZone: 'America/Toronto'}) + '</div>' +
                         '<strong>Date:</strong> ' + appt.date + (appt.time ? ' at ' + appt.time : '') + '<br>' +
                         (appt.summary ? '<strong>Summary:</strong> ' + appt.summary : '') +
                         '</div>';
@@ -3047,7 +3047,7 @@
                 stateHistory += patient.stateHistory.map(function(hist) {
                     var histState = STATES[hist.state];
                     return '<div class="history-item" style="border-left-color: ' + histState.color + ';">' +
-                        '<div class="history-timestamp">' + new Date(hist.timestamp).toLocaleString() + '</div>' +
+                        '<div class="history-timestamp">' + new Date(hist.timestamp).toLocaleString('en-US', {timeZone: 'America/Toronto'}) + '</div>' +
                         '<span style="color: ' + histState.color + '; font-weight: 600;">' + histState.label + '</span>' +
                         '</div>';
                 }).join('');
@@ -3060,7 +3060,7 @@
                 notesHistory = '<div style="max-height: 300px; overflow-y: auto;">';
                 notesHistory += patient.notesHistory.map(function(note) {
                     return '<div class="history-item">' +
-                        '<div class="history-timestamp">' + new Date(note.timestamp).toLocaleString() + '</div>' +
+                        '<div class="history-timestamp">' + new Date(note.timestamp).toLocaleString('en-US', {timeZone: 'America/Toronto'}) + '</div>' +
                         note.note +
                         '</div>';
                 }).join('');
@@ -3695,7 +3695,7 @@
                     var loginCell = document.createElement('td');
                     if (user.lastLogin) {
                         var date = new Date(user.lastLogin * 1000);
-                        loginCell.textContent = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                        loginCell.textContent = date.toLocaleDateString('en-US', {timeZone: 'America/Toronto'}) + ' ' + date.toLocaleTimeString('en-US', {timeZone: 'America/Toronto'});
                     } else {
                         loginCell.textContent = 'Never';
                     }
@@ -4099,7 +4099,7 @@
         // Format date/time for tooltip
         function formatDateTime(isoString) {
             var d = new Date(isoString);
-            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+            return d.toLocaleDateString('en-US', {timeZone: 'America/Toronto'}) + ' ' + d.toLocaleTimeString('en-US', {timeZone: 'America/Toronto'});
         }
         
         // Render action items for all types
