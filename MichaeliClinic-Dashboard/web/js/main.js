@@ -3318,8 +3318,43 @@
             showConfirm('Return this patient to active status?', 'Confirm', async function(confirmed) {
                 if (!confirmed) return;
                 
+                // Find the patient to check if they ever had a first appointment
+                var patient = null;
+                for (var i = 0; i < patients.length; i++) {
+                    if (patients[i].patientID === patientID) {
+                        patient = patients[i];
+                        break;
+                    }
+                }
+                
+                if (!patient) {
+                    showErrorModal('Patient not found');
+                    return;
+                }
+                
+                // Check if patient ever COMPLETED first appointment by looking at state history
+                // Only consider them as having had first appointment if they reached:
+                // - WAITING_APPT_SUMMARY (completed appointment)
+                // - WAITING_NEXT_APPT_SCHEDULE (after completing first appointment)
+                // - WAITING_NEXT_APPT (scheduled next appointment)
+                var completedFirstAppointment = false;
+                if (patient.stateHistory && patient.stateHistory.length > 0) {
+                    for (var i = 0; i < patient.stateHistory.length; i++) {
+                        var state = patient.stateHistory[i].state;
+                        if (state === 'WAITING_APPT_SUMMARY' || 
+                            state === 'WAITING_NEXT_APPT_SCHEDULE' || 
+                            state === 'WAITING_NEXT_APPT') {
+                            completedFirstAppointment = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // Determine correct state to return to
+                var newState = completedFirstAppointment ? 'WAITING_NEXT_APPT_SCHEDULE' : 'WAITING_FIRST_APPT_SCHEDULE';
+                
                 // Save to backend
-                await updatePatientStateWithSave(patientID, 'WAITING_NEXT_APPT_SCHEDULE', null);
+                await updatePatientStateWithSave(patientID, newState, null);
                 
                 // Don't close modal - just refresh the patient details to show new state
                 await loadDatabase();
