@@ -40,14 +40,6 @@ class PortalManager:
                     if patient_id:  # Only add non-empty IDs
                         portal_user_ids.add(patient_id)
             
-            # DEBUG: Print first 25 IDs found in XLS
-            print(f"\n=== PORTAL ACCESS DEBUG ===")
-            print(f"Total IDs in XLS: {len(portal_user_ids)}")
-            print(f"First 25 IDs from XLS column A:")
-            for i, patient_id in enumerate(sorted(portal_user_ids)[:25]):
-                print(f"  {i+1}. '{patient_id}' (type: {type(patient_id).__name__})")
-            print(f"=== END DEBUG ===\n")
-            
         except FileNotFoundError:
             return {
                 'error': f'Portal file not found: {self.portal_file_path}',
@@ -80,15 +72,6 @@ class PortalManager:
         
         # 4. Find who's missing portal access
         missing = []
-        
-        # DEBUG: Print first few patient IDs being checked
-        print(f"\nChecking {len(patients_with_appts)} patients with appointments in next 3 weeks")
-        print(f"First 10 patient IDs being checked:")
-        for i, patient in enumerate(patients_with_appts[:10]):
-            patient_id = patient['patientID']
-            in_portal = patient_id in portal_user_ids
-            print(f"  {i+1}. '{patient_id}' (type: {type(patient_id).__name__}) - In portal: {in_portal}")
-        print()
         
         for patient in patients_with_appts:
             # Check patient

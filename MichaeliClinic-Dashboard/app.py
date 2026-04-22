@@ -19,8 +19,7 @@ from action_items_manager import ActionItemsManager
 from clinic_days_manager import ClinicDaysManager
 from portal_manager import PortalManager
 
-# Initialize Eel with allowed file extensions
-eel.init('web', allowed_extensions=['.js', '.html', '.css'])
+# Eel will be initialized in main() with correct web folder path
 
 # Global managers
 db = None
@@ -836,6 +835,7 @@ def get_missing_portal_access():
 def main():
     """Main entry point"""
     import sys
+    import socket
     
     # Check for debug flag
     debug_mode = '--debug' in sys.argv or '-d' in sys.argv
@@ -860,23 +860,57 @@ def main():
     # Initialize
     initialize_app()
     
+    # Find available port (in case another instance is running)
+    def find_free_port(start_port=8080):
+        """Find a free port starting from start_port"""
+        port = start_port
+        while port < start_port + 100:  # Try up to 100 ports
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.bind(('localhost', port))
+                sock.close()
+                return port
+            except OSError:
+                port += 1
+        return start_port  # Fallback to original
+    
+    port = find_free_port(8080)
+    if port != 8080:
+        print(f"⚠️  Port 8080 in use, using port {port} instead")
+    
+    # Determine web folder location
+    # When running as EXE, web folder is next to exe
+    # When running as script, web folder is in same directory
+    if getattr(sys, 'frozen', False):
+        # Running as compiled exe
+        web_folder = os.path.join(os.path.dirname(sys.executable), 'web')
+    else:
+        # Running as script
+        web_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web')
+    
+    # Initialize Eel with web folder
+    eel.init(web_folder)
+    print(f"📁 Web folder: {web_folder}")
+    print(f"🌐 Starting server on port {port}...")
+    print()
+    
     # Start Eel with Edge as default (faster on corporate computers)
     try:
         # Try browsers in order: Edge (default) -> Chrome -> Default browser
         try:
             print("Starting with Microsoft Edge...")
-            eel.start('index.html', mode='edge', size=(1920, 1080), port=8080)
+            eel.start('index.html', mode='edge', size=(1920, 1080), port=port)
         except (OSError, Exception) as e:
             if debug_mode:
                 print(f"Edge not available: {e}")
             try:
                 print("Attempting to start with Chrome...")
-                eel.start('index.html', mode='chrome', size=(1920, 1080), port=8080)
+                eel.start('index.html', mode='chrome', size=(1920, 1080), port=port)
             except (OSError, Exception) as e2:
                 if debug_mode:
                     print(f"Chrome not available: {e2}")
                 print("Starting with default browser...")
-                eel.start('index.html', mode=None, size=(1920, 1080), port=8080)
+                eel.start('index.html', mode=None, size=(1920, 1080), port=port)
     except (SystemExit, KeyboardInterrupt):
         print("\nShutting down...")
         if db:
