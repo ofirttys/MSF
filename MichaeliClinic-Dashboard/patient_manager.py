@@ -241,6 +241,22 @@ class PatientManager:
             print(f"Error updating notes: {e}")
             return False
     
+    def add_note_history(self, patient_id: str, note: str) -> bool:
+        """Add entry to notes history"""
+        try:
+            timestamp = datetime.now().isoformat() + 'Z'
+            self.db.execute("""
+                INSERT INTO notes_history (patientID, note, timestamp)
+                VALUES (?, ?, ?)
+            """, (patient_id, note, timestamp))
+            
+            self.db.commit()
+            return True
+        except Exception as e:
+            self.db.rollback()
+            print(f"Error adding note history: {e}")
+            return False
+    
     def count_total(self) -> int:
         """Count total patients"""
         result = self.db.fetchone("SELECT COUNT(*) as count FROM patients")

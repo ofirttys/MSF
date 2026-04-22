@@ -110,6 +110,11 @@ def update_patient_notes(patient_id, notes):
     """Update patient notes"""
     return patient_mgr.update_notes(patient_id, notes)
 
+@eel.expose
+def add_note_history(patient_id, note):
+    """Add entry to notes history"""
+    return patient_mgr.add_note_history(patient_id, note)
+
 
 # ============================================================================
 # APPOINTMENT API
