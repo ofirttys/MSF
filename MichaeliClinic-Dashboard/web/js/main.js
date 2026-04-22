@@ -784,7 +784,7 @@
         async function changeDate(days) {
             currentViewDate.setDate(currentViewDate.getDate() + days);
             updateDateDisplay();
-            renderAppointments();
+            await renderAppointments();
             // Reload clinic data from DB
             await loadCurrentDayClinicData();
             updateClinicTypeButtons();
@@ -2318,7 +2318,7 @@
         async function goToToday() {
             currentViewDate = new Date();
             updateDateDisplay();
-            renderAppointments();
+            await renderAppointments();
             // Reload clinic data from DB
             await loadCurrentDayClinicData();
             updateClinicTypeButtons();
@@ -2342,7 +2342,7 @@
                 var parts = nextClinicDate.split('-');
                 currentViewDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
                 updateDateDisplay();
-                renderAppointments();
+                await renderAppointments();
                 // Reload clinic data from DB
                 await loadCurrentDayClinicData();
                 updateClinicTypeButtons();
