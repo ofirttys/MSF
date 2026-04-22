@@ -27,10 +27,26 @@ class PortalManager:
             # Skip header row (row 0), start from row 1
             # Only read column A (column index 0)
             for row_idx in range(1, sheet.nrows):
-                patient_id = sheet.cell_value(row_idx, 0)  # Column A
-                if patient_id:
-                    # Convert to string and clean up
-                    portal_user_ids.add(str(patient_id).strip())
+                cell_value = sheet.cell_value(row_idx, 0)  # Column A
+                if cell_value:
+                    # Handle both string and numeric IDs
+                    if isinstance(cell_value, float):
+                        # Convert float to int to string (e.g., 123456.0 -> "123456")
+                        patient_id = str(int(cell_value)).strip()
+                    else:
+                        # Already string, just strip
+                        patient_id = str(cell_value).strip()
+                    
+                    if patient_id:  # Only add non-empty IDs
+                        portal_user_ids.add(patient_id)
+            
+            # DEBUG: Print first 25 IDs found in XLS
+            print(f"\n=== PORTAL ACCESS DEBUG ===")
+            print(f"Total IDs in XLS: {len(portal_user_ids)}")
+            print(f"First 25 IDs from XLS column A:")
+            for i, patient_id in enumerate(sorted(portal_user_ids)[:25]):
+                print(f"  {i+1}. '{patient_id}' (type: {type(patient_id).__name__})")
+            print(f"=== END DEBUG ===\n")
             
         except FileNotFoundError:
             return {
@@ -64,6 +80,15 @@ class PortalManager:
         
         # 4. Find who's missing portal access
         missing = []
+        
+        # DEBUG: Print first few patient IDs being checked
+        print(f"\nChecking {len(patients_with_appts)} patients with appointments in next 3 weeks")
+        print(f"First 10 patient IDs being checked:")
+        for i, patient in enumerate(patients_with_appts[:10]):
+            patient_id = patient['patientID']
+            in_portal = patient_id in portal_user_ids
+            print(f"  {i+1}. '{patient_id}' (type: {type(patient_id).__name__}) - In portal: {in_portal}")
+        print()
         
         for patient in patients_with_appts:
             # Check patient

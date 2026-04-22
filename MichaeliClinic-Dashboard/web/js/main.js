@@ -3969,20 +3969,19 @@
                         '<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">ID</th>' +
                         '<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Name</th>' +
                         '<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Type</th>' +
-                        '<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Email</th>' +
                         '<th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Appointment</th>' +
                         '</tr></thead><tbody>';
                 
                 for (var i = 0; i < missing.length; i++) {
                     var item = missing[i];
-                    var formattedDate = formatDateForDisplay(item.appointmentDate);
+                    // Simple date format: YYYY-MM-DD
+                    var dateStr = item.appointmentDate;
                     
                     html += '<tr style="border-bottom: 1px solid #eee;">' +
                             '<td style="padding: 8px;">' + item.id + '</td>' +
                             '<td style="padding: 8px;">' + item.name + '</td>' +
                             '<td style="padding: 8px;">' + item.type + '</td>' +
-                            '<td style="padding: 8px; color: #666; font-size: 11px;">' + (item.email || '-') + '</td>' +
-                            '<td style="padding: 8px;">' + formattedDate + '</td>' +
+                            '<td style="padding: 8px;">' + dateStr + '</td>' +
                             '</tr>';
                 }
                 
