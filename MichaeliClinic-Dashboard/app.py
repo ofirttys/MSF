@@ -429,6 +429,59 @@ def get_last_backup_date():
         print(f"Error getting last backup date: {e}")
         return None
 
+@eel.expose
+def get_last_modified_timestamp():
+    """
+    Get the most recent modification timestamp from the database.
+    Checks patients table, state_history, appointment_history, and notes_history.
+    Returns ISO timestamp of the most recent change.
+    """
+    try:
+        # Query to get the most recent timestamp from all relevant tables
+        query = """
+        SELECT MAX(last_modified) as last_mod FROM (
+            SELECT MAX(
+                CASE 
+                    WHEN stateHistory LIKE '%"timestamp"%' THEN 
+                        json_extract(
+                            json_extract(stateHistory, '$[' || (json_array_length(stateHistory) - 1) || ']'),
+                            '$.timestamp'
+                        )
+                    ELSE datetime('2000-01-01')
+                END
+            ) as last_modified
+            FROM patients
+            
+            UNION ALL
+            
+            SELECT MAX(timestamp) as last_modified
+            FROM state_history
+            
+            UNION ALL
+            
+            SELECT MAX(timestamp) as last_modified
+            FROM appointment_history
+            
+            UNION ALL
+            
+            SELECT MAX(timestamp) as last_modified
+            FROM notes_history
+        )
+        """
+        
+        result = db.fetchone(query)
+        
+        if result and result.get('last_mod'):
+            return result['last_mod']
+        else:
+            # Return current time if no data
+            return datetime.now().isoformat()
+            
+    except Exception as e:
+        print(f"Error getting last modified timestamp: {e}")
+        # Return current time on error to force refresh
+        return datetime.now().isoformat()
+
 
 # ============================================================================
 # PASSWORD HASHING

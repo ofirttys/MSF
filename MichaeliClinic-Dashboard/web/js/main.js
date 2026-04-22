@@ -529,19 +529,39 @@
             }
             if (!isReadOnly) {
                 autoSaveInterval = setInterval(function() {
-                    // Refresh lock file to keep it fresh
-                    refreshLockFile();
+                    // Refresh lock file to keep it fresh (DISABLED - not needed with backend SQLite locking)
+                    // refreshLockFile();
                 }, 5 * 60 * 1000); // 5 minutes
             }
             
-            // Start 60-second auto-refresh for patient/appointment data
+            // Smart auto-refresh: Only reload if database actually changed
+            var lastRefreshTimestamp = null;
+            
             setInterval(async function() {
-                console.log('Auto-refreshing patient and appointment data...');
-                await loadDatabase();
-                await renderAppointments();
-                await renderPatientList();
-                updateStatusCounts();
-            }, 60 * 1000); // 60 seconds
+                try {
+                    // Ask backend: has anything changed since last check?
+                    var currentTimestamp = await eel.get_last_modified_timestamp()();
+                    
+                    if (lastRefreshTimestamp === null) {
+                        // First time - just record timestamp, don't refresh
+                        lastRefreshTimestamp = currentTimestamp;
+                        return;
+                    }
+                    
+                    if (currentTimestamp !== lastRefreshTimestamp) {
+                        console.log('Database changes detected, refreshing data...');
+                        await loadDatabase();
+                        await renderAppointments();
+                        await renderPatientList();
+                        updateStatusCounts();
+                        lastRefreshTimestamp = currentTimestamp;
+                    } else {
+                        console.log('No database changes detected, skipping refresh');
+                    }
+                } catch (error) {
+                    console.error('Error checking for database changes:', error);
+                }
+            }, 60 * 1000); // Check every 60 seconds
             
             // Check and create daily backup (first use each day)
             if (!isReadOnly) {
@@ -2176,7 +2196,7 @@
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(async function() {
                 await renderPatientList();
-            }, 300);  // Wait 300ms after last keystroke
+            }, 200);  // Wait 200ms after last keystroke
         }
         
         async function filterPatients() {
