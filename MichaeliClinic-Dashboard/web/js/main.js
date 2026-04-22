@@ -4367,26 +4367,54 @@
                 
                 // Appointment type (not needed for noShow and reminder)
                 if (emailType !== 'noShow' && emailType !== 'reminder') {
+                    // Pre-fill appointment type and location from patient's appointmentLocation
+                    var patientApptLocation = currentEmailPatient && currentEmailPatient.appointmentLocation ? currentEmailPatient.appointmentLocation : '';
+                    var prefilledApptType = '';
+                    var prefilledLocation = '';
+                    var showLocationDropdown = 'none';
+                    
+                    if (patientApptLocation) {
+                        var loc = patientApptLocation.toLowerCase();
+                        if (loc === 'virtual') {
+                            prefilledApptType = 'Virtual (OTN)';
+                            prefilledLocation = '';
+                            showLocationDropdown = 'none';
+                        } else if (loc === 'vaughan') {
+                            prefilledApptType = 'In Person';
+                            prefilledLocation = 'vaughan';
+                            showLocationDropdown = 'block';
+                        } else if (loc === 'downtown') {
+                            prefilledApptType = 'In Person';
+                            prefilledLocation = 'downtown';
+                            showLocationDropdown = 'block';
+                        }
+                    } else {
+                        // No appointment location set - use defaults
+                        if (emailType === 'welcome' || emailType === 'firstAppointment') {
+                            prefilledApptType = 'In Person';
+                            prefilledLocation = 'vaughan';
+                            showLocationDropdown = 'block';
+                        } else {
+                            prefilledApptType = 'Virtual (OTN)';
+                            prefilledLocation = '';
+                            showLocationDropdown = 'none';
+                        }
+                    }
+                    
                     html += '<div style="margin-bottom: 12px;">';
                     html += '<label style="font-weight: 500; display: block; margin-bottom: 5px; font-size: 12px;">Appointment Type:</label>';
                     html += '<select id="emailApptType" class="form-input" onchange="toggleLocationOptions(); updateEmailPreview();" style="width: 100%; padding: 6px; font-size: 12px;">';
-                    if (emailType === 'welcome' || emailType === 'firstAppointment') {
-                        html += '<option value="In Person">In Person</option>';
-                        html += '<option value="Virtual (OTN)">Virtual (OTN)</option>';
-                    } else {
-                        html += '<option value="Virtual (OTN)">Virtual (OTN)</option>';
-                        html += '<option value="In Person">In Person</option>';
-                    }
+                    html += '<option value="Virtual (OTN)"' + (prefilledApptType === 'Virtual (OTN)' ? ' selected' : '') + '>Virtual (OTN)</option>';
+                    html += '<option value="In Person"' + (prefilledApptType === 'In Person' ? ' selected' : '') + '>In Person</option>';
                     html += '</select>';
                     html += '</div>';
                     
                     // Location (for in-person)
-                    var showLocation = (emailType === 'welcome' || emailType === 'firstAppointment') ? 'block' : 'none';
-                    html += '<div id="locationContainer" style="margin-bottom: 12px; display: ' + showLocation + ';">';
+                    html += '<div id="locationContainer" style="margin-bottom: 12px; display: ' + showLocationDropdown + ';">';
                     html += '<label style="font-weight: 500; display: block; margin-bottom: 5px; font-size: 12px;">Location:</label>';
                     html += '<select id="emailLocation" class="form-input" onchange="updateEmailPreview()" style="width: 100%; padding: 6px; font-size: 12px;">';
-                    html += '<option value="vaughan">Vaughan</option>';
-                    html += '<option value="downtown">Downtown Toronto</option>';
+                    html += '<option value="vaughan"' + (prefilledLocation === 'vaughan' ? ' selected' : '') + '>Vaughan</option>';
+                    html += '<option value="downtown"' + (prefilledLocation === 'downtown' ? ' selected' : '') + '>Downtown Toronto</option>';
                     html += '</select>';
                     html += '</div>';
                 }
