@@ -3549,12 +3549,10 @@
                                 patient.appointmentLocation || '',
                                 summary
                             )();
+                            
+                            // CLEAR appointment in backend (appointment is now complete)
+                            await eel.update_next_appointment(patient.patientID, null, null, null)();
                         }
-                        
-                        // Clear current appointment (local)
-                        patients[i].nextAppointment = null;
-                        patients[i].appointmentTime = null;
-                        patients[i].appointmentLocation = null;
                     } else if (nextState === 'WAITING_NEXT_APPT_SCHEDULE') {
                         var notes = document.getElementById('transitionNotes') ? document.getElementById('transitionNotes').value : '';
                         if (notes) {
