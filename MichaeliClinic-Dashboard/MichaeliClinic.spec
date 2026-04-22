@@ -22,10 +22,9 @@ web_files = []
 # User will need to copy their database after installation
 db_files = []
 
-# Email templates - still bundled for convenience
-email_templates = [
-    ('DB/email-templates.json', 'DB'),
-]
+# Email templates - NOT bundled, read from external DB folder at runtime
+# This allows users to customize templates without rebuilding
+email_templates = []
 
 # Icon file
 icon_file = 'dashboard.ico'

@@ -2851,7 +2851,7 @@
         }
 
         // Patient management
-        function savePatient(event) {
+        async function savePatient(event) {
             event.preventDefault();
             
 		var patientData = {
@@ -2890,34 +2890,34 @@
 			
             if (currentEditingPatient) {
                 // Update existing patient
-                eel.update_patient(currentEditingPatient.patientID, patientData)(function(success) {
-                    if (success) {
-                        for (var i = 0; i < patients.length; i++) {
-                            if (patients[i].patientID === currentEditingPatient.patientID) {
-                                patients[i] = mergeObjects({}, patients[i], patientData);
-                                break;
-                            }
+                var success = await eel.update_patient(currentEditingPatient.patientID, patientData)();
+                
+                if (success) {
+                    for (var i = 0; i < patients.length; i++) {
+                        if (patients[i].patientID === currentEditingPatient.patientID) {
+                            patients[i] = mergeObjects({}, patients[i], patientData);
+                            break;
                         }
-                        
-                        // Add notes to history if changed
-                        if (patientData.notes !== currentEditingPatient.notes && patientData.notes) {
-                            await eel.add_note_history(currentEditingPatient.patientID, patientData.notes)();
-                        }
-                        
-                        // Reload data to get updated notesHistory from backend
-                        await loadDatabase();
-                        
-                        closeModal('patientModal');
-                        renderPatientList();
-                        renderAppointments();
-                        updateStatusCounts();
-                        
-                        // Reopen the patient view
-                        viewPatientDetails(patientData.patientID);
-                    } else {
-                        showError('Failed to update patient in database');
                     }
-                });
+                    
+                    // Add notes to history if changed
+                    if (patientData.notes !== currentEditingPatient.notes && patientData.notes) {
+                        await eel.add_note_history(currentEditingPatient.patientID, patientData.notes)();
+                    }
+                    
+                    // Reload data to get updated notesHistory from backend
+                    await loadDatabase();
+                    
+                    closeModal('patientModal');
+                    renderPatientList();
+                    renderAppointments();
+                    updateStatusCounts();
+                    
+                    // Reopen the patient view
+                    viewPatientDetails(patientData.patientID);
+                } else {
+                    showError('Failed to update patient in database');
+                }
             } else {
                 // Create new patient
                 
@@ -2941,24 +2941,24 @@
                     notesHistory: []  // Will be populated from backend after save
                 });
                 
-                eel.add_patient(newPatient)(async function(success) {
-                    if (success) {
-                        // Add initial note to history if provided
-                        if (patientData.notes) {
-                            await eel.add_note_history(patientData.patientID, patientData.notes)();
-                        }
-                        
-                        // Reload data to get patient with notesHistory from backend
-                        await loadDatabase();
-                        
-                        closeModal('patientModal');
-                        renderPatientList();
-                        renderAppointments();
-                        updateStatusCounts();
-                    } else {
-                        showError('Failed to add patient to database');
+                var success = await eel.add_patient(newPatient)();
+                
+                if (success) {
+                    // Add initial note to history if provided
+                    if (patientData.notes) {
+                        await eel.add_note_history(patientData.patientID, patientData.notes)();
                     }
-                });
+                    
+                    // Reload data to get patient with notesHistory from backend
+                    await loadDatabase();
+                    
+                    closeModal('patientModal');
+                    renderPatientList();
+                    renderAppointments();
+                    updateStatusCounts();
+                } else {
+                    showError('Failed to add patient to database');
+                }
             }
 		}
 
