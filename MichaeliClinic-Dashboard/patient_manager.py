@@ -92,25 +92,33 @@ class PatientManager:
             query += f" AND currentState IN ({placeholders})"
             params.extend(state_filters)
         
-        # Search term (searches multiple fields)
+        # Search term (searches multiple fields with AND logic for multiple words)
         if search_term and search_term.strip():
-            search = f"%{search_term.strip()}%"
-            query += """ AND (
-                patientName LIKE ? OR
-                patientAlias LIKE ? OR
-                patientFirstName LIKE ? OR
-                patientLastName LIKE ? OR
-                partnerName LIKE ? OR
-                partnerAlias LIKE ? OR
-                partnerFirstName LIKE ? OR
-                partnerLastName LIKE ? OR
-                patientPhone LIKE ? OR
-                patientEmail LIKE ? OR
-                partnerPhone LIKE ? OR
-                partnerEmail LIKE ? OR
-                patientID LIKE ?
-            )"""
-            params.extend([search] * 13)  # 13 fields to search
+            # Split search term into words for AND matching (like HTA)
+            search_words = [w.strip() for w in search_term.strip().split() if w.strip()]
+            
+            if search_words:
+                # For each word, check if it appears in ANY of the searchable fields
+                for word in search_words:
+                    search = f"%{word}%"
+                    query += """ AND (
+                        patientName LIKE ? OR
+                        patientAlias LIKE ? OR
+                        patientFirstName LIKE ? OR
+                        patientMiddleName LIKE ? OR
+                        patientLastName LIKE ? OR
+                        partnerName LIKE ? OR
+                        partnerAlias LIKE ? OR
+                        partnerFirstName LIKE ? OR
+                        partnerMiddleName LIKE ? OR
+                        partnerLastName LIKE ? OR
+                        patientPhone LIKE ? OR
+                        patientEmail LIKE ? OR
+                        partnerPhone LIKE ? OR
+                        partnerEmail LIKE ? OR
+                        patientID LIKE ?
+                    )"""
+                    params.extend([search] * 15)  # 15 fields to search
         
         # Special filters
         if special_filters:
