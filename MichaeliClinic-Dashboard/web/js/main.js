@@ -2341,12 +2341,32 @@
             var currentDateStr = formatDateStr(currentViewDate);
             var nextClinicDate = null;
             
-            // Find the next date in clinicDays that is > current view date
+            // Try to find next clinic in already loaded data
             var allDates = Object.keys(clinicDays).sort();
             for (var i = 0; i < allDates.length; i++) {
                 if (allDates[i] > currentDateStr) {
                     nextClinicDate = allDates[i];
                     break;
+                }
+            }
+            
+            // If not found, try loading next 3 months
+            if (!nextClinicDate) {
+                var searchDate = new Date(currentViewDate);
+                for (var monthOffset = 1; monthOffset <= 3; monthOffset++) {
+                    searchDate.setMonth(currentViewDate.getMonth() + monthOffset);
+                    await loadMonthClinicDays(searchDate.getFullYear(), searchDate.getMonth() + 1);
+                    
+                    // Check again after loading
+                    allDates = Object.keys(clinicDays).sort();
+                    for (var i = 0; i < allDates.length; i++) {
+                        if (allDates[i] > currentDateStr) {
+                            nextClinicDate = allDates[i];
+                            break;
+                        }
+                    }
+                    
+                    if (nextClinicDate) break;
                 }
             }
             
@@ -2359,7 +2379,7 @@
                 await loadCurrentDayClinicData();
                 updateClinicTypeButtons();
             } else {
-                showErrorModal('No upcoming clinic days found.');
+                showErrorModal('No upcoming clinic days found in the next 3 months.');
             }
         }
         
