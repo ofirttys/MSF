@@ -3944,22 +3944,44 @@
                 '<div class="spinner"></div><br>Checking portal access...</div>';
             
             // Call backend
-            var result = await eel.get_missing_portal_access()();
-            
-            // Check for errors
-            if (result.error) {
+            try {
+                var result = await eel.get_missing_portal_access()();
+                
+                // Check if result is valid
+                if (!result) {
+                    document.getElementById('portalContent').innerHTML = 
+                        '<div style="padding: 30px; text-align: center; color: #e74c3c;">' +
+                        '<div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>' +
+                        '<div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">Error</div>' +
+                        '<div style="font-size: 13px; color: #666; margin-bottom: 20px;">No response from backend. Check if xlrd is installed:<br><code>pip install xlrd --break-system-packages</code></div>' +
+                        '</div>';
+                    return;
+                }
+                
+                // Check for errors
+                if (result.error) {
+                    document.getElementById('portalContent').innerHTML = 
+                        '<div style="padding: 30px; text-align: center; color: #e74c3c;">' +
+                        '<div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>' +
+                        '<div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">Error Reading Portal File</div>' +
+                        '<div style="font-size: 13px; color: #666; margin-bottom: 20px;">' + result.error + '</div>' +
+                        '<div style="font-size: 12px; color: #999;">Expected file: DB/Patient Portal Users.xls</div>' +
+                        '</div>';
+                    return;
+                }
+                
+                // Display results
+                displayPortalResults(result.missing);
+            } catch (error) {
+                console.error('Portal error:', error);
                 document.getElementById('portalContent').innerHTML = 
                     '<div style="padding: 30px; text-align: center; color: #e74c3c;">' +
                     '<div style="font-size: 48px; margin-bottom: 15px;">⚠️</div>' +
-                    '<div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">Error Reading Portal File</div>' +
-                    '<div style="font-size: 13px; color: #666; margin-bottom: 20px;">' + result.error + '</div>' +
-                    '<div style="font-size: 12px; color: #999;">Expected file: DB/Patient Portal Users.xls</div>' +
+                    '<div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">Error</div>' +
+                    '<div style="font-size: 13px; color: #666; margin-bottom: 20px;">' + error + '</div>' +
+                    '<div style="font-size: 12px; color: #999;">Check console for details. Install xlrd: pip install xlrd --break-system-packages</div>' +
                     '</div>';
-                return;
             }
-            
-            // Display results
-            displayPortalResults(result.missing);
         }
         
         function displayPortalResults(missing) {
@@ -3986,7 +4008,7 @@
                 
                 for (var i = 0; i < missing.length; i++) {
                     var item = missing[i];
-                    var formattedDate = formatDate(item.appointmentDate);
+                    var formattedDate = formatDateForDisplay(item.appointmentDate);
                     
                     html += '<tr style="border-bottom: 1px solid #eee;">' +
                             '<td style="padding: 8px;">' + item.id + '</td>' +
