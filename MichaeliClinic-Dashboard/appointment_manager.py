@@ -52,6 +52,22 @@ class AppointmentManager:
             print(f"Error updating appointment: {e}")
             return False
     
+    def add_history(self, patient_id: str, appt_date: str, appt_time: str, location: Optional[str], summary: str) -> bool:
+        """Add appointment to history"""
+        try:
+            timestamp = datetime.now().isoformat() + 'Z'
+            self.db.execute("""
+                INSERT INTO appointment_history (patientID, date, time, location, summary, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (patient_id, appt_date, appt_time, location or '', summary, timestamp))
+            
+            self.db.commit()
+            return True
+        except Exception as e:
+            self.db.rollback()
+            print(f"Error adding appointment history: {e}")
+            return False
+    
     def count_today(self) -> int:
         """Count today's appointments"""
         today = date.today().isoformat()

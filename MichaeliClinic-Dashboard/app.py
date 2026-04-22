@@ -130,6 +130,11 @@ def update_next_appointment(patient_id, date, time, location):
     """Update patient's next appointment"""
     return appointment_mgr.update_next(patient_id, date, time, location)
 
+@eel.expose
+def add_appointment_history(patient_id, date, time, location, summary):
+    """Add entry to appointment history"""
+    return appointment_mgr.add_history(patient_id, date, time, location, summary)
+
 
 # ============================================================================
 # ACTION ITEMS API

@@ -2920,6 +2920,14 @@
                 });
             } else {
                 // Create new patient
+                
+                // Check for duplicate patient ID
+                var existingPatient = patients.find(p => p.patientID === patientData.patientID);
+                if (existingPatient) {
+                    showErrorModal('A patient with ID "' + patientData.patientID + '" already exists.\n\nPlease use a different patient ID.');
+                    return;
+                }
+                
                 var newPatient = mergeObjects({}, patientData, {
                     dateAdded: new Date().toISOString().split('T')[0],
                     currentState: 'WAITING_FIRST_APPT_SCHEDULE',
@@ -3274,38 +3282,23 @@
                 newState = 'WAITING_FIRST_APPT_SCHEDULE';
             }
             
-            // Update local array
-            for (var i = 0; i < patients.length; i++) {
-                if (patients[i].patientID === currentCancellingApptPatient.patientID) {
-                    // Add to appointment history
-                    patients[i].appointmentHistory.push({
-                        date: patients[i].nextAppointment,
-                        time: patients[i].appointmentTime || '',
-                        summary: summaryText
-                    });
-                    
-                    // Clear appointment (local)
-                    patients[i].nextAppointment = null;
-                    patients[i].appointmentTime = null;
-					patients[i].appointmentLocation = null;
-                    
-                    // Update state (local)
-                    patients[i].currentState = newState;
-                    patients[i].stateHistory.push({
-                        state: newState,
-                        timestamp: new Date().toISOString(),
-                        notes: summaryText
-                    });
-                    
-                    break;
-                }
-            }
+            // SAVE TO BACKEND: Add cancellation to appointment history
+            await eel.add_appointment_history(
+                currentCancellingApptPatient.patientID,
+                currentCancellingApptPatient.nextAppointment,
+                currentCancellingApptPatient.appointmentTime || '',
+                currentCancellingApptPatient.appointmentLocation || '',
+                summaryText
+            )();
             
             // SAVE TO BACKEND: Clear appointment
             await eel.update_next_appointment(currentCancellingApptPatient.patientID, null, null, null)();
             
-            // SAVE TO BACKEND: Update state
+            // SAVE TO BACKEND: Update state (also updates local array and stateHistory)
             await updatePatientStateWithSave(currentCancellingApptPatient.patientID, newState, summaryText);
+            
+            // Reload data to refresh appointmentHistory from backend
+            await loadDatabase();
             
 			var cancelledPatientID = currentCancellingApptPatient.patientID;
             currentCancellingApptPatient = null;
@@ -3415,27 +3408,21 @@
 					// Only add to history if DATE changed (true reschedule)
                     // Time/location changes on the same date are minor edits - no history entry
                     if (oldDate && oldDate !== newDate) {
-                        patients[i].appointmentHistory.push({
-                            date: oldDate,
-                            time: oldTime,
-                            location: oldLocation,
-                            summary: 'Rescheduled to ' + newDate + (newTime ? ' ' + newTime : '') + (newLocation ? ' (' + newLocation + ')' : ''),
-                            timestamp: new Date().toISOString()
-                        });
-                        
-                        // Add new stateHistory entry so reminders see this as recently set
-                        patients[i].stateHistory.push({
-                            state: patients[i].currentState,
-                            timestamp: new Date().toISOString()
-                        });
+                        // SAVE TO BACKEND: Add reschedule to appointment history
+                        await eel.add_appointment_history(
+                            currentEditingApptPatient.patientID,
+                            oldDate,
+                            oldTime,
+                            oldLocation,
+                            'Rescheduled to ' + newDate + (newTime ? ' ' + newTime : '') + (newLocation ? ' (' + newLocation + ')' : '')
+                        )();
                     }
                     
-                    patients[i].nextAppointment = newDate;
-                    patients[i].appointmentTime = newTime;
-                    patients[i].appointmentLocation = newLocation;
-                    
-                    // SAVE TO DATABASE!
+                    // SAVE TO BACKEND: Update appointment
                     await scheduleAppointmentWithSave(currentEditingApptPatient.patientID, newDate, newTime, newLocation);
+                    
+                    // Reload data to refresh appointmentHistory from backend
+                    await loadDatabase();
                     
                     break;
                 }
@@ -3554,36 +3541,20 @@
 					} else if (nextState === 'WAITING_APPT_SUMMARY') {
                         var summary = document.getElementById('transitionSummary') ? document.getElementById('transitionSummary').value : '';
                         if (patient.nextAppointment) {
-                            // Check if there's already a history entry for this date
-                            var existingIndex = -1;
-                            for (var j = 0; j < patients[i].appointmentHistory.length; j++) {
-                                if (patients[i].appointmentHistory[j].date === patient.nextAppointment) {
-                                    existingIndex = j;
-                                    break;
-                                }
-                            }
-                            
-                            if (existingIndex !== -1) {
-                                // Merge with existing entry
-                                var existingSummary = patients[i].appointmentHistory[existingIndex].summary || '';
-                                var mergedSummary = existingSummary;
-                                if (summary) {
-                                    mergedSummary = existingSummary ? (existingSummary + ' | ' + summary) : summary;
-                                }
-                                patients[i].appointmentHistory[existingIndex].summary = mergedSummary;
-                                patients[i].appointmentHistory[existingIndex].timestamp = new Date().toISOString();
-                            } else {
-                                // Add new entry
-                                patients[i].appointmentHistory.push({
-                                    date: patient.nextAppointment,
-                                    time: patient.appointmentTime || '',
-                                    summary: summary,
-                                    timestamp: new Date().toISOString()
-                                });
-                            }
+                            // Save to backend appointment_history table
+                            await eel.add_appointment_history(
+                                patient.patientID,
+                                patient.nextAppointment,
+                                patient.appointmentTime || '',
+                                patient.appointmentLocation || '',
+                                summary
+                            )();
                         }
+                        
+                        // Clear current appointment (local)
                         patients[i].nextAppointment = null;
                         patients[i].appointmentTime = null;
+                        patients[i].appointmentLocation = null;
                     } else if (nextState === 'WAITING_NEXT_APPT_SCHEDULE') {
                         var notes = document.getElementById('transitionNotes') ? document.getElementById('transitionNotes').value : '';
                         if (notes) {
@@ -5117,15 +5088,16 @@ async function updatePatientStateWithSave(patientID, newState, notes) {
     var patient = patients.find(p => p.patientID === patientID);
     if (!patient) return false;
     
+    // Update current state locally (will be refreshed from backend)
     patient.currentState = newState;
-    patient.stateHistory.push({
-        state: newState,
-        timestamp: new Date().toISOString(),
-        notes: notes || ''
-    });
     
+    // Backend handles state_history table - no duplicate local update
     try {
         await eel.update_patient_state(patientID, newState, notes)();
+        
+        // Reload patient data to get updated stateHistory from backend
+        await loadDatabase();
+        
         return true;
     } catch (error) {
         console.error('Error updating patient state:', error);
