@@ -433,9 +433,10 @@
             try {
                 var result = await eel.change_password(currentPwd, newPwd)();
                 
-                if (result.status === 'success') {
+                if (result && result.status === 'success') {
                     successDiv.textContent = result.message;
                     successDiv.style.display = 'block';
+                    errorDiv.style.display = 'none';
                     
                     // Clear form
                     document.getElementById('currentPassword').value = '';
@@ -444,15 +445,18 @@
                     
                     // Auto-close after 2 seconds
                     setTimeout(function() {
+                        successDiv.style.display = 'none';
                         closeModal('changePasswordModal');
                     }, 2000);
                 } else {
-                    errorDiv.textContent = result.message;
+                    errorDiv.textContent = result ? result.message : 'Unknown error occurred';
                     errorDiv.style.display = 'block';
+                    successDiv.style.display = 'none';
                 }
             } catch (error) {
                 errorDiv.textContent = 'Error changing password: ' + error;
                 errorDiv.style.display = 'block';
+                successDiv.style.display = 'none';
             }
         }
         
@@ -744,8 +748,6 @@
 
 
         async function backupDatabase() {
-            console.log('Backup started...');
-            
             // Close dropdown immediately so user can see the modal
             toggleUserSettingsDropdown();
             
@@ -753,9 +755,7 @@
                 // Show loading indicator
                 showError('Creating backup...');
                 
-                console.log('Calling backend create_backup...');
                 var result = await eel.create_backup()();
-                console.log('Backup result:', result);
                 
                 if (result && result.success) {
                     closeModal('errorModal');
@@ -892,7 +892,7 @@
                             if (selectedDates.length > 0) {
                                 currentViewDate = selectedDates[0];
                                 updateDateDisplay();
-                                renderAppointments();
+                                await renderAppointments();
                                 // Reload current day's clinic data from DB (in case another user changed it)
                                 await loadCurrentDayClinicData();
                                 updateClinicTypeButtons();
@@ -3372,7 +3372,15 @@
                     break;
                 }
             }
-            if (!patient || !patient.nextAppointment) return;
+            
+            if (!patient || !patient.nextAppointment) {
+                // Fallback: use browser confirm if patient data not available
+                if (confirm('Are you sure you want to cancel this appointment?')) {
+                    // Try to find the patient again or handle directly
+                    console.error('Patient not found or no appointment:', patientID);
+                }
+                return;
+            }
             
             currentCancellingApptPatient = patient;
             document.getElementById('cancelApptPatientName').textContent = formatNameWithAlias(patient.patientName, patient.patientAlias, patient.patientFirstName, patient.patientMiddleName, patient.patientLastName);
@@ -3976,44 +3984,6 @@
                     }
                 }
             );
-        }
-        
-        function openChangePasswordModal() {
-            document.getElementById('changePasswordModal').style.display = 'flex';
-        }
-        
-        function closeChangePasswordModal() {
-            document.getElementById('changePasswordModal').style.display = 'none';
-            document.getElementById('changePasswordForm').reset();
-        }
-        
-        async function submitChangePassword(event) {
-            event.preventDefault();
-            
-            var currentPassword = document.getElementById('currentPassword').value;
-            var newPassword = document.getElementById('newPasswordChange').value;
-            var confirmPassword = document.getElementById('confirmPassword').value;
-            
-            if (newPassword !== confirmPassword) {
-                showErrorModal('New passwords do not match!');
-                return;
-            }
-            
-            try {
-                var result = await eel.change_password(currentPassword, newPassword)();
-                
-                if (result.status === 'error') {
-                    showErrorModal(result.message);
-                    return;
-                }
-                
-                showInfo(result.message, 'Success');
-                closeChangePasswordModal();
-                
-            } catch (error) {
-                console.error('Error changing password:', error);
-                showErrorModal('Error changing password');
-            }
         }
         
 		window.onbeforeunload = function() {
