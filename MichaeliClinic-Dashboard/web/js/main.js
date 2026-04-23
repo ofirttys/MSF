@@ -3,6 +3,15 @@
 // DEBUG TIMING - GLOBAL FUNCTIONS (accessible from console)
 // ============================================================================
 
+// VERSION MARKER - If you see this in console, the new file is loaded!
+console.log('═══════════════════════════════════════════════════════════');
+console.log('🔧 main.js VERSION: 2024-04-23-DEBUG-v3 LOADED!');
+console.log('🔧 Debug functions available:');
+console.log('   enableDebugTiming()   - Turn ON timing');
+console.log('   checkDebugStatus()    - Check status');
+console.log('   disableDebugTiming()  - Turn OFF timing');
+console.log('═══════════════════════════════════════════════════════════');
+
 var DEBUG_TIMING = false;
 
 window.enableDebugTiming = function() {
