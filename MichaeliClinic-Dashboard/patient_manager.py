@@ -36,7 +36,7 @@ class PatientManager:
             
             # Load appointment history for sorting
             patient['appointmentHistory'] = self.db.fetchall("""
-                SELECT date, time, location, summary
+                SELECT date, time, location, summary, timestamp
                 FROM appointment_history
                 WHERE patientID = ?
                 ORDER BY date DESC
@@ -148,7 +148,7 @@ class PatientManager:
             
             # Load appointment history
             patient['appointmentHistory'] = self.db.fetchall("""
-                SELECT date, time, location, summary
+                SELECT date, time, location, summary, timestamp
                 FROM appointment_history
                 WHERE patientID = ?
                 ORDER BY date DESC

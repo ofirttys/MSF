@@ -58,6 +58,7 @@ class AppointmentManager:
         
         # Past appointments (from appointment_history table)
         # Exclude if patient has same date as nextAppointment (to avoid duplicates)
+        # NULL-safe: if nextAppointment is NULL, always show the past appointment
         past = self.db.fetchall("""
             SELECT 
                 ah.patientID,
@@ -74,7 +75,7 @@ class AppointmentManager:
             FROM appointment_history ah
             JOIN patients p ON ah.patientID = p.patientID
             WHERE ah.date = ?
-                AND p.nextAppointment != ?
+                AND (p.nextAppointment IS NULL OR p.nextAppointment != ?)
             ORDER BY ah.time
         """, (date_str, date_str))
         
