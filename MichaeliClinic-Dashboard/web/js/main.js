@@ -47,6 +47,68 @@
         // END CONFIGURATION
         // ============================================================================
 
+        // ============================================================================
+        // DEBUG TIMING SYSTEM
+        // ============================================================================
+        
+        var DEBUG_TIMING = false;  // Enabled with --debug flag
+        var timingStack = [];
+        
+        function startTiming(operationName) {
+            if (!DEBUG_TIMING) return;
+            var timestamp = performance.now();
+            timingStack.push({
+                name: operationName,
+                start: timestamp
+            });
+            console.log(`⏱️ [TIMING] START: ${operationName} at ${timestamp.toFixed(2)}ms`);
+        }
+        
+        function endTiming(operationName) {
+            if (!DEBUG_TIMING) return;
+            var timestamp = performance.now();
+            
+            // Find matching start in stack
+            for (var i = timingStack.length - 1; i >= 0; i--) {
+                if (timingStack[i].name === operationName) {
+                    var duration = timestamp - timingStack[i].start;
+                    console.log(`✅ [TIMING] END: ${operationName} - Duration: ${duration.toFixed(2)}ms (${(duration/1000).toFixed(2)}s)`);
+                    timingStack.splice(i, 1);
+                    return duration;
+                }
+            }
+            
+            console.log(`❌ [TIMING] END: ${operationName} at ${timestamp.toFixed(2)}ms (no matching start found)`);
+        }
+        
+        function logTiming(message) {
+            if (!DEBUG_TIMING) return;
+            var timestamp = performance.now();
+            console.log(`📍 [TIMING] ${message} at ${timestamp.toFixed(2)}ms`);
+        }
+        
+        // Check if running in debug mode
+        async function checkDebugMode() {
+            try {
+                var args = await eel.get_command_line_args()();
+                if (args && args.includes('--debug')) {
+                    DEBUG_TIMING = true;
+                    console.log('🐛 [DEBUG] Timing mode ENABLED');
+                }
+            } catch (error) {
+                // get_command_line_args not available, check URL
+                var urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('debug') === 'true') {
+                    DEBUG_TIMING = true;
+                    console.log('🐛 [DEBUG] Timing mode ENABLED (via URL)');
+                }
+            }
+        }
+        
+        // ============================================================================
+        // GLOBAL VARIABLES
+        // ============================================================================
+
 		function getTodayLocalDate() {
 			var d = new Date();
 			var year = d.getFullYear();
@@ -531,6 +593,9 @@
 
         // Initialize application
         async function initializeApp() {
+            // Check if debug timing is enabled
+            await checkDebugMode();
+            
             document.getElementById('filePathDisplay').textContent = 'Backend Database (SQLite)';
             await loadDatabase();
             
@@ -693,9 +758,13 @@
         // File System Operations (HTA-specific)
         // Load database from backend via Eel
         async function loadDatabase() {
+            startTiming('loadDatabase_full');
             try {
+                startTiming('eel.get_all_patients');
                 patients = await eel.get_all_patients()();
-                console.log(`Loaded ${patients.length} patients from backend`);
+                endTiming('eel.get_all_patients');
+                
+                logTiming(`Loaded ${patients.length} patients from backend`);
                 
                 // Initialize empty structures if needed
                 if (!patients) patients = [];
@@ -704,9 +773,12 @@
                 clinicDays = {};
                 
                 // Load current day's clinic configuration
+                startTiming('loadCurrentDayClinicData');
                 await loadCurrentDayClinicData();
+                endTiming('loadCurrentDayClinicData');
                 
                 // Migrate old patients to add new fields if they don't exist
+                startTiming('migrate_patient_fields');
                 for (var i = 0; i < patients.length; i++) {
                     if (patients[i].isSurvivorshipClinic === undefined) {
                         patients[i].isSurvivorshipClinic = false;
@@ -718,17 +790,31 @@
                         patients[i].isPriorityList = false;
                     }
                 }
+                endTiming('migrate_patient_fields');
                 
+                startTiming('renderPatientList_from_loadDB');
                 await renderPatientList();
-                await renderAppointments();
-                updateStatusCounts();
-                updateClinicTypeButtons();
+                endTiming('renderPatientList_from_loadDB');
                 
-                console.log('Database loaded successfully');
+                startTiming('renderAppointments_from_loadDB');
+                await renderAppointments();
+                endTiming('renderAppointments_from_loadDB');
+                
+                startTiming('updateStatusCounts_from_loadDB');
+                updateStatusCounts();
+                endTiming('updateStatusCounts_from_loadDB');
+                
+                startTiming('updateClinicTypeButtons');
+                updateClinicTypeButtons();
+                endTiming('updateClinicTypeButtons');
+                
+                logTiming('Database loaded successfully');
+                endTiming('loadDatabase_full');
             } catch (error) {
                 console.error("Error loading database:", error);
                 showErrorModal("Error loading database: " + error);
                 patients = [];
+                endTiming('loadDatabase_full');
             }
         }
         
@@ -3298,13 +3384,28 @@
             showConfirm(message, 'Confirm', async function(confirmed) {
                 if (!confirmed) return;
                 
+                startTiming('transitionToSpecialState');
+                
                 // Save to backend
+                startTiming('updatePatientStateWithSave');
                 await updatePatientStateWithSave(patientID, specialState, null);
+                endTiming('updatePatientStateWithSave');
                 
                 closeModal('detailsModal');
+                
+                startTiming('renderPatientList');
                 renderPatientList();
-                renderAppointments();
+                endTiming('renderPatientList');
+                
+                startTiming('renderAppointments');
+                await renderAppointments();
+                endTiming('renderAppointments');
+                
+                startTiming('updateStatusCounts');
                 updateStatusCounts();
+                endTiming('updateStatusCounts');
+                
+                endTiming('transitionToSpecialState');
             });
         }
 
@@ -3469,6 +3570,8 @@
         async function confirmCancelAppointment(cancelledBy) {
             if (!currentCancellingApptPatient) return;
             
+            startTiming('confirmCancelAppointment');
+            
             var summaryText = cancelledBy === 'doctor' ? 'Cancelled by doctor' : 'Cancelled by patient';
             
             // Determine the correct state to go back to
@@ -3489,6 +3592,7 @@
             }
             
             // SAVE TO BACKEND: Add cancellation to appointment history
+            startTiming('add_appointment_history');
             await eel.add_appointment_history(
                 currentCancellingApptPatient.patientID,
                 currentCancellingApptPatient.nextAppointment,
@@ -3496,27 +3600,47 @@
                 currentCancellingApptPatient.appointmentLocation || '',
                 summaryText
             )();
+            endTiming('add_appointment_history');
             
             // SAVE TO BACKEND: Clear appointment
+            startTiming('update_next_appointment');
             await eel.update_next_appointment(currentCancellingApptPatient.patientID, null, null, null)();
+            endTiming('update_next_appointment');
             
-            // SAVE TO BACKEND: Update state (also updates local array and stateHistory)
+            // SAVE TO BACKEND: Update state
+            startTiming('updatePatientStateWithSave');
             await updatePatientStateWithSave(currentCancellingApptPatient.patientID, newState, summaryText);
+            endTiming('updatePatientStateWithSave');
             
             // Reload data to refresh appointmentHistory from backend
+            startTiming('loadDatabase');
             await loadDatabase();
+            endTiming('loadDatabase');
             
 			var cancelledPatientID = currentCancellingApptPatient.patientID;
             currentCancellingApptPatient = null;
             closeModal('cancelApptModal');
-            renderAppointments();
+            
+            startTiming('renderAppointments');
+            await renderAppointments();
+            endTiming('renderAppointments');
+            
+            startTiming('renderPatientList');
             renderPatientList();
+            endTiming('renderPatientList');
+            
+            startTiming('updateStatusCounts');
             updateStatusCounts();
+            endTiming('updateStatusCounts');
             
             // Refresh patient details if viewing this patient
             if (currentViewingPatientID === cancelledPatientID) {
+                startTiming('viewPatientDetails');
                 viewPatientDetails(currentViewingPatientID);
+                endTiming('viewPatientDetails');
             }
+            
+            endTiming('confirmCancelAppointment');
 		}
 
         // Appointment editing
@@ -5383,22 +5507,33 @@ async function savePatientToBackend(patient) {
 
 // Helper: Update patient state with backend save
 async function updatePatientStateWithSave(patientID, newState, notes) {
+    startTiming('updatePatientStateWithSave_inner');
+    
     var patient = patients.find(p => p.patientID === patientID);
-    if (!patient) return false;
+    if (!patient) {
+        endTiming('updatePatientStateWithSave_inner');
+        return false;
+    }
     
     // Update current state locally (will be refreshed from backend)
     patient.currentState = newState;
     
     // Backend handles state_history table - no duplicate local update
     try {
+        startTiming('eel.update_patient_state');
         await eel.update_patient_state(patientID, newState, notes)();
+        endTiming('eel.update_patient_state');
         
         // Reload patient data to get updated stateHistory from backend
+        startTiming('loadDatabase_from_updateState');
         await loadDatabase();
+        endTiming('loadDatabase_from_updateState');
         
+        endTiming('updatePatientStateWithSave_inner');
         return true;
     } catch (error) {
         console.error('Error updating patient state:', error);
+        endTiming('updatePatientStateWithSave_inner');
         return false;
     }
 }
