@@ -171,9 +171,6 @@ class PatientManager:
             """, (patient['patientID'],))
         
         return patients
-            """, (patient['patientID'],))
-        
-        return patients
     
     def get_by_id(self, patient_id: str) -> Optional[Dict]:
         """Get full patient details including histories"""
