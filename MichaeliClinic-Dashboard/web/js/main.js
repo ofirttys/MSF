@@ -3873,11 +3873,8 @@ window.checkDebugStatus = function() {
                         )();
                     }
                     
-                    // SAVE TO BACKEND: Update appointment
+                    // SAVE TO BACKEND: Update appointment (already updates local patient!)
                     await scheduleAppointmentWithSave(currentEditingApptPatient.patientID, newDate, newTime, newLocation);
-                    
-                    // Reload data to refresh appointmentHistory from backend
-                    await loadDatabase();
                     
                     break;
                 }
@@ -4016,7 +4013,7 @@ window.checkDebugStatus = function() {
                         }
                     }
 
-                    // Save state to backend (which also updates local array)
+                    // Save state to backend (which also updates local array and reloads this patient!)
                     var notes = null;
                     if (nextState === 'WAITING_NEXT_APPT_SCHEDULE') {
                         notes = document.getElementById('transitionNotes') ? document.getElementById('transitionNotes').value : null;
@@ -4024,9 +4021,6 @@ window.checkDebugStatus = function() {
                         notes = document.getElementById('transitionSummary') ? document.getElementById('transitionSummary').value : null;
                     }
                     await updatePatientStateWithSave(patient.patientID, nextState, notes);
-                    
-                    // Reload data to get updated notesHistory from backend
-                    await loadDatabase();
                     
                     break;
                 }
