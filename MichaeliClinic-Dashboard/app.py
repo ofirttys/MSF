@@ -448,27 +448,13 @@ def get_last_backup_date():
 def get_last_modified_timestamp():
     """
     Get the most recent modification timestamp from the database.
-    Checks patients table, state_history, appointment_history, and notes_history.
+    Checks state_history, appointment_history, and notes_history tables.
     Returns ISO timestamp of the most recent change.
     """
     try:
-        # Query to get the most recent timestamp from all relevant tables
+        # Query to get the most recent timestamp from all history tables
         query = """
         SELECT MAX(last_modified) as last_mod FROM (
-            SELECT MAX(
-                CASE 
-                    WHEN stateHistory LIKE '%"timestamp"%' THEN 
-                        json_extract(
-                            json_extract(stateHistory, '$[' || (json_array_length(stateHistory) - 1) || ']'),
-                            '$.timestamp'
-                        )
-                    ELSE datetime('2000-01-01')
-                END
-            ) as last_modified
-            FROM patients
-            
-            UNION ALL
-            
             SELECT MAX(timestamp) as last_modified
             FROM state_history
             

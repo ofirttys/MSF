@@ -1,4 +1,25 @@
 
+// ============================================================================
+// DEBUG TIMING - GLOBAL FUNCTIONS (accessible from console)
+// ============================================================================
+
+var DEBUG_TIMING = false;
+
+window.enableDebugTiming = function() {
+    DEBUG_TIMING = true;
+    console.log('🐛 [DEBUG] Timing mode ENABLED manually');
+    console.log('🐛 [DEBUG] Now cancel an appointment or mark patient inactive to see timings');
+};
+
+window.disableDebugTiming = function() {
+    DEBUG_TIMING = false;
+    console.log('[DEBUG] Timing mode DISABLED');
+};
+
+window.checkDebugStatus = function() {
+    console.log('[DEBUG] Timing mode is currently:', DEBUG_TIMING ? 'ENABLED ✅' : 'DISABLED ❌');
+};
+
         // ============================================================================
         // CONFIGURATION - MODIFY THIS SECTION AT THE HOSPITAL
         // ============================================================================
@@ -51,7 +72,6 @@
         // DEBUG TIMING SYSTEM
         // ============================================================================
         
-        var DEBUG_TIMING = false;  // Enabled with --debug flag
         var timingStack = [];
         
         function startTiming(operationName) {
@@ -89,20 +109,36 @@
         
         // Check if running in debug mode
         async function checkDebugMode() {
+            console.log('[DEBUG CHECK] Checking for debug mode...');
+            console.log('[DEBUG CHECK] Command line args check...');
+            
             try {
                 var args = await eel.get_command_line_args()();
+                console.log('[DEBUG CHECK] Backend args:', args);
+                
                 if (args && args.includes('--debug')) {
                     DEBUG_TIMING = true;
-                    console.log('🐛 [DEBUG] Timing mode ENABLED');
+                    console.log('🐛 [DEBUG] Timing mode ENABLED via --debug flag');
+                    console.log('🐛 [DEBUG] Open Console to see timing measurements');
+                    return;
                 }
             } catch (error) {
-                // get_command_line_args not available, check URL
-                var urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('debug') === 'true') {
-                    DEBUG_TIMING = true;
-                    console.log('🐛 [DEBUG] Timing mode ENABLED (via URL)');
-                }
+                console.log('[DEBUG CHECK] Backend call failed:', error);
             }
+            
+            // Fallback: check URL parameter
+            console.log('[DEBUG CHECK] Checking URL parameters...');
+            var urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('debug') === 'true') {
+                DEBUG_TIMING = true;
+                console.log('🐛 [DEBUG] Timing mode ENABLED via URL parameter');
+                console.log('🐛 [DEBUG] Open Console to see timing measurements');
+                return;
+            }
+            
+            console.log('[DEBUG CHECK] Debug mode NOT enabled');
+            console.log('[DEBUG CHECK] To enable: Run with "python app.py --debug" or add "?debug=true" to URL');
+            console.log('[DEBUG CHECK] Or type: enableDebugTiming() in console');
         }
         
         // ============================================================================
