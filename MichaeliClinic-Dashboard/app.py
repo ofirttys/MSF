@@ -129,6 +129,71 @@ def update_patient_state(patient_id, new_state, notes=None):
     return patient_mgr.update_state(patient_id, new_state, notes)
 
 @eel.expose
+def update_patient_state_with_version(patient_id, new_state, notes, last_known_timestamp):
+    """
+    Update patient state with optimistic locking (conflict detection)
+    
+    Args:
+        patient_id: Patient ID
+        new_state: New state to set
+        notes: Optional notes
+        last_known_timestamp: Last state change timestamp this user knows about
+        
+    Returns:
+        {
+            'success': True/False,
+            'conflict': True/False,
+            'message': Error message if conflict,
+            'patient': Updated or current patient data
+        }
+    """
+    try:
+        # Get current patient state
+        current = patient_mgr.get_by_id(patient_id)
+        
+        if not current:
+            return {
+                'success': False,
+                'conflict': False,
+                'message': 'Patient not found',
+                'patient': None
+            }
+        
+        # Check for conflict - has another user modified this patient?
+        if current.get('stateHistory') and len(current['stateHistory']) > 0:
+            current_timestamp = current['stateHistory'][-1]['timestamp']
+            
+            # Conflict detected! Patient was modified since this user last saw it
+            if last_known_timestamp and current_timestamp != last_known_timestamp:
+                return {
+                    'success': False,
+                    'conflict': True,
+                    'message': 'Patient was modified by another user',
+                    'current_state': current.get('currentState'),
+                    'patient': current
+                }
+        
+        # No conflict - proceed with update
+        patient_mgr.update_state(patient_id, new_state, notes)
+        updated = patient_mgr.get_by_id(patient_id)
+        
+        return {
+            'success': True,
+            'conflict': False,
+            'message': None,
+            'patient': updated
+        }
+        
+    except Exception as e:
+        print(f"Error in update_patient_state_with_version: {e}")
+        return {
+            'success': False,
+            'conflict': False,
+            'message': str(e),
+            'patient': None
+        }
+
+@eel.expose
 def update_patient_notes(patient_id, notes):
     """Update patient notes"""
     return patient_mgr.update_notes(patient_id, notes)
@@ -169,6 +234,93 @@ def get_todays_appointments():
 def update_next_appointment(patient_id, date, time, location):
     """Update patient's next appointment"""
     return appointment_mgr.update_next(patient_id, date, time, location)
+
+@eel.expose
+def schedule_appointment_with_conflict_check(patient_id, date, time, location):
+    """
+    Schedule appointment with atomic conflict detection to prevent double-booking
+    
+    Args:
+        patient_id: Patient ID to schedule
+        date: Appointment date (YYYY-MM-DD)
+        time: Appointment time (HH:MM)
+        location: Appointment location
+        
+    Returns:
+        {
+            'success': True/False,
+            'conflict': True/False,
+            'conflicting_patient': {...} if conflict, None otherwise,
+            'patient': Updated patient data
+        }
+    """
+    try:
+        # Check if slot is already taken by another patient
+        conflict_query = """
+            SELECT patientID, patientName, patientFirstName, patientLastName
+            FROM patients
+            WHERE nextAppointment = ? 
+              AND appointmentTime = ?
+              AND patientID != ?
+              AND currentState NOT IN ('INACTIVE', 'PREGNANT', 'COMPLETED', 'CANCELLED')
+        """
+        
+        conflicting = db.fetchone(conflict_query, (date, time, patient_id))
+        
+        if conflicting:
+            # Slot is taken!
+            return {
+                'success': False,
+                'conflict': True,
+                'conflicting_patient': conflicting,
+                'patient': patient_mgr.get_by_id(patient_id)
+            }
+        
+        # Slot appears free - use transaction to ensure atomicity
+        # This prevents race condition if two users click simultaneously
+        db.execute("BEGIN IMMEDIATE")
+        
+        try:
+            # Double-check inside transaction (prevents race between check and update)
+            conflicting = db.fetchone(conflict_query, (date, time, patient_id))
+            
+            if conflicting:
+                db.execute("ROLLBACK")
+                return {
+                    'success': False,
+                    'conflict': True,
+                    'conflicting_patient': conflicting,
+                    'patient': patient_mgr.get_by_id(patient_id)
+                }
+            
+            # Actually schedule the appointment
+            appointment_mgr.update_next(patient_id, date, time, location)
+            
+            db.execute("COMMIT")
+            
+            # Get updated patient data
+            updated_patient = patient_mgr.get_by_id(patient_id)
+            
+            return {
+                'success': True,
+                'conflict': False,
+                'conflicting_patient': None,
+                'patient': updated_patient
+            }
+            
+        except Exception as e:
+            db.execute("ROLLBACK")
+            raise e
+            
+    except Exception as e:
+        print(f"Error in schedule_appointment_with_conflict_check: {e}")
+        return {
+            'success': False,
+            'conflict': False,
+            'message': str(e),
+            'conflicting_patient': None,
+            'patient': patient_mgr.get_by_id(patient_id)
+        }
 
 @eel.expose
 def add_appointment_history(patient_id, date, time, location, summary):
@@ -864,6 +1016,29 @@ def save_email_to_file(content, filename=None):
 def get_command_line_args():
     """Get command line arguments for debug mode detection"""
     return sys.argv
+
+@eel.expose
+def get_changed_patients_since(timestamp):
+    """
+    Get list of patient IDs that changed since given timestamp
+    Used for smart auto-refresh (only reload changed patients)
+    Returns: [patientID1, patientID2, ...]
+    """
+    if not timestamp:
+        timestamp = '2000-01-01'
+    
+    query = """
+        SELECT DISTINCT patientID 
+        FROM (
+            SELECT patientID FROM state_history WHERE timestamp > ?
+            UNION
+            SELECT patientID FROM appointment_history WHERE timestamp > ?
+            UNION
+            SELECT patientID FROM notes_history WHERE timestamp > ?
+        )
+    """
+    results = db.fetchall(query, (timestamp, timestamp, timestamp))
+    return [r['patientID'] for r in results]
 
 
 # ============================================================================

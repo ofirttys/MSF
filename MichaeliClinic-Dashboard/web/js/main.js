@@ -673,8 +673,15 @@ window.checkDebugStatus = function() {
             
             // Smart auto-refresh: Only reload if database actually changed
             var lastRefreshTimestamp = null;
+            var isManualOperationInProgress = false;
             
             setInterval(async function() {
+                // Skip auto-refresh if user is actively performing an operation
+                if (isManualOperationInProgress) {
+                    console.log('Skipping auto-refresh (manual operation in progress)');
+                    return;
+                }
+                
                 try {
                     // Ask backend: has anything changed since last check?
                     var currentTimestamp = await eel.get_last_modified_timestamp()();
@@ -686,17 +693,57 @@ window.checkDebugStatus = function() {
                     }
                     
                     if (currentTimestamp !== lastRefreshTimestamp) {
-                        console.log('Database changes detected, refreshing data...');
-                        await loadDatabase();
-                        await renderAppointments();
-                        await renderPatientList();
-                        updateStatusCounts();
+                        console.log('Database changes detected, checking which patients changed...');
+                        
+                        startTiming('smart_auto_refresh');
+                        
+                        // Get list of changed patient IDs (much faster than loading all patients!)
+                        startTiming('eel.get_changed_patients_since');
+                        var changedIDs = await eel.get_changed_patients_since(lastRefreshTimestamp)();
+                        endTiming('eel.get_changed_patients_since');
+                        
+                        console.log(`Found ${changedIDs.length} changed patients (not reloading all 1,306!)`);
+                        
+                        if (changedIDs.length > 0) {
+                            // Reload only the patients that changed
+                            startTiming('reload_changed_patients');
+                            for (var i = 0; i < changedIDs.length; i++) {
+                                var id = changedIDs[i];
+                                var updatedPatient = await eel.get_patient(id)();
+                                
+                                // Update in local array
+                                var found = false;
+                                for (var j = 0; j < patients.length; j++) {
+                                    if (patients[j].patientID === id) {
+                                        patients[j] = updatedPatient;
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                
+                                // New patient added by another user
+                                if (!found) {
+                                    patients.push(updatedPatient);
+                                    console.log('New patient added by another user:', updatedPatient.patientName);
+                                }
+                            }
+                            endTiming('reload_changed_patients');
+                            
+                            // Re-render UI with updated patients
+                            startTiming('refresh_ui_after_smart_refresh');
+                            await renderPatientList();
+                            await renderAppointments();
+                            updateStatusCounts();
+                            endTiming('refresh_ui_after_smart_refresh');
+                        }
+                        
+                        endTiming('smart_auto_refresh');
                         lastRefreshTimestamp = currentTimestamp;
                     } else {
                         console.log('No database changes detected, skipping refresh');
                     }
                 } catch (error) {
-                    console.error('Error checking for database changes:', error);
+                    console.error('Error in smart auto-refresh:', error);
                 }
             }, 60 * 1000); // Check every 60 seconds
             
@@ -3429,28 +3476,35 @@ window.checkDebugStatus = function() {
             showConfirm(message, 'Confirm', async function(confirmed) {
                 if (!confirmed) return;
                 
+                // Lock to prevent auto-refresh collision
+                isManualOperationInProgress = true;
                 startTiming('transitionToSpecialState');
                 
-                // Save to backend
-                startTiming('updatePatientStateWithSave');
-                await updatePatientStateWithSave(patientID, specialState, null);
-                endTiming('updatePatientStateWithSave');
-                
-                closeModal('detailsModal');
-                
-                startTiming('renderPatientList');
-                renderPatientList();
-                endTiming('renderPatientList');
-                
-                startTiming('renderAppointments');
-                await renderAppointments();
-                endTiming('renderAppointments');
-                
-                startTiming('updateStatusCounts');
-                updateStatusCounts();
-                endTiming('updateStatusCounts');
-                
-                endTiming('transitionToSpecialState');
+                try {
+                    // Save to backend (now optimized - only loads this one patient!)
+                    startTiming('updatePatientStateWithSave');
+                    await updatePatientStateWithSave(patientID, specialState, null);
+                    endTiming('updatePatientStateWithSave');
+                    
+                    closeModal('detailsModal');
+                    
+                    startTiming('renderPatientList');
+                    renderPatientList();
+                    endTiming('renderPatientList');
+                    
+                    startTiming('renderAppointments');
+                    await renderAppointments();
+                    endTiming('renderAppointments');
+                    
+                    startTiming('updateStatusCounts');
+                    updateStatusCounts();
+                    endTiming('updateStatusCounts');
+                    
+                    endTiming('transitionToSpecialState');
+                } finally {
+                    // Always unlock, even if error
+                    isManualOperationInProgress = false;
+                }
             });
         }
 
@@ -3615,74 +3669,78 @@ window.checkDebugStatus = function() {
         async function confirmCancelAppointment(cancelledBy) {
             if (!currentCancellingApptPatient) return;
             
+            // Lock to prevent auto-refresh collision
+            isManualOperationInProgress = true;
             startTiming('confirmCancelAppointment');
             
-            var summaryText = cancelledBy === 'doctor' ? 'Cancelled by doctor' : 'Cancelled by patient';
-            
-            // Determine the correct state to go back to
-            var newState = 'WAITING_NEXT_APPT_SCHEDULE';
-            
-            // Check if this was their first appointment (no completed appointments in history)
-            var hasCompletedAppt = false;
-            for (var j = 0; j < currentCancellingApptPatient.appointmentHistory.length; j++) {
-                var summary = currentCancellingApptPatient.appointmentHistory[j].summary || '';
-                if (summary.toLowerCase().indexOf('cancelled') === -1) {
-                    hasCompletedAppt = true;
-                    break;
+            try {
+                var summaryText = cancelledBy === 'doctor' ? 'Cancelled by doctor' : 'Cancelled by patient';
+                
+                // Determine the correct state to go back to
+                var newState = 'WAITING_NEXT_APPT_SCHEDULE';
+                
+                // Check if this was their first appointment (no completed appointments in history)
+                var hasCompletedAppt = false;
+                for (var j = 0; j < currentCancellingApptPatient.appointmentHistory.length; j++) {
+                    var summary = currentCancellingApptPatient.appointmentHistory[j].summary || '';
+                    if (summary.toLowerCase().indexOf('cancelled') === -1) {
+                        hasCompletedAppt = true;
+                        break;
+                    }
                 }
-            }
-            
-            if (!hasCompletedAppt) {
-                newState = 'WAITING_FIRST_APPT_SCHEDULE';
-            }
-            
-            // SAVE TO BACKEND: Add cancellation to appointment history
-            startTiming('add_appointment_history');
-            await eel.add_appointment_history(
-                currentCancellingApptPatient.patientID,
-                currentCancellingApptPatient.nextAppointment,
-                currentCancellingApptPatient.appointmentTime || '',
-                currentCancellingApptPatient.appointmentLocation || '',
-                summaryText
-            )();
-            endTiming('add_appointment_history');
-            
-            // SAVE TO BACKEND: Clear appointment
-            startTiming('update_next_appointment');
-            await eel.update_next_appointment(currentCancellingApptPatient.patientID, null, null, null)();
-            endTiming('update_next_appointment');
-            
-            // SAVE TO BACKEND: Update state
-            startTiming('updatePatientStateWithSave');
-            await updatePatientStateWithSave(currentCancellingApptPatient.patientID, newState, summaryText);
-            endTiming('updatePatientStateWithSave');
-            
-            // Reload data to refresh appointmentHistory from backend
-            startTiming('loadDatabase');
-            await loadDatabase();
-            endTiming('loadDatabase');
-            
-			var cancelledPatientID = currentCancellingApptPatient.patientID;
-            currentCancellingApptPatient = null;
-            closeModal('cancelApptModal');
-            
-            startTiming('renderAppointments');
-            await renderAppointments();
-            endTiming('renderAppointments');
-            
-            startTiming('renderPatientList');
-            renderPatientList();
-            endTiming('renderPatientList');
-            
-            startTiming('updateStatusCounts');
-            updateStatusCounts();
-            endTiming('updateStatusCounts');
-            
-            // Refresh patient details if viewing this patient
-            if (currentViewingPatientID === cancelledPatientID) {
-                startTiming('viewPatientDetails');
-                viewPatientDetails(currentViewingPatientID);
-                endTiming('viewPatientDetails');
+                
+                if (!hasCompletedAppt) {
+                    newState = 'WAITING_FIRST_APPT_SCHEDULE';
+                }
+                
+                // SAVE TO BACKEND: Add cancellation to appointment history
+                startTiming('add_appointment_history');
+                await eel.add_appointment_history(
+                    currentCancellingApptPatient.patientID,
+                    currentCancellingApptPatient.nextAppointment,
+                    currentCancellingApptPatient.appointmentTime || '',
+                    currentCancellingApptPatient.appointmentLocation || '',
+                    summaryText
+                )();
+                endTiming('add_appointment_history');
+                
+                // SAVE TO BACKEND: Clear appointment
+                startTiming('update_next_appointment');
+                await eel.update_next_appointment(currentCancellingApptPatient.patientID, null, null, null)();
+                endTiming('update_next_appointment');
+                
+                // SAVE TO BACKEND: Update state (optimized - only loads this one patient!)
+                startTiming('updatePatientStateWithSave');
+                await updatePatientStateWithSave(currentCancellingApptPatient.patientID, newState, summaryText);
+                endTiming('updatePatientStateWithSave');
+                
+                var cancelledPatientID = currentCancellingApptPatient.patientID;
+                currentCancellingApptPatient = null;
+                closeModal('cancelApptModal');
+                
+                startTiming('renderAppointments');
+                await renderAppointments();
+                endTiming('renderAppointments');
+                
+                startTiming('renderPatientList');
+                renderPatientList();
+                endTiming('renderPatientList');
+                
+                startTiming('updateStatusCounts');
+                updateStatusCounts();
+                endTiming('updateStatusCounts');
+                
+                // Refresh patient details if viewing this patient
+                if (currentViewingPatientID === cancelledPatientID) {
+                    startTiming('viewPatientDetails');
+                    viewPatientDetails(currentViewingPatientID);
+                    endTiming('viewPatientDetails');
+                }
+                
+                endTiming('confirmCancelAppointment');
+            } finally {
+                // Always unlock, even if error
+                isManualOperationInProgress = false;
             }
             
             endTiming('confirmCancelAppointment');
@@ -5560,22 +5618,70 @@ async function updatePatientStateWithSave(patientID, newState, notes) {
         return false;
     }
     
-    // Update current state locally (will be refreshed from backend)
-    patient.currentState = newState;
+    // Get last known timestamp for conflict detection
+    var lastTimestamp = null;
+    if (patient.stateHistory && patient.stateHistory.length > 0) {
+        lastTimestamp = patient.stateHistory[patient.stateHistory.length - 1].timestamp;
+    }
     
-    // Backend handles state_history table - no duplicate local update
     try {
-        startTiming('eel.update_patient_state');
-        await eel.update_patient_state(patientID, newState, notes)();
-        endTiming('eel.update_patient_state');
+        startTiming('eel.update_patient_state_with_version');
+        var result = await eel.update_patient_state_with_version(
+            patientID, 
+            newState, 
+            notes,
+            lastTimestamp
+        )();
+        endTiming('eel.update_patient_state_with_version');
         
-        // Reload patient data to get updated stateHistory from backend
-        startTiming('loadDatabase_from_updateState');
-        await loadDatabase();
-        endTiming('loadDatabase_from_updateState');
+        // Conflict detected!
+        if (result.conflict) {
+            var retry = confirm(
+                'This patient was modified by another user.\n\n' +
+                'Current state: ' + result.current_state + '\n\n' +
+                'Do you want to override their changes?'
+            );
+            
+            if (retry) {
+                // User wants to override - use current timestamp
+                var currentTimestamp = result.patient.stateHistory[result.patient.stateHistory.length - 1].timestamp;
+                result = await eel.update_patient_state_with_version(
+                    patientID, 
+                    newState, 
+                    notes,
+                    currentTimestamp
+                )();
+            } else {
+                // User cancelled - update local copy with server version
+                for (var i = 0; i < patients.length; i++) {
+                    if (patients[i].patientID === patientID) {
+                        patients[i] = result.patient;
+                        break;
+                    }
+                }
+                endTiming('updatePatientStateWithSave_inner');
+                return false;
+            }
+        }
+        
+        // Update succeeded - refresh ONLY this patient (not all 1,306!)
+        if (result.success) {
+            startTiming('eel.get_patient');
+            var updatedPatient = await eel.get_patient(patientID)();
+            endTiming('eel.get_patient');
+            
+            // Update in local patients array
+            for (var i = 0; i < patients.length; i++) {
+                if (patients[i].patientID === patientID) {
+                    patients[i] = updatedPatient;
+                    break;
+                }
+            }
+        }
         
         endTiming('updatePatientStateWithSave_inner');
-        return true;
+        return result.success;
+        
     } catch (error) {
         console.error('Error updating patient state:', error);
         endTiming('updatePatientStateWithSave_inner');
@@ -5583,20 +5689,69 @@ async function updatePatientStateWithSave(patientID, newState, notes) {
     }
 }
 
+
 // Helper: Schedule appointment with backend save
 async function scheduleAppointmentWithSave(patientID, date, time, location) {
-    var patient = patients.find(p => p.patientID === patientID);
-    if (!patient) return false;
+    startTiming('scheduleAppointmentWithSave');
     
-    patient.nextAppointment = date;
-    patient.appointmentTime = time;
-    patient.appointmentLocation = location;
+    var patient = patients.find(p => p.patientID === patientID);
+    if (!patient) {
+        endTiming('scheduleAppointmentWithSave');
+        return false;
+    }
+    
+    // Lock to prevent auto-refresh collision
+    isManualOperationInProgress = true;
     
     try {
-        await eel.update_next_appointment(patientID, date, time, location)();
-        return true;
+        // Use conflict-checking version to prevent double-booking
+        startTiming('eel.schedule_appointment_with_conflict_check');
+        var result = await eel.schedule_appointment_with_conflict_check(patientID, date, time, location)();
+        endTiming('eel.schedule_appointment_with_conflict_check');
+        
+        if (result.conflict) {
+            // Time slot was taken by another user!
+            var conflictingName = result.conflicting_patient.patientName;
+            
+            showErrorModal(
+                'This time slot is no longer available!\n\n' +
+                conflictingName + ' was just scheduled for:\n' +
+                date + ' at ' + time + '\n\n' +
+                'Please choose a different time slot.'
+            );
+            
+            // Refresh appointments to show the conflict
+            await renderAppointments();
+            
+            endTiming('scheduleAppointmentWithSave');
+            isManualOperationInProgress = false;
+            return false;
+        }
+        
+        // Success! Update local patient with server version
+        if (result.success) {
+            for (var i = 0; i < patients.length; i++) {
+                if (patients[i].patientID === patientID) {
+                    patients[i] = result.patient;
+                    break;
+                }
+            }
+            
+            // Refresh UI
+            renderPatientList();
+            await renderAppointments();
+            updateStatusCounts();
+        }
+        
+        endTiming('scheduleAppointmentWithSave');
+        isManualOperationInProgress = false;
+        return result.success;
+        
     } catch (error) {
         console.error('Error scheduling appointment:', error);
+        showErrorModal('Error scheduling appointment: ' + error);
+        endTiming('scheduleAppointmentWithSave');
+        isManualOperationInProgress = false;
         return false;
     }
 }
