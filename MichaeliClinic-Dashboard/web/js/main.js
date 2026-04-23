@@ -3299,6 +3299,9 @@ window.checkDebugStatus = function() {
 		}
 
         function viewPatientDetails(patientID) {
+            startTiming('viewPatientDetails');
+            
+            startTiming('find_patient');
             var patient = null;
             for (var i = 0; i < patients.length; i++) {
                 if (patients[i].patientID === patientID) {
@@ -3306,13 +3309,19 @@ window.checkDebugStatus = function() {
                     break;
                 }
             }
-            if (!patient) return;
+            endTiming('find_patient');
+            
+            if (!patient) {
+                endTiming('viewPatientDetails');
+                return;
+            }
 
             currentEditingPatient = patient;
             currentViewingPatientID = patientID; // Store for email generator
             
             var state = STATES[patient.currentState];
             
+            startTiming('build_badges');
             // Build badges for title
             var badges = '';
             if (patient.isSurvivorshipClinic) {
@@ -3324,9 +3333,13 @@ window.checkDebugStatus = function() {
             if (patient.isPriorityList) {
                 badges += ' <span class="badge badge-priority">Priority List</span>';
             }
+            endTiming('build_badges');
             
+            startTiming('set_patient_name');
             document.getElementById('detailsPatientName').innerHTML = formatNameWithAlias(patient.patientName, patient.patientAlias, patient.patientFirstName, patient.patientMiddleName, patient.patientLastName) + ' (' + patient.patientID + ')' + badges;
+            endTiming('set_patient_name');
             
+            startTiming('build_partner_info');
             // Information tab - removed Patient ID, Name, and Categories rows
             var partnerInfo = '';
 			if (patient.partnerName && patient.partnerID) {
@@ -3337,6 +3350,7 @@ window.checkDebugStatus = function() {
                 partnerInfo = formatNameWithAlias(patient.partnerName, patient.partnerAlias, patient.partnerFirstName, patient.partnerMiddleName, patient.partnerLastName);			} else {
                 partnerInfo = '-';
             }
+            endTiming('build_partner_info');
             
             var details = '<div class="details-row"><div class="details-label">Status:</div><div class="details-value" style="color: ' + state.color + '; font-weight: 600;">' + state.label + '</div></div>' +
                 '<div class="details-row"><div class="details-label">Partner:</div><div class="details-value">' + partnerInfo + '</div></div>' +
@@ -3362,6 +3376,7 @@ window.checkDebugStatus = function() {
             
             document.getElementById('patientDetails').innerHTML = details;
             
+            startTiming('build_appointment_history');
             // Appointments tab
             var apptHistory = '<h3 style="margin-bottom: 15px; font-size: 16px;">Appointment History</h3>';
             if (patient.appointmentHistory && patient.appointmentHistory.length > 0) {
@@ -3378,7 +3393,9 @@ window.checkDebugStatus = function() {
                 apptHistory += '<div class="empty-state">No appointment history yet</div>';
             }
             document.getElementById('appointmentHistory').innerHTML = apptHistory;
+            endTiming('build_appointment_history');
             
+            startTiming('build_state_history');
             // History tab
             var stateHistory = '<h3 style="margin-bottom: 15px; font-size: 16px;">State History</h3>';
             if (patient.stateHistory && patient.stateHistory.length > 0) {
@@ -3393,6 +3410,7 @@ window.checkDebugStatus = function() {
                 stateHistory += '</div>';
             }
             document.getElementById('stateHistoryContent').innerHTML = stateHistory;
+            endTiming('build_state_history');
             
             var notesHistory = '';
             if (patient.notesHistory && patient.notesHistory.length > 0) {
@@ -3453,6 +3471,7 @@ window.checkDebugStatus = function() {
             document.getElementById('detailsModal').classList.add('active');
             
             // Switch to info tab by default
+            startTiming('switch_to_info_tab');
             var tabs = document.querySelectorAll('.tab');
             var contents = document.querySelectorAll('.tab-content');
             for (var i = 0; i < tabs.length; i++) {
@@ -3463,6 +3482,9 @@ window.checkDebugStatus = function() {
             }
             tabs[0].classList.add('active');
             document.getElementById('infoTab').classList.add('active');
+            endTiming('switch_to_info_tab');
+            
+            endTiming('viewPatientDetails');
         }
 
         // Transition to Pregnant or Inactive state
