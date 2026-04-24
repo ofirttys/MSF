@@ -826,51 +826,40 @@ window.checkDebugStatus = function() {
             // TODO: If changed, should save to backend via updatePatientStateWithSave()
         }
         
-        // Load remaining patients in batches without blocking UI
+        // Load remaining patients in ONE query (simple 2-step approach)
         async function loadRemainingPatientsInBackground(currentOffset, totalPatients) {
             startTiming('background_patient_load');
-            var batchSize = 100; // Load 100 at a time
-            var loaded = currentOffset;
             
-            console.log(`Background loading: ${totalPatients - loaded} patients remaining...`);
+            var remaining = totalPatients - currentOffset;
+            console.log(`Background loading: ${remaining} remaining patients in ONE query...`);
             
-            while (loaded < totalPatients) {
-                try {
-                    // Small delay to not block UI
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    
-                    var result = await eel.get_patients_paginated(batchSize, loaded)();
-                    
-                    // Migrate fields for new patients
-                    for (var i = 0; i < result.patients.length; i++) {
-                        var p = result.patients[i];
-                        if (p.isSurvivorshipClinic === undefined) p.isSurvivorshipClinic = false;
-                        if (p.isOTC === undefined) p.isOTC = false;
-                        if (p.isPriorityList === undefined) p.isPriorityList = false;
-                    }
-                    
-                    // Add to patients array
-                    patients = patients.concat(result.patients);
-                    loaded += result.patients.length;
-                    
-                    console.log(`Background loaded: ${loaded}/${totalPatients} patients (${Math.round(loaded/totalPatients*100)}%)`);
-                    
-                    // Update UI progressively every 200 patients
-                    if (loaded % 200 === 0 || !result.has_more) {
-                        renderPatientList();
-                        updateStatusCounts();
-                    }
-                    
-                    if (!result.has_more) break;
-                    
-                } catch (error) {
-                    console.error('Error loading patient batch:', error);
-                    break;
+            try {
+                // Load ALL remaining patients in ONE query (simpler than batching!)
+                var result = await eel.get_patients_paginated(remaining, currentOffset)();
+                
+                // Migrate fields for new patients
+                for (var i = 0; i < result.patients.length; i++) {
+                    var p = result.patients[i];
+                    if (p.isSurvivorshipClinic === undefined) p.isSurvivorshipClinic = false;
+                    if (p.isOTC === undefined) p.isOTC = false;
+                    if (p.isPriorityList === undefined) p.isPriorityList = false;
                 }
+                
+                // Add to patients array
+                patients = patients.concat(result.patients);
+                
+                console.log(`✅ Background load complete: All ${patients.length} patients loaded`);
+                
+                // Update UI with all patients
+                renderPatientList();
+                updateStatusCounts(); // Recalculate from full patient list (optional - counts already correct!)
+                
+                endTiming('background_patient_load');
+                
+            } catch (error) {
+                console.error('Error loading remaining patients:', error);
+                endTiming('background_patient_load');
             }
-            
-            endTiming('background_patient_load');
-            console.log(`✅ Background load complete: All ${patients.length} patients loaded`);
         }
 
         // File System Operations (HTA-specific)
@@ -878,6 +867,11 @@ window.checkDebugStatus = function() {
         async function loadDatabase() {
             startTiming('loadDatabase_full');
             try {
+                // PHASE 1: Load KPIs FIRST (so counts are always correct!)
+                startTiming('eel.get_status_counts');
+                var kpiCounts = await eel.get_status_counts()();
+                endTiming('eel.get_status_counts');
+                
                 // PHASE 1: Load first 50 patients (FAST - show UI immediately!)
                 startTiming('eel.get_patients_paginated_initial');
                 var initialResult = await eel.get_patients_paginated(50, 0)();
@@ -888,7 +882,7 @@ window.checkDebugStatus = function() {
                 var hasMore = initialResult.has_more;
                 
                 if (DEBUG_TIMING) {
-                    logTiming(`Loaded first ${patients.length} of ${totalPatients} patients (showing UI now!)`);
+                    logTiming(`Loaded KPIs + first ${patients.length} of ${totalPatients} patients (showing UI now!)`);
                 }
                 
                 // Initialize empty structures if needed
@@ -926,8 +920,9 @@ window.checkDebugStatus = function() {
                 await renderAppointments();
                 endTiming('renderAppointments_from_loadDB');
                 
+                // Use pre-loaded KPI counts (already fetched from SQL!)
                 startTiming('updateStatusCounts_from_loadDB');
-                updateStatusCounts();
+                updateStatusCounts(kpiCounts);
                 endTiming('updateStatusCounts_from_loadDB');
                 
                 startTiming('updateClinicTypeButtons');
@@ -935,7 +930,7 @@ window.checkDebugStatus = function() {
                 endTiming('updateClinicTypeButtons');
                 
                 if (DEBUG_TIMING) {
-                    logTiming('Initial UI loaded - loading remaining patients in background...');
+                    logTiming('Initial UI loaded with CORRECT KPIs - loading remaining patients in background...');
                 }
                 endTiming('loadDatabase_full');
                 
@@ -2510,37 +2505,55 @@ window.checkDebugStatus = function() {
         }
 
         // Update status counts
-        function updateStatusCounts() {
-            var counts = {
-                WAITING_FIRST_APPT_SCHEDULE: 0,
-                WAITING_FIRST_APPT: 0,
-                WAITING_APPT_SUMMARY: 0,
-                WAITING_NEXT_APPT_SCHEDULE: 0,
-                WAITING_NEXT_APPT: 0,
-                PREGNANT: 0,
-                INACTIVE: 0
-            };
+        function updateStatusCounts(precomputedCounts) {
+            var counts, overdueCount, priorityListCount;
             
-            var today = getTodayLocalDate();
-            var overdueCount = 0;
-            var priorityListCount = 0;
-            
-            // OPTIMIZED: Single loop instead of three separate loops (3x faster!)
-            for (var i = 0; i < patients.length; i++) {
-                var p = patients[i];
+            // If we have pre-computed counts from SQL (initial load), use them!
+            if (precomputedCounts) {
+                counts = {
+                    WAITING_FIRST_APPT_SCHEDULE: precomputedCounts.state_counts['WAITING_FIRST_APPT_SCHEDULE'] || 0,
+                    WAITING_FIRST_APPT: precomputedCounts.state_counts['WAITING_FIRST_APPT'] || 0,
+                    WAITING_APPT_SUMMARY: precomputedCounts.state_counts['WAITING_APPT_SUMMARY'] || 0,
+                    WAITING_NEXT_APPT_SCHEDULE: precomputedCounts.state_counts['WAITING_NEXT_APPT_SCHEDULE'] || 0,
+                    WAITING_NEXT_APPT: precomputedCounts.state_counts['WAITING_NEXT_APPT'] || 0,
+                    PREGNANT: precomputedCounts.state_counts['PREGNANT'] || 0,
+                    INACTIVE: precomputedCounts.state_counts['INACTIVE'] || 0
+                };
+                overdueCount = precomputedCounts.overdue;
+                priorityListCount = precomputedCounts.priority;
+            } else {
+                // Otherwise, calculate from loaded patients (after background load completes)
+                counts = {
+                    WAITING_FIRST_APPT_SCHEDULE: 0,
+                    WAITING_FIRST_APPT: 0,
+                    WAITING_APPT_SUMMARY: 0,
+                    WAITING_NEXT_APPT_SCHEDULE: 0,
+                    WAITING_NEXT_APPT: 0,
+                    PREGNANT: 0,
+                    INACTIVE: 0
+                };
                 
-                // Count by state
-                counts[p.currentState]++;
+                var today = getTodayLocalDate();
+                overdueCount = 0;
+                priorityListCount = 0;
                 
-                // Count overdue appointments (while we're looping)
-                if ((p.currentState === 'WAITING_FIRST_APPT' || p.currentState === 'WAITING_NEXT_APPT')
-                    && p.nextAppointment && p.nextAppointment < today) {
-                    overdueCount++;
-                }
-                
-                // Count priority list patients (while we're looping)
-                if (p.isPriorityList === true) {
-                    priorityListCount++;
+                // OPTIMIZED: Single loop instead of three separate loops (3x faster!)
+                for (var i = 0; i < patients.length; i++) {
+                    var p = patients[i];
+                    
+                    // Count by state
+                    counts[p.currentState]++;
+                    
+                    // Count overdue appointments (while we're looping)
+                    if ((p.currentState === 'WAITING_FIRST_APPT' || p.currentState === 'WAITING_NEXT_APPT')
+                        && p.nextAppointment && p.nextAppointment < today) {
+                        overdueCount++;
+                    }
+                    
+                    // Count priority list patients (while we're looping)
+                    if (p.isPriorityList === true) {
+                        priorityListCount++;
+                    }
                 }
             }
 

@@ -138,6 +138,50 @@ def get_all_appointment_dates():
     return [row['date'] for row in results]
 
 @eel.expose
+def get_status_counts():
+    """
+    Get KPI counts using SQL (fast - ~10ms for all counts!)
+    
+    Returns:
+        {
+            'state_counts': {state: count, ...},
+            'overdue': count,
+            'priority': count
+        }
+    """
+    from datetime import datetime
+    
+    # Count by state
+    state_query = """
+        SELECT currentState, COUNT(*) as count
+        FROM patients
+        GROUP BY currentState
+    """
+    state_results = db.fetchall(state_query)
+    state_counts = {row['currentState']: row['count'] for row in state_results}
+    
+    # Count overdue appointments
+    today = datetime.now().strftime('%Y-%m-%d')
+    overdue_query = """
+        SELECT COUNT(*) as count
+        FROM patients
+        WHERE (currentState = 'WAITING_FIRST_APPT' OR currentState = 'WAITING_NEXT_APPT')
+          AND nextAppointment IS NOT NULL
+          AND nextAppointment < ?
+    """
+    overdue_result = db.fetchone(overdue_query, (today,))
+    
+    # Count priority list
+    priority_query = "SELECT COUNT(*) as count FROM patients WHERE isPriorityList = 1"
+    priority_result = db.fetchone(priority_query)
+    
+    return {
+        'state_counts': state_counts,
+        'overdue': overdue_result['count'] if overdue_result else 0,
+        'priority': priority_result['count'] if priority_result else 0
+    }
+
+@eel.expose
 def get_todays_appointments():
     """Get just today's appointments for fast initial load"""
     from datetime import datetime
