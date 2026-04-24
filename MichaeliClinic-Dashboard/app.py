@@ -86,6 +86,65 @@ def get_all_patients():
     return patient_mgr.get_all()
 
 @eel.expose
+def get_patients_paginated(limit=50, offset=0):
+    """
+    Get patients in pages for progressive loading
+    
+    Args:
+        limit: Number of patients to return (default 50)
+        offset: Starting position (default 0)
+        
+    Returns:
+        {
+            'patients': [...],
+            'total': total_count,
+            'has_more': True/False
+        }
+    """
+    all_patients = patient_mgr.get_all()
+    total = len(all_patients)
+    
+    # Get slice
+    patients_slice = all_patients[offset:offset + limit]
+    
+    return {
+        'patients': patients_slice,
+        'total': total,
+        'has_more': (offset + limit) < total
+    }
+
+@eel.expose
+def get_all_appointment_dates():
+    """
+    Get all unique dates that have appointments (for calendar highlighting)
+    Uses SQL UNION for fast retrieval
+    
+    Returns:
+        List of date strings (YYYY-MM-DD)
+    """
+    query = """
+        SELECT DISTINCT date 
+        FROM (
+            SELECT nextAppointment as date 
+            FROM patients 
+            WHERE nextAppointment IS NOT NULL
+            UNION
+            SELECT date 
+            FROM appointment_history
+        )
+        ORDER BY date
+    """
+    results = db.fetchall(query)
+    return [row['date'] for row in results]
+
+@eel.expose
+def get_todays_appointments():
+    """Get just today's appointments for fast initial load"""
+    from datetime import datetime
+    today = datetime.now().strftime('%Y-%m-%d')
+    return appointment_mgr.get_appointments_by_date(today)
+
+@eel.expose
 def get_filtered_patients(state_filters=None, search_term=None, special_filters=None):
     """Get filtered patients using SQL
     
