@@ -624,6 +624,8 @@ window.checkDebugStatus = function() {
             await checkDebugMode();
             
             document.getElementById('filePathDisplay').textContent = 'Backend Database (SQLite)';
+            
+            // loadDatabase now handles showing mainApp and rendering UI
             await loadDatabase();
             
             // Apply read-only mode if needed
@@ -633,14 +635,6 @@ window.checkDebugStatus = function() {
             if (!isReadOnly) {
                 autoTransitionPastAppointments();
             }
-            
-            updateDateDisplay();
-            await renderAppointments();
-            await renderPatientList();
-            updateStatusCounts();
-            
-            // Initialize main date picker for appointments (uses SQL backend)
-            await initializeMainDatePicker();
             
             // Lock file refresh timer (5 minutes) - only if not read-only
             if (autoSaveInterval) {
@@ -911,7 +905,12 @@ window.checkDebugStatus = function() {
                 }
                 endTiming('migrate_patient_fields');
                 
-                // RENDER UI WITH FIRST 50 PATIENTS (User sees something now!)
+                // ✨ SHOW UI NOW! (before loading rest of patients)
+                if (document.getElementById('mainApp').style.display !== 'block') {
+                    document.getElementById('mainApp').style.display = 'block';
+                }
+                
+                // RENDER UI WITH FIRST 50 PATIENTS + CORRECT KPIs
                 startTiming('renderPatientList_from_loadDB');
                 await renderPatientList();
                 endTiming('renderPatientList_from_loadDB');
@@ -928,6 +927,12 @@ window.checkDebugStatus = function() {
                 startTiming('updateClinicTypeButtons');
                 updateClinicTypeButtons();
                 endTiming('updateClinicTypeButtons');
+                
+                // Update date display
+                updateDateDisplay();
+                
+                // Initialize main date picker for appointments (uses SQL backend)
+                await initializeMainDatePicker();
                 
                 if (DEBUG_TIMING) {
                     logTiming('Initial UI loaded with CORRECT KPIs - loading remaining patients in background...');
