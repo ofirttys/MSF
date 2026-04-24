@@ -285,11 +285,6 @@ def get_appointments_for_date(date_str):
     return appointment_mgr.get_appointments_by_date(date_str)
 
 @eel.expose
-def get_todays_appointments():
-    """Get today's appointments"""
-    return appointment_mgr.get_today()
-
-@eel.expose
 def update_next_appointment(patient_id, date, time, location):
     """Update patient's next appointment"""
     return appointment_mgr.update_next(patient_id, date, time, location)
