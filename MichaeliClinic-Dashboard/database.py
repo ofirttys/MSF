@@ -27,14 +27,28 @@ class Database:
         # Enable foreign keys
         self.conn.execute("PRAGMA foreign_keys = ON")
         
-        # Enable WAL mode for better concurrent access
-        self.conn.execute("PRAGMA journal_mode=WAL")
+        # Use DELETE mode (default) instead of WAL
+        # WAL is unnecessary since we have:
+        # - Single-writer locking (read-only mode for other users)
+        # - Auto-refresh every 15 seconds for change detection
+        # - Conflict detection system
+        # DELETE mode is simpler, more reliable, and commits are immediate!
+        self.conn.execute("PRAGMA journal_mode=DELETE")
+        
+        # Set synchronous mode to FULL for maximum safety
+        self.conn.execute("PRAGMA synchronous=FULL")
     
     def close(self):
         """Close database connection"""
         if self.conn:
-            self.conn.close()
-            self.conn = None
+            try:
+                # Final commit before closing
+                self.conn.commit()
+            except Exception as e:
+                print(f"Warning: Final commit failed: {e}")
+            finally:
+                self.conn.close()
+                self.conn = None
     
     def execute(self, query: str, params: tuple = ()) -> sqlite3.Cursor:
         """Execute a query and return cursor"""

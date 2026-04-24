@@ -234,11 +234,11 @@ class PatientManager:
             self.db.execute("""
                 INSERT INTO patients (
                     patientID, patientName, patientAlias, patientFirstName, patientMiddleName, patientLastName,
-                    partnerName, partnerAlias, partnerFirstName, partnerMiddleName, partnerLastName,
+                    partnerID, partnerName, partnerAlias, partnerFirstName, partnerMiddleName, partnerLastName,
                     patientPhone, patientEmail, partnerPhone, partnerEmail,
                     currentState, notes, dateAdded,
                     isSurvivorshipClinic, isPriorityList, isOTC
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 patient_data['patientID'],
                 patient_data['patientName'],
@@ -246,6 +246,7 @@ class PatientManager:
                 patient_data.get('patientFirstName', ''),
                 patient_data.get('patientMiddleName', ''),
                 patient_data.get('patientLastName', ''),
+                patient_data.get('partnerID', ''),
                 patient_data.get('partnerName', ''),
                 patient_data.get('partnerAlias', ''),
                 patient_data.get('partnerFirstName', ''),
@@ -287,7 +288,7 @@ class PatientManager:
             self.db.execute("""
                 UPDATE patients SET
                     patientName = ?, patientAlias = ?, patientFirstName = ?, patientMiddleName = ?, patientLastName = ?,
-                    partnerName = ?, partnerAlias = ?, partnerFirstName = ?, partnerMiddleName = ?, partnerLastName = ?,
+                    partnerID = ?, partnerName = ?, partnerAlias = ?, partnerFirstName = ?, partnerMiddleName = ?, partnerLastName = ?,
                     patientPhone = ?, patientEmail = ?, partnerPhone = ?, partnerEmail = ?,
                     notes = ?,
                     isSurvivorshipClinic = ?, isPriorityList = ?, isOTC = ?
@@ -298,6 +299,7 @@ class PatientManager:
                 patient_data.get('patientFirstName', ''),
                 patient_data.get('patientMiddleName', ''),
                 patient_data.get('patientLastName', ''),
+                patient_data.get('partnerID', ''),
                 patient_data.get('partnerName', ''),
                 patient_data.get('partnerAlias', ''),
                 patient_data.get('partnerFirstName', ''),

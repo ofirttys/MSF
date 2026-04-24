@@ -1184,6 +1184,8 @@ def main():
     """Main entry point"""
     import sys
     import socket
+    import signal
+    import atexit
     
     # Check for debug flag
     debug_mode = '--debug' in sys.argv or '-d' in sys.argv
@@ -1207,6 +1209,28 @@ def main():
     
     # Initialize
     initialize_app()
+    
+    # Graceful shutdown handler
+    def shutdown_handler(signum=None, frame=None):
+        """Ensure database is properly closed on shutdown"""
+        print("\n💾 Shutting down gracefully...")
+        
+        # Close database connection
+        if db:
+            print("💾 Closing database...")
+            try:
+                db.close()
+                print("✓ Database closed safely")
+            except Exception as e:
+                print(f"⚠️  Database close failed: {e}")
+        
+        print("✓ Shutdown complete")
+        sys.exit(0)
+    
+    # Register shutdown handlers
+    signal.signal(signal.SIGINT, shutdown_handler)   # Ctrl+C
+    signal.signal(signal.SIGTERM, shutdown_handler)  # Kill signal
+    atexit.register(lambda: shutdown_handler())      # Normal exit
     
     # Find available port (in case another instance is running)
     def find_free_port(start_port=8080):
@@ -1260,9 +1284,7 @@ def main():
                 print("Starting with default browser...")
                 eel.start('index.html', mode=None, size=(1920, 1080), port=port)
     except (SystemExit, KeyboardInterrupt):
-        print("\nShutting down...")
-        if db:
-            db.close()
+        shutdown_handler()
 
 
 if __name__ == '__main__':

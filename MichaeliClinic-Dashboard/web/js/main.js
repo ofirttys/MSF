@@ -3317,25 +3317,28 @@ window.checkDebugStatus = function() {
                 var success = await eel.update_patient(currentEditingPatient.patientID, patientData)();
                 
                 if (success) {
-                    for (var i = 0; i < patients.length; i++) {
-                        if (patients[i].patientID === currentEditingPatient.patientID) {
-                            patients[i] = mergeObjects({}, patients[i], patientData);
-                            break;
-                        }
-                    }
-                    
                     // Add notes to history if changed
                     if (patientData.notes !== currentEditingPatient.notes && patientData.notes) {
                         await eel.add_note_history(currentEditingPatient.patientID, patientData.notes)();
                     }
                     
-                    // Reload data to get updated notesHistory from backend
-                    await loadDatabase();
+                    // Refresh ONLY this patient from backend to get updated history
+                    var updatedPatient = await eel.get_patient(currentEditingPatient.patientID)();
+                    
+                    // Update in local array
+                    for (var i = 0; i < patients.length; i++) {
+                        if (patients[i].patientID === currentEditingPatient.patientID) {
+                            patients[i] = updatedPatient;
+                            break;
+                        }
+                    }
                     
                     closeModal('patientModal');
+                    
+                    // Re-render affected views
                     renderPatientList();
-                    renderAppointments();
-                    updateStatusCounts();
+                    renderAppointments(); // In case appointment info changed
+                    updateStatusCounts(); // Update KPIs (in case isPriorityList changed)
                     
                     // Reopen the patient view
                     viewPatientDetails(patientData.patientID);
@@ -3362,7 +3365,7 @@ window.checkDebugStatus = function() {
                     nextAppointment: null,
                     appointmentTime: null,
                     appointmentHistory: [],
-                    notesHistory: []  // Will be populated from backend after save
+                    notesHistory: []
                 });
                 
                 var success = await eel.add_patient(newPatient)();
@@ -3373,12 +3376,19 @@ window.checkDebugStatus = function() {
                         await eel.add_note_history(patientData.patientID, patientData.notes)();
                     }
                     
-                    // Reload data to get patient with notesHistory from backend
-                    await loadDatabase();
+                    // Fetch the complete patient from backend (with history)
+                    var savedPatient = await eel.get_patient(patientData.patientID)();
+                    
+                    // Add to local array
+                    patients.push(savedPatient);
                     
                     closeModal('patientModal');
+                    
+                    // Re-render affected views
                     renderPatientList();
                     renderAppointments();
+                    
+                    // Update ONLY the affected KPI (WAITING_FIRST_APPT_SCHEDULE +1)
                     updateStatusCounts();
                 } else {
                     showError('Failed to add patient to database');
@@ -5742,13 +5752,25 @@ async function updatePatientStateWithSave(patientID, newState, notes) {
     
     try {
         startTiming('eel.update_patient_state_with_version');
+        var startTime = performance.now();
+        
         var result = await eel.update_patient_state_with_version(
             patientID, 
             newState, 
             notes,
             lastTimestamp
         )();
+        
+        var elapsed = performance.now() - startTime;
         endTiming('eel.update_patient_state_with_version');
+        
+        // Database lock detection: If took > 1 second, another user was writing
+        if (elapsed > 1000) {
+            console.log('⚠️ Database was locked for ' + Math.round(elapsed) + 'ms (another user was saving)');
+            if (DEBUG_TIMING) {
+                logTiming('Database lock wait: ' + Math.round(elapsed) + 'ms');
+            }
+        }
         
         // Conflict detected!
         if (result.conflict) {
