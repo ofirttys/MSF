@@ -675,43 +675,35 @@ window.checkDebugStatus = function() {
             var lastRefreshTimestamp = null;
             var isManualOperationInProgress = false;
             
-            setInterval(async function() {
-                // Skip auto-refresh if user is actively performing an operation
+            // Reusable smart refresh function
+            async function doSmartRefresh(reason) {
                 if (isManualOperationInProgress) {
-                    console.log('Skipping auto-refresh (manual operation in progress)');
-                    return;
+                    console.log(`Skipping smart refresh (${reason}) - manual operation in progress`);
+                    return false;
                 }
                 
                 try {
-                    // Ask backend: has anything changed since last check?
                     var currentTimestamp = await eel.get_last_modified_timestamp()();
                     
                     if (lastRefreshTimestamp === null) {
-                        // First time - just record timestamp, don't refresh
                         lastRefreshTimestamp = currentTimestamp;
-                        return;
+                        return false;
                     }
                     
                     if (currentTimestamp !== lastRefreshTimestamp) {
-                        console.log('Database changes detected, checking which patients changed...');
+                        console.log(`Smart refresh triggered by: ${reason}`);
                         
-                        startTiming('smart_auto_refresh');
+                        startTiming('smart_refresh_' + reason);
                         
-                        // Get list of changed patient IDs (much faster than loading all patients!)
-                        startTiming('eel.get_changed_patients_since');
                         var changedIDs = await eel.get_changed_patients_since(lastRefreshTimestamp)();
-                        endTiming('eel.get_changed_patients_since');
-                        
-                        console.log(`Found ${changedIDs.length} changed patients (not reloading all 1,306!)`);
                         
                         if (changedIDs.length > 0) {
-                            // Reload only the patients that changed
-                            startTiming('reload_changed_patients');
+                            console.log(`Found ${changedIDs.length} changed patients`);
+                            
                             for (var i = 0; i < changedIDs.length; i++) {
                                 var id = changedIDs[i];
                                 var updatedPatient = await eel.get_patient(id)();
                                 
-                                // Update in local array
                                 var found = false;
                                 for (var j = 0; j < patients.length; j++) {
                                     if (patients[j].patientID === id) {
@@ -721,31 +713,34 @@ window.checkDebugStatus = function() {
                                     }
                                 }
                                 
-                                // New patient added by another user
                                 if (!found) {
                                     patients.push(updatedPatient);
                                     console.log('New patient added by another user:', updatedPatient.patientName);
                                 }
                             }
-                            endTiming('reload_changed_patients');
                             
                             // Re-render UI with updated patients
-                            startTiming('refresh_ui_after_smart_refresh');
-                            await renderPatientList();
+                            renderPatientList();
                             await renderAppointments();
                             updateStatusCounts();
-                            endTiming('refresh_ui_after_smart_refresh');
                         }
                         
-                        endTiming('smart_auto_refresh');
+                        endTiming('smart_refresh_' + reason);
                         lastRefreshTimestamp = currentTimestamp;
-                    } else {
-                        console.log('No database changes detected, skipping refresh');
+                        return true;
                     }
+                    
+                    return false;
                 } catch (error) {
-                    console.error('Error in smart auto-refresh:', error);
+                    console.error('Error in smart refresh:', error);
+                    return false;
                 }
-            }, 60 * 1000); // Check every 60 seconds
+            }
+            
+            // Background auto-refresh (every 15 seconds)
+            setInterval(async function() {
+                await doSmartRefresh('auto_refresh_timer');
+            }, 15 * 1000); // Check every 15 seconds
             
             // Check and create daily backup (first use each day)
             if (!isReadOnly) {
@@ -2091,6 +2086,9 @@ window.checkDebugStatus = function() {
 		
         // Appointments rendering - SORTED BY TIME, LIMITED TO 5 WITH SCROLLING
         async function renderAppointments() {
+            // TRIGGER 1: Smart refresh when opening daily view
+            await doSmartRefresh('open_daily_view');
+            
             var container = document.getElementById('appointmentsList');
             var dateStr = currentViewDate.getFullYear() + '-' +
 							('0' + (currentViewDate.getMonth() + 1)).slice(-2) + '-' +
@@ -2623,7 +2621,7 @@ window.checkDebugStatus = function() {
                 await loadMonthClinicDays(weekEnd.getFullYear(), weekEnd.getMonth() + 1);
             }
             
-            renderWeekView();
+            await renderWeekView();
             document.getElementById('weekViewModal').classList.add('active');
         }
         
@@ -2654,7 +2652,7 @@ window.checkDebugStatus = function() {
                 await loadMonthClinicDays(weekEnd.getFullYear(), weekEnd.getMonth() + 1);
             }
             
-            renderWeekView();
+            await renderWeekView();
         }
         
         // Format date as YYYY-MM-DD
@@ -2665,7 +2663,10 @@ window.checkDebugStatus = function() {
         }
         
 		// Render the week view
-        function renderWeekView() {
+        async function renderWeekView() {
+            // TRIGGER 2: Smart refresh when opening weekly view
+            await doSmartRefresh('open_weekly_view');
+            
             var today = getTodayLocalDate();
             
             // Start from Monday of current week and keep adding days until we fill the space
@@ -2911,7 +2912,7 @@ window.checkDebugStatus = function() {
         }
 
 		// View patient details from week view (ensures modal appears on top)
-        function viewPatientDetailsFromWeekView(patientID) {
+        async function viewPatientDetailsFromWeekView(patientID) {
             // Close week view first, then open patient details
             // Or use z-index to ensure details modal is on top
             var weekModal = document.getElementById('weekViewModal');
@@ -2922,7 +2923,7 @@ window.checkDebugStatus = function() {
                 detailsModal.style.zIndex = '1001';
             }
             
-            viewPatientDetails(patientID);
+            await viewPatientDetails(patientID);
         }
         
 		// Get appointments for a week
@@ -3298,7 +3299,10 @@ window.checkDebugStatus = function() {
             }
 		}
 
-        function viewPatientDetails(patientID) {
+        async function viewPatientDetails(patientID) {
+            // TRIGGER 3: Smart refresh when opening patient details
+            await doSmartRefresh('open_patient_details');
+            
             startTiming('viewPatientDetails');
             
             startTiming('find_patient');
