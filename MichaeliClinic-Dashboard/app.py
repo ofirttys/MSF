@@ -278,14 +278,15 @@ def schedule_appointment_with_conflict_check(patient_id, date, time, location):
         
         # Slot appears free - use transaction to ensure atomicity
         # This prevents race condition if two users click simultaneously
-        db.execute("BEGIN IMMEDIATE")
-        
         try:
+            # Start transaction using the connection's isolation level
+            db.conn.isolation_level = 'IMMEDIATE'
+            
             # Double-check inside transaction (prevents race between check and update)
             conflicting = db.fetchone(conflict_query, (date, time, patient_id))
             
             if conflicting:
-                db.execute("ROLLBACK")
+                db.rollback()
                 return {
                     'success': False,
                     'conflict': True,
@@ -296,7 +297,11 @@ def schedule_appointment_with_conflict_check(patient_id, date, time, location):
             # Actually schedule the appointment
             appointment_mgr.update_next(patient_id, date, time, location)
             
-            db.execute("COMMIT")
+            # Commit the transaction
+            db.commit()
+            
+            # Restore default isolation level
+            db.conn.isolation_level = ''
             
             # Get updated patient data
             updated_patient = patient_mgr.get_by_id(patient_id)
@@ -309,7 +314,8 @@ def schedule_appointment_with_conflict_check(patient_id, date, time, location):
             }
             
         except Exception as e:
-            db.execute("ROLLBACK")
+            db.rollback()
+            db.conn.isolation_level = ''  # Restore default
             raise e
             
     except Exception as e:
