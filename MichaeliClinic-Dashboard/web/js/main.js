@@ -861,36 +861,32 @@ window.checkDebugStatus = function() {
         async function loadDatabase() {
             startTiming('loadDatabase_full');
             try {
-                // PHASE 1: Load KPIs FIRST (so counts are always correct!)
-                startTiming('eel.get_status_counts');
-                var kpiCounts = await eel.get_status_counts()();
-                endTiming('eel.get_status_counts');
-                
-                // PHASE 1: Load first 50 patients (FAST - show UI immediately!)
-                startTiming('eel.get_patients_paginated_initial');
-                var initialResult = await eel.get_patients_paginated(50, 0)();
-                endTiming('eel.get_patients_paginated_initial');
+                // OPTIMIZED: Load KPIs, patients, and today's clinic config in PARALLEL!
+                startTiming('parallel_initial_load');
+                var [kpiCounts, initialResult] = await Promise.all([
+                    eel.get_status_counts()(),
+                    eel.get_patients_paginated(50, 0)()
+                ]);
+                endTiming('parallel_initial_load');
                 
                 patients = initialResult.patients;
                 var totalPatients = initialResult.total;
                 var hasMore = initialResult.has_more;
                 
                 if (DEBUG_TIMING) {
-                    logTiming(`Loaded KPIs + first ${patients.length} of ${totalPatients} patients (showing UI now!)`);
+                    logTiming(`Loaded KPIs + first ${patients.length} of ${totalPatients} patients in parallel`);
                 }
                 
                 // Initialize empty structures if needed
                 if (!patients) patients = [];
                 
                 // Initialize clinic days - will be loaded on demand
-                clinicDays = {};
+                if (!clinicDays) clinicDays = {};
                 
-                // Load current day's clinic configuration
-                startTiming('loadCurrentDayClinicData');
-                await loadCurrentDayClinicData();
-                endTiming('loadCurrentDayClinicData');
+                // Load current day's clinic configuration (deferred - not blocking)
+                loadCurrentDayClinicData();
                 
-                // Migrate old patients to add new fields if they don't exist
+                // Migrate old patients to add new fields if they don't exist (FAST - in memory)
                 startTiming('migrate_patient_fields');
                 for (var i = 0; i < patients.length; i++) {
                     if (patients[i].isSurvivorshipClinic === undefined) {
@@ -910,16 +906,15 @@ window.checkDebugStatus = function() {
                     document.getElementById('mainApp').style.display = 'block';
                 }
                 
-                // RENDER UI WITH FIRST 50 PATIENTS + CORRECT KPIs
-                startTiming('renderPatientList_from_loadDB');
-                await renderPatientList();
-                endTiming('renderPatientList_from_loadDB');
+                // RENDER UI WITH FIRST 50 PATIENTS + CORRECT KPIs (in parallel)
+                startTiming('parallel_render');
+                await Promise.all([
+                    renderPatientList(),
+                    renderAppointments()
+                ]);
+                endTiming('parallel_render');
                 
-                startTiming('renderAppointments_from_loadDB');
-                await renderAppointments();
-                endTiming('renderAppointments_from_loadDB');
-                
-                // Use pre-loaded KPI counts (already fetched from SQL!)
+                // Update KPI displays (just updates DOM - fast!)
                 startTiming('updateStatusCounts_from_loadDB');
                 updateStatusCounts(kpiCounts);
                 endTiming('updateStatusCounts_from_loadDB');
@@ -2315,13 +2310,20 @@ window.checkDebugStatus = function() {
                 }
             }
             
-            // Get filtered patients from backend (SQL filtering!)
+            // Determine if we need SQL sorting (for last appointment modes)
+            var sqlSortBy = null;
+            if (currentSortMode === 'appt-new' || currentSortMode === 'appt-old') {
+                sqlSortBy = currentSortMode;  // Backend will use JOIN to get lastAppointmentDate
+            }
+            
+            // Get filtered patients from backend (SQL filtering + optional SQL sorting!)
             var filtered;
             try {
                 filtered = await eel.get_filtered_patients(
                     stateFilters.length > 0 ? stateFilters : null,
                     searchTerm || null,
-                    specialFilters.length > 0 ? specialFilters : null
+                    specialFilters.length > 0 ? specialFilters : null,
+                    sqlSortBy  // Pass sort mode to backend
                 )();
             } catch (error) {
                 console.error('Error fetching filtered patients:', error);
@@ -2329,37 +2331,26 @@ window.checkDebugStatus = function() {
                 filtered = patients;
             }
             
-            // SORT based on currentSortMode
-            filtered.sort(function(a, b) {
-                if (currentSortMode === 'name') {
-                    return a.patientName.localeCompare(b.patientName);
-				} else if (currentSortMode === 'next-appt') {
-					// Sort by next appointment date
-					var dateA = a.nextAppointment || '';
-					var dateB = b.nextAppointment || '';
-					
-					// Handle empty dates (no next appointment goes to end)
-					if (!dateA && !dateB) return a.patientName.localeCompare(b.patientName);
-					if (!dateA) return 1;
-					if (!dateB) return -1;
-					
-					return dateB.localeCompare(dateA);  // Soonest first
-				} else {
-                    var dateA = getLastAppointmentDate(a);
-                    var dateB = getLastAppointmentDate(b);
-                    
-                    // Handle null dates (patients with no appointment history)
-                    if (!dateA && !dateB) return a.patientName.localeCompare(b.patientName);
-                    if (!dateA) return 1;  // No history goes to end
-                    if (!dateB) return -1;
-                    
-                    if (currentSortMode === 'appt-new') {
-                        return dateB.localeCompare(dateA);  // Newest first
-                    } else {
-                        return dateA.localeCompare(dateB);  // Oldest first
+            // Client-side SORT (only if NOT already sorted by SQL)
+            if (currentSortMode !== 'appt-new' && currentSortMode !== 'appt-old') {
+                filtered.sort(function(a, b) {
+                    if (currentSortMode === 'name') {
+                        return a.patientName.localeCompare(b.patientName);
+                    } else if (currentSortMode === 'next-appt') {
+                        // Sort by next appointment date
+                        var dateA = a.nextAppointment || '';
+                        var dateB = b.nextAppointment || '';
+                        
+                        // Handle empty dates (no next appointment goes to end)
+                        if (!dateA && !dateB) return a.patientName.localeCompare(b.patientName);
+                        if (!dateA) return 1;
+                        if (!dateB) return -1;
+                        
+                        return dateB.localeCompare(dateA);  // Soonest first
                     }
-                }
-            });
+                });
+            }
+            // else: Already sorted by SQL (appt-new or appt-old), skip client-side sorting!
 
             // Update patient count
             document.getElementById('patientCount').textContent = filtered.length;

@@ -14,7 +14,7 @@ class PatientManager:
         self.db = db
     
     def get_all(self) -> List[Dict]:
-        """Get all patients with basic info"""
+        """Get all patients with basic info (NO HISTORIES - use get_by_id for full details)"""
         patients = self.db.fetchall("""
             SELECT 
                 patientID, patientName, partnerName, partnerID,
@@ -28,51 +28,34 @@ class PatientManager:
             ORDER BY patientName
         """)
         
-        # Convert integer flags to booleans and add appointment history
+        # Convert integer flags to booleans (NO HISTORIES!)
         for patient in patients:
             patient['isSurvivorshipClinic'] = bool(patient.get('isSurvivorshipClinic', 0))
             patient['isPriorityList'] = bool(patient.get('isPriorityList', 0))
             patient['isOTC'] = bool(patient.get('isOTC', 0))
-            
-            # Load appointment history for sorting
-            patient['appointmentHistory'] = self.db.fetchall("""
-                SELECT date, time, location, summary, timestamp
-                FROM appointment_history
-                WHERE patientID = ?
-                ORDER BY date DESC
-            """, (patient['patientID'],))
-            
-            # Load state history for reminders
-            patient['stateHistory'] = self.db.fetchall("""
-                SELECT state, timestamp, notes
-                FROM state_history
-                WHERE patientID = ?
-                ORDER BY timestamp
-            """, (patient['patientID'],))
-            
-            # Load notes history
-            patient['notesHistory'] = self.db.fetchall("""
-                SELECT note, timestamp
-                FROM notes_history
-                WHERE patientID = ?
-                ORDER BY timestamp DESC
-            """, (patient['patientID'],))
         
         return patients
     
-    def get_filtered(self, state_filters: List[str] = None, search_term: str = None, 
-                    special_filters: List[str] = None) -> List[Dict]:
-        """Get filtered patients using SQL WHERE clauses
+    def get_paginated(self, limit: int = 50, offset: int = 0) -> Dict:
+        """Get patients with pagination (SQL LIMIT/OFFSET for efficiency)
         
         Args:
-            state_filters: List of state names to filter by (OR logic)
-            search_term: Search term for name/email/phone (searches all fields)
-            special_filters: List of special filters (SURVIVORSHIP, OTC, PRIORITY, OVERDUE_APPOINTMENT)
-        
+            limit: Number of patients to return
+            offset: Starting position
+            
         Returns:
-            List of patient dictionaries matching filters
+            {
+                'patients': [...],
+                'total': total_count,
+                'has_more': True/False
+            }
         """
-        query = """
+        # Get total count
+        count_result = self.db.fetchone("SELECT COUNT(*) as count FROM patients")
+        total = count_result['count'] if count_result else 0
+        
+        # Get paginated patients
+        patients = self.db.fetchall("""
             SELECT 
                 patientID, patientName, partnerName, partnerID,
                 patientAlias, patientFirstName, patientMiddleName, patientLastName,
@@ -82,8 +65,67 @@ class PatientManager:
                 dateAdded, notes,
                 isSurvivorshipClinic, isPriorityList, isOTC
             FROM patients
-            WHERE 1=1
+            ORDER BY patientName
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        
+        # Convert integer flags to booleans
+        for patient in patients:
+            patient['isSurvivorshipClinic'] = bool(patient.get('isSurvivorshipClinic', 0))
+            patient['isPriorityList'] = bool(patient.get('isPriorityList', 0))
+            patient['isOTC'] = bool(patient.get('isOTC', 0))
+        
+        return {
+            'patients': patients,
+            'total': total,
+            'has_more': (offset + limit) < total
+        }
+    
+    def get_filtered(self, state_filters: List[str] = None, search_term: str = None, 
+                    special_filters: List[str] = None, sort_by: str = None) -> List[Dict]:
+        """Get filtered patients using SQL WHERE clauses
+        
+        Args:
+            state_filters: List of state names to filter by (OR logic)
+            search_term: Search term for name/email/phone (searches all fields)
+            special_filters: List of special filters (SURVIVORSHIP, OTC, PRIORITY, OVERDUE_APPOINTMENT)
+            sort_by: Sort mode - 'appt-new' or 'appt-old' for SQL sorting by last appointment
+        
+        Returns:
+            List of patient dictionaries matching filters
         """
+        
+        # If sorting by last appointment, use JOIN to get max date from appointment_history
+        if sort_by in ['appt-new', 'appt-old']:
+            query = """
+                SELECT 
+                    p.patientID, p.patientName, p.partnerName, p.partnerID,
+                    p.patientAlias, p.patientFirstName, p.patientMiddleName, p.patientLastName,
+                    p.partnerAlias, p.partnerFirstName, p.partnerMiddleName, p.partnerLastName,
+                    p.patientPhone, p.patientEmail, p.partnerPhone, p.partnerEmail,
+                    p.currentState, p.nextAppointment, p.appointmentTime, p.appointmentLocation,
+                    p.dateAdded, p.notes,
+                    p.isSurvivorshipClinic, p.isPriorityList, p.isOTC,
+                    MAX(ah.date) as lastAppointmentDate
+                FROM patients p
+                LEFT JOIN appointment_history ah ON p.patientID = ah.patientID
+                WHERE 1=1
+            """
+        else:
+            # Regular query without JOIN (faster when not sorting by last appointment)
+            query = """
+                SELECT 
+                    patientID, patientName, partnerName, partnerID,
+                    patientAlias, patientFirstName, patientMiddleName, patientLastName,
+                    partnerAlias, partnerFirstName, partnerMiddleName, partnerLastName,
+                    patientPhone, patientEmail, partnerPhone, partnerEmail,
+                    currentState, nextAppointment, appointmentTime, appointmentLocation,
+                    dateAdded, notes,
+                    isSurvivorshipClinic, isPriorityList, isOTC
+                FROM patients
+                WHERE 1=1
+            """
+        
         params = []
         
         # State filters (OR logic - match any state)
@@ -136,39 +178,28 @@ class PatientManager:
                     AND nextAppointment < date('now', 'localtime')
                 )"""
         
-        query += " ORDER BY patientName"
+        # Add GROUP BY if we used JOIN (for MAX aggregate)
+        if sort_by in ['appt-new', 'appt-old']:
+            query += " GROUP BY p.patientID"
+        
+        # Add ORDER BY based on sort mode
+        if sort_by == 'appt-new':
+            # Newest appointment first, nulls at end
+            query += " ORDER BY lastAppointmentDate DESC NULLS LAST, patientName"
+        elif sort_by == 'appt-old':
+            # Oldest appointment first, nulls at end
+            query += " ORDER BY lastAppointmentDate ASC NULLS LAST, patientName"
+        else:
+            # Default: sort by name
+            query += " ORDER BY patientName"
         
         patients = self.db.fetchall(query, tuple(params))
         
-        # Convert integer flags to booleans and add histories
+        # Convert integer flags to booleans (NO HISTORIES - loaded only when viewing details!)
         for patient in patients:
             patient['isSurvivorshipClinic'] = bool(patient.get('isSurvivorshipClinic', 0))
             patient['isPriorityList'] = bool(patient.get('isPriorityList', 0))
             patient['isOTC'] = bool(patient.get('isOTC', 0))
-            
-            # Load appointment history
-            patient['appointmentHistory'] = self.db.fetchall("""
-                SELECT date, time, location, summary, timestamp
-                FROM appointment_history
-                WHERE patientID = ?
-                ORDER BY date DESC
-            """, (patient['patientID'],))
-            
-            # Load state history
-            patient['stateHistory'] = self.db.fetchall("""
-                SELECT state, timestamp, notes
-                FROM state_history
-                WHERE patientID = ?
-                ORDER BY timestamp
-            """, (patient['patientID'],))
-            
-            # Load notes history
-            patient['notesHistory'] = self.db.fetchall("""
-                SELECT note, timestamp
-                FROM notes_history
-                WHERE patientID = ?
-                ORDER BY timestamp DESC
-            """, (patient['patientID'],))
         
         return patients
     

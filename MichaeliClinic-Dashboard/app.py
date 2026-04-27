@@ -88,7 +88,7 @@ def get_all_patients():
 @eel.expose
 def get_patients_paginated(limit=50, offset=0):
     """
-    Get patients in pages for progressive loading
+    Get patients in pages for progressive loading (SQL LIMIT/OFFSET for speed)
     
     Args:
         limit: Number of patients to return (default 50)
@@ -101,17 +101,7 @@ def get_patients_paginated(limit=50, offset=0):
             'has_more': True/False
         }
     """
-    all_patients = patient_mgr.get_all()
-    total = len(all_patients)
-    
-    # Get slice
-    patients_slice = all_patients[offset:offset + limit]
-    
-    return {
-        'patients': patients_slice,
-        'total': total,
-        'has_more': (offset + limit) < total
-    }
+    return patient_mgr.get_paginated(limit, offset)
 
 @eel.expose
 def get_all_appointment_dates():
@@ -189,13 +179,14 @@ def get_todays_appointments():
     return appointment_mgr.get_appointments_by_date(today)
 
 @eel.expose
-def get_filtered_patients(state_filters=None, search_term=None, special_filters=None):
+def get_filtered_patients(state_filters=None, search_term=None, special_filters=None, sort_by=None):
     """Get filtered patients using SQL
     
     Args:
         state_filters: List of state names (e.g. ['WAITING_FIRST_APPT', 'ACTIVE'])
         search_term: Search string for name/email/phone
         special_filters: List of special filters (e.g. ['SURVIVORSHIP', 'OTC', 'PRIORITY'])
+        sort_by: Sort mode - 'appt-new' or 'appt-old' for SQL sorting by last appointment
     
     Returns:
         List of filtered patients
@@ -203,7 +194,8 @@ def get_filtered_patients(state_filters=None, search_term=None, special_filters=
     return patient_mgr.get_filtered(
         state_filters=state_filters or [],
         search_term=search_term,
-        special_filters=special_filters or []
+        special_filters=special_filters or [],
+        sort_by=sort_by
     )
 
 @eel.expose
