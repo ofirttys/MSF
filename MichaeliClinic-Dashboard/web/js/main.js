@@ -631,9 +631,16 @@ window.checkDebugStatus = function() {
             // Apply read-only mode if needed
             applyReadOnlyMode();
             
-            // Auto-transition patients with past appointments (only if not read-only)
+            // Auto-transition patients with past appointments in BACKGROUND (non-blocking)
             if (!isReadOnly) {
-                autoTransitionPastAppointments();
+                // Delay 2 seconds to let UI fully load first, then run in background
+                setTimeout(function() {
+                    autoTransitionPastAppointments().then(function() {
+                        console.log('✓ Background auto-transition check complete');
+                    }).catch(function(error) {
+                        console.error('⚠️ Auto-transition error:', error);
+                    });
+                }, 2000);  // 2 second delay
             }
             
             // Lock file refresh timer (5 minutes) - only if not read-only
@@ -778,46 +785,67 @@ window.checkDebugStatus = function() {
         }
 
         // Auto-transition patients with past appointments
-        function autoTransitionPastAppointments() {
-			var today = new Date();
-			var oneWeekAgo = new Date();
-			oneWeekAgo.setDate(today.getDate() - 7);
-			var year = oneWeekAgo.getFullYear();
-			var month = oneWeekAgo.getMonth() + 1;
-			var day = oneWeekAgo.getDate();
-			var oneWeekAgoStr = year + "-" + (month < 10 ? "0" : "") + month + "-" + (day < 10 ? "0" : "") + day;
+        async function autoTransitionPastAppointments() {
+            if (isReadOnly) return;  // Skip if read-only
+            
+            var today = new Date();
+            var oneWeekAgo = new Date();
+            oneWeekAgo.setDate(today.getDate() - 7);
+            var year = oneWeekAgo.getFullYear();
+            var month = oneWeekAgo.getMonth() + 1;
+            var day = oneWeekAgo.getDate();
+            var oneWeekAgoStr = year + "-" + (month < 10 ? "0" : "") + month + "-" + (day < 10 ? "0" : "") + day;
 
-			var changed = false;
+            var transitioned = 0;
             
             for (var i = 0; i < patients.length; i++) {
                 var patient = patients[i];
                 
-                // Check if patient is waiting for appointment and date has passed
+                // Check if patient is waiting for appointment and date has passed (more than 1 week ago)
                 if ((patient.currentState === 'WAITING_FIRST_APPT' || patient.currentState === 'WAITING_NEXT_APPT') 
-                    && patient.nextAppointment && patient.nextAppointment <= oneWeekAgo) {
+                    && patient.nextAppointment && patient.nextAppointment <= oneWeekAgoStr) {
                     
-                    // Move to history
-                    patients[i].appointmentHistory.push({
-                        date: patient.nextAppointment,
-                        time: patient.appointmentTime || '',
-                        summary: 'Auto-transitioned - appointment date passed',
-                        timestamp: new Date().toISOString()
-                    });
+                    console.log('Auto-transitioning patient:', patient.patientID, patient.patientName, 'Appointment was:', patient.nextAppointment);
                     
-                    // Update state
-                    patients[i].currentState = 'WAITING_APPT_SUMMARY';
-                    patients[i].stateHistory.push({
-                        state: 'WAITING_APPT_SUMMARY',
-                        timestamp: new Date().toISOString()
-                    });
-                    patients[i].nextAppointment = null;
-                    patients[i].appointmentTime = null;
-                    
-                    changed = true;
+                    try {
+                        // Save to backend: Add to appointment history
+                        await eel.add_appointment_history(
+                            patient.patientID,
+                            patient.nextAppointment,
+                            patient.appointmentTime || '',
+                            patient.appointmentLocation || '',
+                            'Auto-transitioned - appointment date passed (>1 week old)'
+                        )();
+                        
+                        // Save to backend: Clear next appointment
+                        await eel.update_next_appointment(patient.patientID, null, null, null)();
+                        
+                        // Save to backend: Update state
+                        await eel.update_patient_state(
+                            patient.patientID, 
+                            'WAITING_APPT_SUMMARY',
+                            'Auto-transitioned - appointment date passed'
+                        )();
+                        
+                        // Update local array (for immediate UI update)
+                        patients[i].currentState = 'WAITING_APPT_SUMMARY';
+                        patients[i].nextAppointment = null;
+                        patients[i].appointmentTime = null;
+                        patients[i].appointmentLocation = null;
+                        
+                        transitioned++;
+                    } catch (error) {
+                        console.error('Error auto-transitioning patient:', patient.patientID, error);
+                    }
                 }
             }
             
-            // TODO: If changed, should save to backend via updatePatientStateWithSave()
+            if (transitioned > 0) {
+                console.log('Auto-transitioned', transitioned, 'patients with past appointments');
+                // Refresh UI to show updated states
+                await renderPatientList();
+                updateStatusCounts();
+            }
         }
         
         // Load remaining patients in ONE query (simple 2-step approach)
@@ -3756,26 +3784,17 @@ window.checkDebugStatus = function() {
 
 		var currentCancellingApptPatient = null;
         
-        function cancelAppointment(patientID) {
+        async function cancelAppointment(patientID) {
             if (isReadOnly) {
                 showErrorModal('Cannot cancel appointments - database is in read-only mode.');
                 return;
             }
             
-            var patient = null;
-            for (var i = 0; i < patients.length; i++) {
-                if (patients[i].patientID === patientID) {
-                    patient = patients[i];
-                    break;
-                }
-            }
+            // Load full patient data with appointment history
+            var patient = await eel.get_patient(patientID)();
             
             if (!patient || !patient.nextAppointment) {
-                // Fallback: use browser confirm if patient data not available
-                if (confirm('Are you sure you want to cancel this appointment?')) {
-                    // Try to find the patient again or handle directly
-                    console.error('Patient not found or no appointment:', patientID);
-                }
+                showErrorModal('Patient not found or has no scheduled appointment.');
                 return;
             }
             
