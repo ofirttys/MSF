@@ -842,9 +842,19 @@ window.checkDebugStatus = function() {
             
             if (transitioned > 0) {
                 console.log('Auto-transitioned', transitioned, 'patients with past appointments');
-                // Refresh UI to show updated states
+                
+                // Refresh UI to show updated states and counts
                 await renderPatientList();
-                updateStatusCounts();
+                
+                // Get fresh KPI counts from backend (more accurate than local calculation)
+                try {
+                    var freshCounts = await eel.get_status_counts()();
+                    updateStatusCounts(freshCounts);
+                } catch (error) {
+                    console.error('Error fetching updated KPI counts:', error);
+                    // Fallback to local calculation
+                    updateStatusCounts();
+                }
             }
         }
         
