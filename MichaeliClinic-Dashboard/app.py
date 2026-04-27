@@ -1217,7 +1217,10 @@ def main():
                 print(f"⚠️  Database close failed: {e}")
         
         print("✓ Shutdown complete")
-        sys.exit(0)
+        # Don't call sys.exit() in atexit handler - it causes warnings
+        if signum is not None:
+            # Only exit if called from signal handler (Ctrl+C, etc)
+            sys.exit(0)
     
     # Register shutdown handlers
     signal.signal(signal.SIGINT, shutdown_handler)   # Ctrl+C

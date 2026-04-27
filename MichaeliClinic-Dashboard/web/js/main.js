@@ -3395,15 +3395,10 @@ window.checkDebugStatus = function() {
             
             startTiming('viewPatientDetails');
             
-            startTiming('find_patient');
-            var patient = null;
-            for (var i = 0; i < patients.length; i++) {
-                if (patients[i].patientID === patientID) {
-                    patient = patients[i];
-                    break;
-                }
-            }
-            endTiming('find_patient');
+            // Load full patient data from backend (includes histories!)
+            startTiming('load_patient_with_histories');
+            var patient = await eel.get_patient(patientID)();
+            endTiming('load_patient_with_histories');
             
             if (!patient) {
                 endTiming('viewPatientDetails');
