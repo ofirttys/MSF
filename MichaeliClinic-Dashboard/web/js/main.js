@@ -631,7 +631,9 @@ window.checkDebugStatus = function() {
             // Apply read-only mode if needed
             applyReadOnlyMode();
             
-            // Auto-transition patients with past appointments in BACKGROUND (non-blocking)
+            // Auto-transition patients with past appointments - DISABLED FOR NOW
+            // Uncomment to re-enable:
+            /*
             if (!isReadOnly) {
                 // Delay 2 seconds to let UI fully load first, then run in background
                 setTimeout(function() {
@@ -642,6 +644,7 @@ window.checkDebugStatus = function() {
                     });
                 }, 2000);  // 2 second delay
             }
+            */
             
             // Lock file refresh timer (5 minutes) - only if not read-only
             if (autoSaveInterval) {
