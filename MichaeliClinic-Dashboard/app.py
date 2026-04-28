@@ -326,7 +326,7 @@ def update_next_appointment(patient_id, date, time, location):
     return appointment_mgr.update_next(patient_id, date, time, location)
 
 @eel.expose
-def schedule_appointment_with_conflict_check(patient_id, date, time, location):
+def schedule_appointment_with_conflict_check(patient_id, date, time, location, allow_conflict=False):
     """
     Schedule appointment with atomic conflict detection to prevent double-booking
     
@@ -335,6 +335,7 @@ def schedule_appointment_with_conflict_check(patient_id, date, time, location):
         date: Appointment date (YYYY-MM-DD)
         time: Appointment time (HH:MM)
         location: Appointment location
+        allow_conflict: If True, skip conflict check (for same-sex couples)
         
     Returns:
         {
@@ -345,44 +346,48 @@ def schedule_appointment_with_conflict_check(patient_id, date, time, location):
         }
     """
     try:
-        # Check if slot is already taken by another patient
-        conflict_query = """
-            SELECT patientID, patientName, patientFirstName, patientLastName
-            FROM patients
-            WHERE nextAppointment = ? 
-              AND appointmentTime = ?
-              AND patientID != ?
-              AND currentState NOT IN ('INACTIVE', 'PREGNANT', 'COMPLETED', 'CANCELLED')
-        """
-        
-        conflicting = db.fetchone(conflict_query, (date, time, patient_id))
-        
-        if conflicting:
-            # Slot is taken!
-            return {
-                'success': False,
-                'conflict': True,
-                'conflicting_patient': conflicting,
-                'patient': patient_mgr.get_by_id(patient_id)
-            }
-        
-        # Slot appears free - use transaction to ensure atomicity
-        # This prevents race condition if two users click simultaneously
-        try:
-            # Start transaction using the connection's isolation level
-            db.conn.isolation_level = 'IMMEDIATE'
+        # Skip conflict check if explicitly allowed (same-sex couples)
+        if not allow_conflict:
+            # Check if slot is already taken by another patient
+            conflict_query = """
+                SELECT patientID, patientName, patientFirstName, patientLastName
+                FROM patients
+                WHERE nextAppointment = ? 
+                  AND appointmentTime = ?
+                  AND patientID != ?
+                  AND currentState NOT IN ('INACTIVE', 'PREGNANT', 'COMPLETED', 'CANCELLED')
+            """
             
-            # Double-check inside transaction (prevents race between check and update)
             conflicting = db.fetchone(conflict_query, (date, time, patient_id))
             
             if conflicting:
-                db.rollback()
+                # Slot is taken!
                 return {
                     'success': False,
                     'conflict': True,
                     'conflicting_patient': conflicting,
                     'patient': patient_mgr.get_by_id(patient_id)
                 }
+        
+        # Slot appears free (or conflict allowed) - use transaction to ensure atomicity
+        # This prevents race condition if two users click simultaneously
+        try:
+            # Start transaction using the connection's isolation level
+            db.conn.isolation_level = 'IMMEDIATE'
+            
+            # Double-check inside transaction (prevents race between check and update)
+            # Skip if conflict is explicitly allowed
+            if not allow_conflict:
+                conflicting = db.fetchone(conflict_query, (date, time, patient_id))
+                
+                if conflicting:
+                    db.rollback()
+                    return {
+                        'success': False,
+                        'conflict': True,
+                        'conflicting_patient': conflicting,
+                        'patient': patient_mgr.get_by_id(patient_id)
+                    }
             
             # Actually schedule the appointment
             appointment_mgr.update_next(patient_id, date, time, location)

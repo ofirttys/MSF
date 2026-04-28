@@ -3967,16 +3967,28 @@ window.checkDebugStatus = function() {
             // Check for appointment conflict
             var conflictPatient = checkAppointmentConflict(dateValue, timeValue, currentEditingApptPatient.patientID);
             if (conflictPatient) {
-                var confirmConflict = confirm('Warning: ' + conflictPatient.patientName + ' already has an appointment at this date and time.\n\nDo you want to schedule anyway (e.g., for same-sex couples)?');
-                if (!confirmConflict) {
-                    return;
-                }
+                showConfirm(
+                    'Warning: ' + conflictPatient.patientName + ' already has an appointment at this date and time.\n\nDo you want to schedule anyway (e.g., for same-sex couples)?',
+                    'Appointment Conflict',
+                    async function(confirmed) {
+                        if (!confirmed) return;
+                        
+                        // User confirmed - proceed with scheduling (allow conflict)
+                        await proceedWithAppointmentEdit(true);
+                    }
+                );
+                return; // Exit here, callback will handle the rest
             }
-
+            
+            // No conflict - proceed normally
+            await proceedWithAppointmentEdit(false);
+        }
+        
+        async function proceedWithAppointmentEdit(allowConflict) {
 			for (var i = 0; i < patients.length; i++) {
                 if (patients[i].patientID === currentEditingApptPatient.patientID) {
 					var newDate = document.getElementById('editApptDate').value;
-                    var newTime = timeValue;
+                    var newTime = document.getElementById('editApptTime').value;
                     var newLocation = document.getElementById('editApptLocation').value;
                     var oldDate = patients[i].nextAppointment;
                     var oldTime = patients[i].appointmentTime || '';
@@ -3995,8 +4007,8 @@ window.checkDebugStatus = function() {
                         )();
                     }
                     
-                    // SAVE TO BACKEND: Update appointment (already updates local patient!)
-                    await scheduleAppointmentWithSave(currentEditingApptPatient.patientID, newDate, newTime, newLocation);
+                    // SAVE TO BACKEND: Update appointment (pass allowConflict flag!)
+                    await scheduleAppointmentWithSave(currentEditingApptPatient.patientID, newDate, newTime, newLocation, allowConflict);
                     
                     break;
                 }
@@ -4095,13 +4107,25 @@ window.checkDebugStatus = function() {
                 // Check for appointment conflict
                 var conflictPatient = checkAppointmentConflict(dateValue, timeValue, patient.patientID);
                 if (conflictPatient) {
-                    var confirmConflict = confirm('Warning: ' + conflictPatient.patientName + ' already has an appointment at this date and time.\n\nDo you want to schedule anyway (e.g., for same-sex couples)?');
-                    if (!confirmConflict) {
-                        return;
-                    }
+                    showConfirm(
+                        'Warning: ' + conflictPatient.patientName + ' already has an appointment at this date and time.\n\nDo you want to schedule anyway (e.g., for same-sex couples)?',
+                        'Appointment Conflict',
+                        async function(confirmed) {
+                            if (!confirmed) return;
+                            
+                            // User confirmed - proceed with state transition (allow conflict)
+                            await proceedWithStateTransition(patient, nextState, true);
+                        }
+                    );
+                    return; // Exit here, callback will handle the rest
                 }
             }
-
+            
+            // No conflict - proceed normally
+            await proceedWithStateTransition(patient, nextState, false);
+        }
+        
+        async function proceedWithStateTransition(patient, nextState, allowConflict) {
             for (var i = 0; i < patients.length; i++) {
                 if (patients[i].patientID === patient.patientID) {
                     // Handle state-specific data
@@ -4110,8 +4134,8 @@ window.checkDebugStatus = function() {
                         var time = document.getElementById('transitionTime').value;
                         var location = document.getElementById('transitionLocation').value;
                         
-                        // SAVE APPOINTMENT TO DATABASE (also updates local array)
-                        await scheduleAppointmentWithSave(patient.patientID, date, time, location);
+                        // SAVE APPOINTMENT TO DATABASE (pass allowConflict flag!)
+                        await scheduleAppointmentWithSave(patient.patientID, date, time, location, allowConflict);
 					} else if (nextState === 'WAITING_APPT_SUMMARY') {
                         var summary = document.getElementById('transitionSummary') ? document.getElementById('transitionSummary').value : '';
                         if (patient.nextAppointment) {
@@ -5841,7 +5865,7 @@ async function updatePatientStateWithSave(patientID, newState, notes) {
 
 
 // Helper: Schedule appointment with backend save
-async function scheduleAppointmentWithSave(patientID, date, time, location) {
+async function scheduleAppointmentWithSave(patientID, date, time, location, allowConflict) {
     startTiming('scheduleAppointmentWithSave');
     
     var patient = patients.find(p => p.patientID === patientID);
@@ -5856,7 +5880,7 @@ async function scheduleAppointmentWithSave(patientID, date, time, location) {
     try {
         // Use conflict-checking version to prevent double-booking
         startTiming('eel.schedule_appointment_with_conflict_check');
-        var result = await eel.schedule_appointment_with_conflict_check(patientID, date, time, location)();
+        var result = await eel.schedule_appointment_with_conflict_check(patientID, date, time, location, allowConflict || false)();
         endTiming('eel.schedule_appointment_with_conflict_check');
         
         if (result.conflict) {
