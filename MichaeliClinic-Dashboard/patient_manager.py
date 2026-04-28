@@ -158,9 +158,10 @@ class PatientManager:
                         patientEmail LIKE ? OR
                         partnerPhone LIKE ? OR
                         partnerEmail LIKE ? OR
-                        patientID LIKE ?
+                        patientID LIKE ? OR
+                        partnerID LIKE ?
                     )"""
-                    params.extend([search] * 15)  # 15 fields to search
+                    params.extend([search] * 16)  # 16 fields to search
         
         # Special filters
         if special_filters:

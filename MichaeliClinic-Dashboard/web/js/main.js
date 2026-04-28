@@ -3671,14 +3671,8 @@ window.checkDebugStatus = function() {
                 isManualOperationInProgress = true;
                 
                 try {
-                    // Find the patient to check if they ever had a first appointment
-                    var patient = null;
-                    for (var i = 0; i < patients.length; i++) {
-                        if (patients[i].patientID === patientID) {
-                            patient = patients[i];
-                            break;
-                        }
-                    }
+                    // Load full patient data with stateHistory from backend
+                    var patient = await eel.get_patient(patientID)();
                     
                     if (!patient) {
                         showErrorModal('Patient not found');
