@@ -5987,3 +5987,202 @@ window.alert = function(message) {
 window.confirm = originalConfirm;
 
 console.log('Professional error handling loaded');
+// ============================================================================
+// BLOCKED TIMES FEATURE
+// ============================================================================
+
+// Global variable to store currently editing block ID
+var currentEditingBlockId = null;
+
+/**
+ * Open the create block modal with current selected date pre-filled
+ */
+function openCreateBlockModal() {
+    // Pre-fill with currently selected date
+    var dateStr = currentViewDate.getFullYear() + '-' +
+        ('0' + (currentViewDate.getMonth() + 1)).slice(-2) + '-' +
+        ('0' + currentViewDate.getDate()).slice(-2);
+    
+    document.getElementById('blockDate').value = dateStr;
+    document.getElementById('blockStartTime').value = '';
+    document.getElementById('blockEndTime').value = '';
+    document.getElementById('blockTitle').value = '';
+    document.getElementById('blockNotes').value = '';
+    
+    document.getElementById('createBlockModal').classList.add('active');
+}
+
+/**
+ * Save a new blocked time
+ */
+async function saveBlockedTime() {
+    if (isReadOnly) {
+        showErrorModal('Cannot create blocks - database is in read-only mode.');
+        return;
+    }
+    
+    var date = document.getElementById('blockDate').value;
+    var startTime = document.getElementById('blockStartTime').value;
+    var endTime = document.getElementById('blockEndTime').value;
+    var title = document.getElementById('blockTitle').value.trim();
+    var notes = document.getElementById('blockNotes').value.trim();
+    
+    // Validation
+    if (!date || !startTime || !endTime || !title) {
+        showErrorModal('Please fill in all required fields (Date, From, To, Title).');
+        return;
+    }
+    
+    if (startTime >= endTime) {
+        showErrorModal('End time must be after start time.');
+        return;
+    }
+    
+    try {
+        // Create blocked time
+        var blockId = await eel.create_blocked_time(date, startTime, endTime, title, notes || null, null)();
+        
+        if (blockId) {
+            console.log('Created blocked time:', blockId);
+            closeModal('createBlockModal');
+            
+            // Refresh views
+            await renderAppointmentsForDate();
+            await renderWeeklyView();
+            
+            showErrorModal('Time blocked successfully!');
+        } else {
+            showErrorModal('Failed to create blocked time.');
+        }
+    } catch (error) {
+        console.error('Error creating blocked time:', error);
+        showErrorModal('Error creating blocked time: ' + error);
+    }
+}
+
+/**
+ * Open edit block modal
+ */
+async function editBlock(blockId) {
+    try {
+        var block = await eel.get_blocked_time(blockId)();
+        
+        if (!block) {
+            showErrorModal('Block not found.');
+            return;
+        }
+        
+        currentEditingBlockId = blockId;
+        
+        document.getElementById('editBlockId').value = block.id;
+        document.getElementById('editBlockDate').value = block.date;
+        document.getElementById('editBlockStartTime').value = block.startTime;
+        document.getElementById('editBlockEndTime').value = block.endTime;
+        document.getElementById('editBlockTitle').value = block.title;
+        document.getElementById('editBlockNotes').value = block.notes || '';
+        
+        document.getElementById('editBlockModal').classList.add('active');
+    } catch (error) {
+        console.error('Error loading block:', error);
+        showErrorModal('Error loading block: ' + error);
+    }
+}
+
+/**
+ * Update an existing blocked time
+ */
+async function updateBlockedTime() {
+    if (isReadOnly) {
+        showErrorModal('Cannot update blocks - database is in read-only mode.');
+        return;
+    }
+    
+    var blockId = parseInt(document.getElementById('editBlockId').value);
+    var date = document.getElementById('editBlockDate').value;
+    var startTime = document.getElementById('editBlockStartTime').value;
+    var endTime = document.getElementById('editBlockEndTime').value;
+    var title = document.getElementById('editBlockTitle').value.trim();
+    var notes = document.getElementById('editBlockNotes').value.trim();
+    
+    // Validation
+    if (!date || !startTime || !endTime || !title) {
+        showErrorModal('Please fill in all required fields.');
+        return;
+    }
+    
+    if (startTime >= endTime) {
+        showErrorModal('End time must be after start time.');
+        return;
+    }
+    
+    try {
+        var success = await eel.update_blocked_time(blockId, date, startTime, endTime, title, notes || null)();
+        
+        if (success) {
+            console.log('Updated blocked time:', blockId);
+            closeModal('editBlockModal');
+            
+            // Refresh views
+            await renderAppointmentsForDate();
+            await renderWeeklyView();
+            
+            showErrorModal('Block updated successfully!');
+        } else {
+            showErrorModal('Failed to update block.');
+        }
+    } catch (error) {
+        console.error('Error updating block:', error);
+        showErrorModal('Error updating block: ' + error);
+    }
+}
+
+/**
+ * Delete a blocked time
+ */
+async function deleteBlockedTime() {
+    if (isReadOnly) {
+        showErrorModal('Cannot delete blocks - database is in read-only mode.');
+        return;
+    }
+    
+    var blockId = parseInt(document.getElementById('editBlockId').value);
+    
+    showConfirm('Are you sure you want to delete this blocked time?', 'Confirm Delete', async function(confirmed) {
+        if (!confirmed) return;
+        
+        try {
+            var success = await eel.delete_blocked_time(blockId)();
+            
+            if (success) {
+                console.log('Deleted blocked time:', blockId);
+                closeModal('editBlockModal');
+                
+                // Refresh views
+                await renderAppointmentsForDate();
+                await renderWeeklyView();
+                
+                showErrorModal('Block deleted successfully!');
+            } else {
+                showErrorModal('Failed to delete block.');
+            }
+        } catch (error) {
+            console.error('Error deleting block:', error);
+            showErrorModal('Error deleting block: ' + error);
+        }
+    });
+}
+
+/**
+ * Check if a given time conflicts with any blocked time
+ * Returns the conflicting block or null
+ */
+async function checkBlockedTimeConflict(date, time) {
+    try {
+        return await eel.check_blocked_time_conflict(date, time)();
+    } catch (error) {
+        console.error('Error checking blocked time conflict:', error);
+        return null;
+    }
+}
+
+console.log('✓ Blocked times feature loaded');

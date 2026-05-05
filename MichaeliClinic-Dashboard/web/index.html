@@ -57,6 +57,7 @@
 				</div>
                 <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
 					<button class="btn btn-primary" id="addPatientBtn" onclick="openAddPatientModal()">+ Add New Patient</button>
+                    <button class="btn" style="background: #dc3545; color: white;" onclick="openCreateBlockModal()">Block</button>
                     <button class="btn" style="background: #17a2b8; color: white;" onclick="openActionItemsModal()">Action Items</button>
                     <button class="btn" style="background: #28a745; color: white;" onclick="openPortalModal()">Portal</button>
                     
@@ -807,6 +808,86 @@
             </div>
             <div class="modal-footer" style="display: flex; justify-content: flex-end; padding-top: 15px; border-top: 1px solid #ddd;">
                 <button class="btn btn-primary" onclick="closeErrorModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Blocked Time Modal -->
+    <div id="createBlockModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 style="margin: 0;">Block Time</h2>
+                <button class="close-btn" onclick="closeModal('createBlockModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="blockDate">Date:</label>
+                    <input type="date" id="blockDate" class="form-input" required>
+                </div>
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="blockStartTime">From:</label>
+                        <input type="time" id="blockStartTime" class="form-input" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="blockEndTime">To:</label>
+                        <input type="time" id="blockEndTime" class="form-input" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="blockTitle">Title/Name:</label>
+                    <input type="text" id="blockTitle" class="form-input" placeholder="e.g., Lunch Break, Meeting" required>
+                </div>
+                <div class="form-group">
+                    <label for="blockNotes">Notes (optional):</label>
+                    <textarea id="blockNotes" class="form-input" rows="3" placeholder="Additional information..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 15px; border-top: 1px solid #ddd;">
+                <button class="btn" onclick="closeModal('createBlockModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveBlockedTime()">Save Block</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Blocked Time Modal -->
+    <div id="editBlockModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 style="margin: 0;">Edit Blocked Time</h2>
+                <button class="close-btn" onclick="closeModal('editBlockModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editBlockId">
+                <div class="form-group">
+                    <label for="editBlockDate">Date:</label>
+                    <input type="date" id="editBlockDate" class="form-input" required>
+                </div>
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="editBlockStartTime">From:</label>
+                        <input type="time" id="editBlockStartTime" class="form-input" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="editBlockEndTime">To:</label>
+                        <input type="time" id="editBlockEndTime" class="form-input" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editBlockTitle">Title/Name:</label>
+                    <input type="text" id="editBlockTitle" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="editBlockNotes">Notes (optional):</label>
+                    <textarea id="editBlockNotes" class="form-input" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; padding-top: 15px; border-top: 1px solid #ddd;">
+                <button class="btn" style="background: #dc3545; color: white;" onclick="deleteBlockedTime()">Delete</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn" onclick="closeModal('editBlockModal')">Cancel</button>
+                    <button class="btn btn-primary" onclick="updateBlockedTime()">Save Changes</button>
+                </div>
             </div>
         </div>
     </div>
