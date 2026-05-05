@@ -6023,6 +6023,21 @@ function openCreateBlockModal() {
             modal.classList.add('active');
             modal.style.display = 'flex'; // Override the inline display: none
             console.log('Modal should be visible now');
+            
+            // Initialize Flatpickr for date picker
+            setTimeout(function() {
+                var dateElement = document.getElementById('blockDate');
+                if (dateElement && typeof flatpickr !== 'undefined') {
+                    if (!dateElement._flatpickr) {
+                        flatpickr(dateElement, {
+                            dateFormat: 'Y-m-d',
+                            defaultDate: dateStr
+                        });
+                    } else {
+                        dateElement._flatpickr.setDate(dateStr);
+                    }
+                }
+            }, 100);
         } else {
             console.error('Modal element not found!');
         }
@@ -6101,7 +6116,24 @@ async function editBlock(blockId) {
         document.getElementById('editBlockTitle').value = block.title;
         document.getElementById('editBlockNotes').value = block.notes || '';
         
-        document.getElementById('editBlockModal').classList.add('active');
+        var modal = document.getElementById('editBlockModal');
+        modal.classList.add('active');
+        modal.style.display = 'flex';
+        
+        // Initialize Flatpickr for date picker
+        setTimeout(function() {
+            var dateElement = document.getElementById('editBlockDate');
+            if (dateElement && typeof flatpickr !== 'undefined') {
+                if (!dateElement._flatpickr) {
+                    flatpickr(dateElement, {
+                        dateFormat: 'Y-m-d',
+                        defaultDate: block.date
+                    });
+                } else {
+                    dateElement._flatpickr.setDate(block.date);
+                }
+            }
+        }, 100);
     } catch (error) {
         console.error('Error loading block:', error);
         showErrorModal('Error loading block: ' + error);
