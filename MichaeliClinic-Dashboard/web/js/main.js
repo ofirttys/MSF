@@ -6047,7 +6047,7 @@ async function saveBlockedTime() {
             closeModal('createBlockModal');
             
             // Refresh views
-            await renderAppointmentsForDate();
+            await renderAppointments();
             await renderWeeklyView();
             
             showErrorModal('Time blocked successfully!');
@@ -6123,7 +6123,7 @@ async function updateBlockedTime() {
             closeModal('editBlockModal');
             
             // Refresh views
-            await renderAppointmentsForDate();
+            await renderAppointments();
             await renderWeeklyView();
             
             showErrorModal('Block updated successfully!');
@@ -6158,7 +6158,7 @@ async function deleteBlockedTime() {
                 closeModal('editBlockModal');
                 
                 // Refresh views
-                await renderAppointmentsForDate();
+                await renderAppointments();
                 await renderWeeklyView();
                 
                 showErrorModal('Block deleted successfully!');
