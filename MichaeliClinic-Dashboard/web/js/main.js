@@ -2221,14 +2221,6 @@ window.checkDebugStatus = function() {
                 result = {future: [], past: []};
             }
             
-			// Load blocked times for this date
-			var blockedTimes = [];
-			try {
-				blockedTimes = await eel.get_blocked_times_for_date(dateStr)();
-			} catch (error) {
-				console.error('Error loading blocked times:', error);
-			}
-
             // Map future appointments to format expected by UI
             var futureAppointments = result.future.map(function(appt) {
                 var isFirstAppt = appt.isFirstAppt === 1;
@@ -2266,23 +2258,9 @@ window.checkDebugStatus = function() {
                 };
             });
             
-            // Combine appointments and blocked times
-			appointments = futureAppointments.concat(pastAppointments);
-
-			// Add blocked times to the list
-			for (var i = 0; i < blockedTimes.length; i++) {
-				appointments.push({
-					type: 'block',
-					time: blockedTimes[i].startTime,
-					blockData: blockedTimes[i],
-					patient: { patientID: null },
-					isFuture: true,
-					summary: null
-				});
-			}
-
-			// Sort everything by time
-			appointments.sort(function(a, b) { return a.time.localeCompare(b.time); });
+            // Combine and sort by time
+            appointments = futureAppointments.concat(pastAppointments);
+            appointments.sort(function(a, b) { return a.time.localeCompare(b.time); });
 
             // Count non-cancelled appointments
             var nonCancelledCount = 0;
@@ -2318,19 +2296,6 @@ window.checkDebugStatus = function() {
             }
 
             container.innerHTML = appointments.map(function(appt) {
-				
-				// Handle blocked times
-				if (appt.type === 'block') {
-					var block = appt.blockData;
-					return '<div class="appointment-item" style="background: #ffebee; border-left: 4px solid #dc3545; cursor: pointer;" onclick="editBlock(' + block.id + ')">' +
-						'<div style="display: flex; align-items: center; gap: 10px; padding: 8px;">' +
-						'<strong style="color: #dc3545;">BLOCKED</strong>' +
-						'<span style="color: #666;">' + block.startTime + ' - ' + block.endTime + '</span>' +
-						'<span style="font-weight: 600;">' + escapeHtml(block.title) + '</span>' +
-						(block.notes ? '<span style="color: #999; font-size: 11px;">(' + escapeHtml(block.notes) + ')</span>' : '') +
-						'</div></div>';
-				}				
-				
                 // Check if appointment is cancelled
                 var isCancelled = appt.summary && appt.summary.toLowerCase().indexOf('cancelled') !== -1;
 				var isRescheduled = appt.summary && appt.summary.toLowerCase().indexOf('rescheduled') !== -1;
@@ -2693,7 +2658,9 @@ window.checkDebugStatus = function() {
         }
 
         function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
+            var modal = document.getElementById(modalId);
+            modal.classList.remove('active');
+            modal.style.display = 'none';
 			// Hide day view panel when any modal closes
 			if (modalId === 'editApptModal' || modalId === 'transitionModal') {
 				document.getElementById('dayViewPanel').style.display = 'none';
@@ -5919,35 +5886,6 @@ async function scheduleAppointmentWithSave(patientID, date, time, location, allo
         return false;
     }
     
-	// Check for blocked time
-	try {
-		var blockedTime = await eel.check_blocked_time_conflict(date, time)();
-		if (blockedTime) {
-			var proceed = false;
-			
-			await new Promise(function(resolve) {
-				showConfirm(
-					'Warning: This time is blocked for: ' + blockedTime.title + 
-					'\n\nFrom: ' + blockedTime.startTime + ' to ' + blockedTime.endTime +
-					'\n\nDo you want to schedule anyway?',
-					'Blocked Time Warning',
-					function(confirmed) {
-						proceed = confirmed;
-						resolve();
-					}
-				);
-			});
-			
-			if (!proceed) {
-				isManualOperationInProgress = false;
-				endTiming('scheduleAppointmentWithSave');
-				return false;
-			}
-		}
-	} catch (error) {
-		console.error('Error checking blocked time:', error);
-	}
-	
     // Lock to prevent auto-refresh collision
     isManualOperationInProgress = true;
     
@@ -6062,18 +6000,36 @@ var currentEditingBlockId = null;
  * Open the create block modal with current selected date pre-filled
  */
 function openCreateBlockModal() {
-    // Pre-fill with currently selected date
-    var dateStr = currentViewDate.getFullYear() + '-' +
-        ('0' + (currentViewDate.getMonth() + 1)).slice(-2) + '-' +
-        ('0' + currentViewDate.getDate()).slice(-2);
-    
-    document.getElementById('blockDate').value = dateStr;
-    document.getElementById('blockStartTime').value = '';
-    document.getElementById('blockEndTime').value = '';
-    document.getElementById('blockTitle').value = '';
-    document.getElementById('blockNotes').value = '';
-    
-    document.getElementById('createBlockModal').classList.add('active');
+    try {
+        console.log('Opening create block modal...');
+        
+        // Pre-fill with currently selected date
+        var dateStr = currentViewDate.getFullYear() + '-' +
+            ('0' + (currentViewDate.getMonth() + 1)).slice(-2) + '-' +
+            ('0' + currentViewDate.getDate()).slice(-2);
+        
+        console.log('Date string:', dateStr);
+        
+        document.getElementById('blockDate').value = dateStr;
+        document.getElementById('blockStartTime').value = '';
+        document.getElementById('blockEndTime').value = '';
+        document.getElementById('blockTitle').value = '';
+        document.getElementById('blockNotes').value = '';
+        
+        var modal = document.getElementById('createBlockModal');
+        console.log('Modal element:', modal);
+        
+        if (modal) {
+            modal.classList.add('active');
+            modal.style.display = 'flex'; // Override the inline display: none
+            console.log('Modal should be visible now');
+        } else {
+            console.error('Modal element not found!');
+        }
+    } catch (error) {
+        console.error('Error opening create block modal:', error);
+        alert('Error opening modal: ' + error.message);
+    }
 }
 
 /**
