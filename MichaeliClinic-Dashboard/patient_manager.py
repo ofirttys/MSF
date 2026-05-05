@@ -240,6 +240,99 @@ class PatientManager:
         
         return patient
     
+    def get_by_ids(self, patient_ids: List[str]) -> List[Dict]:
+        """Get multiple patients with histories in optimized batch queries
+        
+        Args:
+            patient_ids: List of patient IDs to retrieve
+            
+        Returns:
+            List of patient dictionaries with histories
+        """
+        if not patient_ids:
+            return []
+        
+        # Build SQL IN clause
+        placeholders = ','.join(['?'] * len(patient_ids))
+        
+        # Get all patients in ONE query
+        patients = self.db.fetchall(f"""
+            SELECT * FROM patients
+            WHERE patientID IN ({placeholders})
+        """, tuple(patient_ids))
+        
+        if not patients:
+            return []
+        
+        # Get all state histories in ONE query
+        state_histories = self.db.fetchall(f"""
+            SELECT patientID, state, timestamp, notes
+            FROM state_history
+            WHERE patientID IN ({placeholders})
+            ORDER BY patientID, timestamp
+        """, tuple(patient_ids))
+        
+        # Get all appointment histories in ONE query
+        appointment_histories = self.db.fetchall(f"""
+            SELECT patientID, date, time, location, summary, timestamp
+            FROM appointment_history
+            WHERE patientID IN ({placeholders})
+            ORDER BY patientID, id
+        """, tuple(patient_ids))
+        
+        # Get all notes histories in ONE query
+        notes_histories = self.db.fetchall(f"""
+            SELECT patientID, timestamp, note
+            FROM notes_history
+            WHERE patientID IN ({placeholders})
+            ORDER BY patientID, timestamp
+        """, tuple(patient_ids))
+        
+        # Group histories by patient ID
+        state_by_patient = {}
+        appt_by_patient = {}
+        notes_by_patient = {}
+        
+        for state in state_histories:
+            pid = state['patientID']
+            if pid not in state_by_patient:
+                state_by_patient[pid] = []
+            state_by_patient[pid].append({
+                'state': state['state'],
+                'timestamp': state['timestamp'],
+                'notes': state['notes']
+            })
+        
+        for appt in appointment_histories:
+            pid = appt['patientID']
+            if pid not in appt_by_patient:
+                appt_by_patient[pid] = []
+            appt_by_patient[pid].append({
+                'date': appt['date'],
+                'time': appt['time'],
+                'location': appt['location'],
+                'summary': appt['summary'],
+                'timestamp': appt['timestamp']
+            })
+        
+        for note in notes_histories:
+            pid = note['patientID']
+            if pid not in notes_by_patient:
+                notes_by_patient[pid] = []
+            notes_by_patient[pid].append({
+                'timestamp': note['timestamp'],
+                'note': note['note']
+            })
+        
+        # Attach histories to patients
+        for patient in patients:
+            pid = patient['patientID']
+            patient['stateHistory'] = state_by_patient.get(pid, [])
+            patient['appointmentHistory'] = appt_by_patient.get(pid, [])
+            patient['notesHistory'] = notes_by_patient.get(pid, [])
+        
+        return patients
+    
     def search(self, query: str) -> List[Dict]:
         """Search patients by name, email, or phone"""
         search_term = f"%{query}%"

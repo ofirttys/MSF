@@ -18,6 +18,7 @@ from appointment_manager import AppointmentManager
 from action_items_manager import ActionItemsManager
 from clinic_days_manager import ClinicDaysManager
 from portal_manager import PortalManager
+from blocked_times_manager import BlockedTimesManager
 
 # Eel will be initialized in main() with correct web folder path
 
@@ -28,6 +29,7 @@ appointment_mgr = None
 action_items_mgr = None
 clinic_days_mgr = None
 portal_mgr = None
+blocked_times_mgr = None
 
 # Session tracking
 SESSIONS_FILE = "DB/active_sessions.json"
@@ -45,7 +47,7 @@ current_user_is_admin = False
 
 def initialize_app():
     """Initialize database and managers"""
-    global db, patient_mgr, appointment_mgr, action_items_mgr, clinic_days_mgr, portal_mgr
+    global db, patient_mgr, appointment_mgr, action_items_mgr, clinic_days_mgr, portal_mgr, blocked_times_mgr
     
     # Database path - use DB subfolder like HTA
     import os
@@ -72,6 +74,7 @@ def initialize_app():
     action_items_mgr = ActionItemsManager(db)
     clinic_days_mgr = ClinicDaysManager(db)
     portal_mgr = PortalManager(db, portal_file_path)
+    blocked_times_mgr = BlockedTimesManager(db)
     
     print("✓ Application initialized")
 
@@ -202,6 +205,11 @@ def get_filtered_patients(state_filters=None, search_term=None, special_filters=
 def get_patient(patient_id):
     """Get single patient by ID"""
     return patient_mgr.get_by_id(patient_id)
+
+@eel.expose
+def get_patients_by_ids(patient_ids):
+    """Get multiple patients by IDs with histories (optimized batch query)"""
+    return patient_mgr.get_by_ids(patient_ids)
 
 @eel.expose
 def search_patients(query):
@@ -1171,6 +1179,46 @@ def get_missing_portal_access(force_refresh=False):
             'error': error_msg,
             'missing': []
         }
+
+
+# ============================================================================
+# BLOCKED TIMES API
+# ============================================================================
+
+@eel.expose
+def get_blocked_times_for_date(date_str):
+    """Get all blocked times for a specific date"""
+    return blocked_times_mgr.get_by_date(date_str)
+
+@eel.expose
+def get_blocked_times_for_range(start_date, end_date):
+    """Get all blocked times within a date range"""
+    return blocked_times_mgr.get_by_date_range(start_date, end_date)
+
+@eel.expose
+def get_blocked_time(block_id):
+    """Get a specific blocked time by ID"""
+    return blocked_times_mgr.get_by_id(block_id)
+
+@eel.expose
+def create_blocked_time(date_str, start_time, end_time, title, notes=None, created_by=None):
+    """Create a new blocked time"""
+    return blocked_times_mgr.create(date_str, start_time, end_time, title, notes, created_by)
+
+@eel.expose
+def update_blocked_time(block_id, date_str, start_time, end_time, title, notes=None):
+    """Update an existing blocked time"""
+    return blocked_times_mgr.update(block_id, date_str, start_time, end_time, title, notes)
+
+@eel.expose
+def delete_blocked_time(block_id):
+    """Delete a blocked time"""
+    return blocked_times_mgr.delete(block_id)
+
+@eel.expose
+def check_blocked_time_conflict(date_str, time_str):
+    """Check if a time conflicts with any blocked time"""
+    return blocked_times_mgr.check_conflict(date_str, time_str)
 
 
 # ============================================================================

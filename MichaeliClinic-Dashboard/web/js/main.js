@@ -1929,7 +1929,7 @@ window.checkDebugStatus = function() {
         }
         
         // Open reminders modal
-        function openRemindersModal() {
+        async function openRemindersModal() {
             var dateStr = currentViewDate.getFullYear() + '-' +
                 ('0' + (currentViewDate.getMonth() + 1)).slice(-2) + '-' +
                 ('0' + currentViewDate.getDate()).slice(-2);
@@ -1942,17 +1942,27 @@ window.checkDebugStatus = function() {
                 return;
             }
             
-            // Get appointments for this date (non-cancelled only)
-            var appointmentsForDate = [];
+            // Get appointment IDs for this date
+            var appointmentIDs = [];
             for (var i = 0; i < patients.length; i++) {
                 var p = patients[i];
                 if (p.nextAppointment === dateStr) {
-                    appointmentsForDate.push(p);
+                    appointmentIDs.push(p.patientID);
                 }
             }
             
-            if (appointmentsForDate.length === 0) {
+            if (appointmentIDs.length === 0) {
                 showErrorModal('No appointments scheduled for this date.');
+                return;
+            }
+            
+            // Load full patient data with stateHistory for ALL patients in ONE batch query
+            var appointmentsForDate = [];
+            try {
+                appointmentsForDate = await eel.get_patients_by_ids(appointmentIDs)();
+            } catch (error) {
+                console.error('Error loading patients for reminders:', error);
+                showErrorModal('Error loading patient data for reminders.');
                 return;
             }
             
