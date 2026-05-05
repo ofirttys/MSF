@@ -2787,7 +2787,9 @@ window.checkDebugStatus = function() {
             }
             
             await renderWeekView();
-            document.getElementById('weekViewModal').classList.add('active');
+            var modal = document.getElementById('weekViewModal');
+            modal.classList.add('active');
+            modal.style.display = 'flex';
         }
         
 		// Open portal access modal
@@ -3963,7 +3965,9 @@ window.checkDebugStatus = function() {
 			document.getElementById('editApptPatientName').textContent = formatNameWithAlias(patient.patientName, patient.patientAlias, patient.patientFirstName, patient.patientMiddleName, patient.patientLastName);
 			
             // Show the modal
-            document.getElementById('editApptModal').classList.add('active');
+            var modal = document.getElementById('editApptModal');
+            modal.classList.add('active');
+            modal.style.display = 'flex';
             document.getElementById('dayViewPanel').style.display = 'block';
 			updateDayViewPanel(document.getElementById('editApptDate').value);
 
