@@ -2221,6 +2221,14 @@ window.checkDebugStatus = function() {
                 result = {future: [], past: []};
             }
             
+			// Load blocked times for this date
+			var blockedTimes = [];
+			try {
+				blockedTimes = await eel.get_blocked_times_for_date(dateStr)();
+			} catch (error) {
+				console.error('Error loading blocked times:', error);
+			}			
+			
             // Map future appointments to format expected by UI
             var futureAppointments = result.future.map(function(appt) {
                 var isFirstAppt = appt.isFirstAppt === 1;
@@ -2258,9 +2266,24 @@ window.checkDebugStatus = function() {
                 };
             });
             
-            // Combine and sort by time
-            appointments = futureAppointments.concat(pastAppointments);
-            appointments.sort(function(a, b) { return a.time.localeCompare(b.time); });
+			// Combine appointments and blocked times
+			appointments = futureAppointments.concat(pastAppointments);
+
+			// Add blocked times to the list
+			for (var i = 0; i < blockedTimes.length; i++) {
+				appointments.push({
+					type: 'block',
+					time: blockedTimes[i].startTime,
+					blockData: blockedTimes[i],
+					patient: { patientID: null },
+					isFuture: true,
+					summary: null
+				});
+			}
+
+			// Sort everything by time
+			appointments.sort(function(a, b) { return a.time.localeCompare(b.time); });
+
 
             // Count non-cancelled appointments
             var nonCancelledCount = 0;
@@ -2296,6 +2319,19 @@ window.checkDebugStatus = function() {
             }
 
             container.innerHTML = appointments.map(function(appt) {
+				
+				// Handle blocked times
+				if (appt.type === 'block') {
+					var block = appt.blockData;
+					return '<div class="appointment-item" style="background: #ffebee; border-left: 4px solid #dc3545; cursor: pointer;" onclick="editBlock(' + block.id + ')">' +
+						'<div style="display: flex; align-items: center; gap: 10px; padding: 8px;">' +
+						'<strong style="color: #dc3545;">BLOCKED</strong>' +
+						'<span style="color: #666;">' + block.startTime + ' - ' + block.endTime + '</span>' +
+						'<span style="font-weight: 600;">' + escapeHtml(block.title) + '</span>' +
+						(block.notes ? '<span style="color: #999; font-size: 11px;">(' + escapeHtml(block.notes) + ')</span>' : '') +
+						'</div></div>';
+				}				
+				
                 // Check if appointment is cancelled
                 var isCancelled = appt.summary && appt.summary.toLowerCase().indexOf('cancelled') !== -1;
 				var isRescheduled = appt.summary && appt.summary.toLowerCase().indexOf('rescheduled') !== -1;
@@ -5885,7 +5921,36 @@ async function scheduleAppointmentWithSave(patientID, date, time, location, allo
         endTiming('scheduleAppointmentWithSave');
         return false;
     }
-    
+ 
+	// Check for blocked time
+	try {
+		var blockedTime = await eel.check_blocked_time_conflict(date, time)();
+		if (blockedTime) {
+			var proceed = false;
+			
+			await new Promise(function(resolve) {
+				showConfirm(
+					'Warning: This time is blocked for: ' + blockedTime.title + 
+					'\n\nFrom: ' + blockedTime.startTime + ' to ' + blockedTime.endTime +
+					'\n\nDo you want to schedule anyway?',
+					'Blocked Time Warning',
+					function(confirmed) {
+						proceed = confirmed;
+						resolve();
+					}
+				);
+			});
+			
+			if (!proceed) {
+				isManualOperationInProgress = false;
+				endTiming('scheduleAppointmentWithSave');
+				return false;
+			}
+		}
+	} catch (error) {
+		console.error('Error checking blocked time:', error);
+	}
+ 
     // Lock to prevent auto-refresh collision
     isManualOperationInProgress = true;
     
@@ -6001,14 +6066,10 @@ var currentEditingBlockId = null;
  */
 function openCreateBlockModal() {
     try {
-        console.log('Opening create block modal...');
-        
         // Pre-fill with currently selected date
         var dateStr = currentViewDate.getFullYear() + '-' +
             ('0' + (currentViewDate.getMonth() + 1)).slice(-2) + '-' +
             ('0' + currentViewDate.getDate()).slice(-2);
-        
-        console.log('Date string:', dateStr);
         
         document.getElementById('blockDate').value = dateStr;
         document.getElementById('blockStartTime').value = '';
@@ -6017,12 +6078,10 @@ function openCreateBlockModal() {
         document.getElementById('blockNotes').value = '';
         
         var modal = document.getElementById('createBlockModal');
-        console.log('Modal element:', modal);
         
         if (modal) {
             modal.classList.add('active');
-            modal.style.display = 'flex'; // Override the inline display: none
-            console.log('Modal should be visible now');
+            modal.style.display = 'flex';
             
             // Initialize Flatpickr for date picker
             setTimeout(async function() {
@@ -6107,14 +6166,13 @@ async function saveBlockedTime() {
         var blockId = await eel.create_blocked_time(date, startTime, endTime, title, notes || null, null)();
         
         if (blockId) {
-            console.log('Created blocked time:', blockId);
             closeModal('createBlockModal');
             
-            // Refresh views
+            // Refresh views to show the new block
             await renderAppointments();
-            await renderWeekView();
-            
-            showErrorModal('Time blocked successfully!');
+            if (typeof renderWeekView === 'function') {
+                await renderWeekView();
+            }
         } else {
             showErrorModal('Failed to create blocked time.');
         }
@@ -6229,14 +6287,13 @@ async function updateBlockedTime() {
         var success = await eel.update_blocked_time(blockId, date, startTime, endTime, title, notes || null)();
         
         if (success) {
-            console.log('Updated blocked time:', blockId);
             closeModal('editBlockModal');
             
-            // Refresh views
+            // Refresh views to show the updated block
             await renderAppointments();
-            await renderWeekView();
-            
-            showErrorModal('Block updated successfully!');
+            if (typeof renderWeekView === 'function') {
+                await renderWeekView();
+            }
         } else {
             showErrorModal('Failed to update block.');
         }
@@ -6264,14 +6321,13 @@ async function deleteBlockedTime() {
             var success = await eel.delete_blocked_time(blockId)();
             
             if (success) {
-                console.log('Deleted blocked time:', blockId);
                 closeModal('editBlockModal');
                 
-                // Refresh views
+                // Refresh views to remove the deleted block
                 await renderAppointments();
-                await renderWeekView();
-                
-                showErrorModal('Block deleted successfully!');
+                if (typeof renderWeekView === 'function') {
+                    await renderWeekView();
+                }
             } else {
                 showErrorModal('Failed to delete block.');
             }
