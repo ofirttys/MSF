@@ -6025,9 +6025,17 @@ function openCreateBlockModal() {
             console.log('Modal should be visible now');
             
             // Initialize Flatpickr for date picker
-            setTimeout(function() {
+            setTimeout(async function() {
                 var dateElement = document.getElementById('blockDate');
                 if (dateElement && typeof flatpickr !== 'undefined') {
+                    // Get appointment dates for day coloring
+                    var appointmentDates = {};
+                    try {
+                        appointmentDates = await getAllAppointmentDates();
+                    } catch (e) {
+                        // Use empty if fails
+                    }
+                    
                     if (!dateElement._flatpickr) {
                         flatpickr(dateElement, {
                             dateFormat: 'Y-m-d',
@@ -6142,9 +6150,17 @@ async function editBlock(blockId) {
         modal.style.display = 'flex';
         
         // Initialize Flatpickr for date picker
-        setTimeout(function() {
+        setTimeout(async function() {
             var dateElement = document.getElementById('editBlockDate');
             if (dateElement && typeof flatpickr !== 'undefined') {
+                // Get appointment dates for day coloring
+                var appointmentDates = {};
+                try {
+                    appointmentDates = await getAllAppointmentDates();
+                } catch (e) {
+                    // Use empty if fails
+                }
+                
                 if (!dateElement._flatpickr) {
                     flatpickr(dateElement, {
                         dateFormat: 'Y-m-d',
