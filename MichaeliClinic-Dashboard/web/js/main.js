@@ -6031,7 +6031,28 @@ function openCreateBlockModal() {
                     if (!dateElement._flatpickr) {
                         flatpickr(dateElement, {
                             dateFormat: 'Y-m-d',
-                            defaultDate: dateStr
+                            defaultDate: dateStr,
+                            onDayCreate: function(dObj, dStr, fp, dayElem) {
+                                var dateStr = dayElem.dateObj.getFullYear() + '-' +
+                                    ('0' + (dayElem.dateObj.getMonth() + 1)).slice(-2) + '-' +
+                                    ('0' + dayElem.dateObj.getDate()).slice(-2);
+                                
+                                var dayData = clinicDays[dateStr];
+                                var hasClinicType = dayData && (dayData.md2 || dayData.ivf || dayData.vaughan || dayData.downtown || dayData.survivorship);
+                                var hasAppointments = appointmentDates[dateStr];
+                                
+                                if (hasAppointments && !hasClinicType) {
+                                    dayElem.classList.add('has-appointment');
+                                }
+                                
+                                if (dayData) {
+                                    if (dayData.md2) dayElem.classList.add('clinic-md2');
+                                    if (dayData.ivf) dayElem.classList.add('clinic-ivf');
+                                    if (dayData.vaughan) dayElem.classList.add('clinic-vaughan');
+                                    if (dayData.downtown) dayElem.classList.add('clinic-downtown');
+                                    if (dayData.survivorship) dayElem.classList.add('clinic-survivorship');
+                                }
+                            }
                         });
                     } else {
                         dateElement._flatpickr.setDate(dateStr);
@@ -6083,7 +6104,7 @@ async function saveBlockedTime() {
             
             // Refresh views
             await renderAppointments();
-            await renderWeeklyView();
+            await renderWeekView();
             
             showErrorModal('Time blocked successfully!');
         } else {
@@ -6127,7 +6148,28 @@ async function editBlock(blockId) {
                 if (!dateElement._flatpickr) {
                     flatpickr(dateElement, {
                         dateFormat: 'Y-m-d',
-                        defaultDate: block.date
+                        defaultDate: block.date,
+                        onDayCreate: function(dObj, dStr, fp, dayElem) {
+                            var dateStr = dayElem.dateObj.getFullYear() + '-' +
+                                ('0' + (dayElem.dateObj.getMonth() + 1)).slice(-2) + '-' +
+                                ('0' + dayElem.dateObj.getDate()).slice(-2);
+                            
+                            var dayData = clinicDays[dateStr];
+                            var hasClinicType = dayData && (dayData.md2 || dayData.ivf || dayData.vaughan || dayData.downtown || dayData.survivorship);
+                            var hasAppointments = appointmentDates[dateStr];
+                            
+                            if (hasAppointments && !hasClinicType) {
+                                dayElem.classList.add('has-appointment');
+                            }
+                            
+                            if (dayData) {
+                                if (dayData.md2) dayElem.classList.add('clinic-md2');
+                                if (dayData.ivf) dayElem.classList.add('clinic-ivf');
+                                if (dayData.vaughan) dayElem.classList.add('clinic-vaughan');
+                                if (dayData.downtown) dayElem.classList.add('clinic-downtown');
+                                if (dayData.survivorship) dayElem.classList.add('clinic-survivorship');
+                            }
+                        }
                     });
                 } else {
                     dateElement._flatpickr.setDate(block.date);
@@ -6176,7 +6218,7 @@ async function updateBlockedTime() {
             
             // Refresh views
             await renderAppointments();
-            await renderWeeklyView();
+            await renderWeekView();
             
             showErrorModal('Block updated successfully!');
         } else {
@@ -6211,7 +6253,7 @@ async function deleteBlockedTime() {
                 
                 // Refresh views
                 await renderAppointments();
-                await renderWeeklyView();
+                await renderWeekView();
                 
                 showErrorModal('Block deleted successfully!');
             } else {
