@@ -3491,10 +3491,11 @@ window.checkDebugStatus = function() {
 					
 					// Check if this is a blocked time
 					if (appt.type === 'block') {
+						console.log('Rendering block in day view:', appt);
 						bgColor = '#ffcccc';
 						textColor = '#dc3545';
 						borderLeft = 'border:2px solid #dc3545;';
-						clickHandler = ' onclick="editBlock(' + appt.blockData.id + ')" style="cursor:pointer;"';
+						clickHandler = 'editBlock(' + appt.blockData.id + ')';
 					} else {
 						// Regular appointment styling
 						if (appt.location === 'Virtual') { bgColor = '#b19cd9'; textColor = 'white'; }
@@ -3506,10 +3507,12 @@ window.checkDebugStatus = function() {
 						clickHandler = '';
 					}
 					
-					cellHtml += '<div' + clickHandler + ' title="' + appt.time + ' - ' + appt.patientName + '" ';
+					var onclickAttr = clickHandler ? ' onclick="' + clickHandler + '"' : '';
+					
+					cellHtml += '<div' + onclickAttr + ' title="' + appt.time + ' - ' + appt.patientName + '" ';
 					cellHtml += 'style="position:absolute;top:1px;left:calc(' + leftPercent + '% + 1px);width:calc(' + widthPercent + '% - 3px);height:' + heightPx + 'px;';
 					cellHtml += 'background:' + bgColor + ';color:' + textColor + ';padding:2px 4px;border-radius:3px;font-size:10px;';
-					cellHtml += 'overflow:hidden;box-sizing:border-box;z-index:' + zIndex + ';font-weight:600;white-space:nowrap;' + borderLeft + '">';
+					cellHtml += 'overflow:hidden;cursor:pointer;box-sizing:border-box;z-index:' + zIndex + ';font-weight:600;white-space:nowrap;' + borderLeft + '">';
 					cellHtml += appt.patientName;
 					cellHtml += '</div>';
 				}
