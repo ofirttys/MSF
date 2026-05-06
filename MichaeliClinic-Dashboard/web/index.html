@@ -167,7 +167,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title" id="modalTitle">Add New Patient</h2>
-                <button class="close-btn" onclick="closeModal('patientModal')">&times;</button>
+                <button class="close-btn" onclick="cancelPatientEdit()">&times;</button>
             </div>
             <form id="patientForm" onsubmit="savePatient(event)">
                 <div class="form-group">
@@ -239,7 +239,7 @@
                     <textarea class="form-input" id="notes"></textarea>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('patientModal')">Cancel</button>
+                    <button type="button" class="btn btn-secondary" onclick="cancelPatientEdit()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Patient</button>
                 </div>
             </form>

@@ -2723,6 +2723,16 @@ window.checkDebugStatus = function() {
 				document.getElementById('dayViewPanel').style.display = 'none';
 			}			
         }
+        
+        function cancelPatientEdit() {
+            // Close the edit modal
+            closeModal('patientModal');
+            
+            // Reopen the details modal if we were editing an existing patient
+            if (currentEditingPatient && currentEditingPatient.patientID) {
+                viewPatientDetails(currentEditingPatient.patientID);
+            }
+        }
 
         function showError(message) {
             document.getElementById('errorModalMessage').textContent = message;
