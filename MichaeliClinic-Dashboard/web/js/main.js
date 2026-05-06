@@ -3426,17 +3426,58 @@ window.checkDebugStatus = function() {
 			
 			// Find appointments at this time
 			var apptsAtTime = [];
+			var blockAtTime = null;
+			
 			for (var a = 0; a < dayAppointments.length; a++) {
-				if (dayAppointments[a].time === time) {
-					apptsAtTime.push(dayAppointments[a]);
+				var appt = dayAppointments[a];
+				
+				if (appt.type === 'block') {
+					// Check if current time is within block range
+					var blockStartParts = appt.time.split(':');
+					var blockStartMins = parseInt(blockStartParts[0]) * 60 + parseInt(blockStartParts[1]);
+					var currentMins = hour * 60 + parseInt(minutes);
+					var blockEndMins = blockStartMins + appt.duration;
+					
+					// Only render block at its start time
+					if (appt.time === time) {
+						apptsAtTime.push(appt);
+					}
+					
+					// Track if we're currently inside a block
+					if (currentMins >= blockStartMins && currentMins < blockEndMins) {
+						blockAtTime = appt;
+					}
+				} else {
+					// Regular appointment
+					if (appt.time === time) {
+						apptsAtTime.push(appt);
+					}
 				}
 			}
 			
 			if (apptsAtTime.length > 0) {
-				var widthPercent = 100 / apptsAtTime.length;
+				var hasBlockStartingHere = apptsAtTime.some(function(a) { return a.type === 'block'; });
+				var appointmentsOnly = apptsAtTime.filter(function(a) { return a.type !== 'block'; });
+				
+				// Calculate widths
+				var totalSlots = appointmentsOnly.length + (blockAtTime ? 1 : 0);
+				var widthPercent = totalSlots > 0 ? (100 / totalSlots) : 100;
+				
 				for (var a = 0; a < apptsAtTime.length; a++) {
 					var appt = apptsAtTime[a];
-					var leftPercent = a * widthPercent;
+					var leftPercent, zIndex;
+					
+					if (appt.type === 'block') {
+						// Block always at position 0
+						leftPercent = 0;
+						zIndex = 5;
+					} else {
+						// Appointments start after block (if present)
+						var apptIndex = appointmentsOnly.indexOf(appt);
+						leftPercent = (apptIndex + (blockAtTime ? 1 : 0)) * widthPercent;
+						zIndex = 10; // Appointments on top
+					}
+					
 					var heightPx = (appt.duration / 15) * 20 - 2;
 					
 					var bgColor, textColor, borderLeft, clickHandler;
@@ -3461,7 +3502,7 @@ window.checkDebugStatus = function() {
 					cellHtml += '<div' + clickHandler + ' title="' + appt.time + ' - ' + appt.patientName + '" ';
 					cellHtml += 'style="position:absolute;top:1px;left:calc(' + leftPercent + '% + 1px);width:calc(' + widthPercent + '% - 3px);height:' + heightPx + 'px;';
 					cellHtml += 'background:' + bgColor + ';color:' + textColor + ';padding:2px 4px;border-radius:3px;font-size:10px;';
-					cellHtml += 'overflow:hidden;box-sizing:border-box;z-index:1;font-weight:600;white-space:nowrap;' + borderLeft + '">';
+					cellHtml += 'overflow:hidden;box-sizing:border-box;z-index:' + zIndex + ';font-weight:600;white-space:nowrap;' + borderLeft + '">';
 					cellHtml += appt.patientName;
 					cellHtml += '</div>';
 				}
