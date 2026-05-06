@@ -2230,8 +2230,13 @@ window.checkDebugStatus = function() {
 			if (dateStr) {
 				try {
 					blockedTimes = await eel.get_blocked_times_for_date(dateStr)();
+					if (!Array.isArray(blockedTimes)) {
+						console.error('Blocked times returned non-array:', blockedTimes);
+						blockedTimes = [];
+					}
 				} catch (error) {
-					console.error('Error loading blocked times:', error);
+					console.error('Error loading blocked times for date:', dateStr, 'Error:', error);
+					blockedTimes = [];
 				}
 			}			
 			
@@ -2696,7 +2701,10 @@ window.checkDebugStatus = function() {
             document.getElementById('isSurvivorshipClinic').checked = false;
             document.getElementById('isOTC').checked = false;
             document.getElementById('isPriorityList').checked = false;
-            document.getElementById('patientModal').classList.add('active');
+            
+            var patientModal = document.getElementById('patientModal');
+            patientModal.style.display = 'flex';
+            patientModal.classList.add('active');
         }
 
         function closeModal(modalId) {
@@ -4081,7 +4089,9 @@ window.checkDebugStatus = function() {
             document.getElementById('isOTC').checked = currentEditingPatient.isOTC || false;
             document.getElementById('isPriorityList').checked = currentEditingPatient.isPriorityList || false;
             
-            document.getElementById('patientModal').classList.add('active');
+            var patientModal = document.getElementById('patientModal');
+            patientModal.style.display = 'flex';
+            patientModal.classList.add('active');
         }
 
 		var currentCancellingApptPatient = null;
