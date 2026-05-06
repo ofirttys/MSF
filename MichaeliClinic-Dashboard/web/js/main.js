@@ -2227,10 +2227,12 @@ window.checkDebugStatus = function() {
             
 			// Load blocked times for this date
 			var blockedTimes = [];
-			try {
-				blockedTimes = await eel.get_blocked_times_for_date(dateStr)();
-			} catch (error) {
-				console.error('Error loading blocked times:', error);
+			if (dateStr) {
+				try {
+					blockedTimes = await eel.get_blocked_times_for_date(dateStr)();
+				} catch (error) {
+					console.error('Error loading blocked times:', error);
+				}
 			}			
 			
             // Map future appointments to format expected by UI
@@ -3889,7 +3891,9 @@ window.checkDebugStatus = function() {
             document.getElementById('stateTransitionButtons').innerHTML = buttons;
             
             // Show modal
-            document.getElementById('detailsModal').classList.add('active');
+            var detailsModal = document.getElementById('detailsModal');
+            detailsModal.style.display = 'flex';
+            detailsModal.classList.add('active');
             
             // Switch to info tab by default
             startTiming('switch_to_info_tab');
