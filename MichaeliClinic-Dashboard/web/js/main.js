@@ -2830,6 +2830,15 @@ window.checkDebugStatus = function() {
         }
         
 		// Render the week view
+        // Calculate duration in minutes between two times
+        function calculateDuration(startTime, endTime) {
+            var start = startTime.split(':');
+            var end = endTime.split(':');
+            var startMins = parseInt(start[0]) * 60 + parseInt(start[1]);
+            var endMins = parseInt(end[0]) * 60 + parseInt(end[1]);
+            return endMins - startMins;
+        }
+        
         async function renderWeekView() {
             // TRIGGER 2: Smart refresh when opening weekly view (skip on initial load)
             if (typeof doSmartRefresh !== 'undefined') {
@@ -2893,6 +2902,34 @@ window.checkDebugStatus = function() {
             
             // Get appointments for all dates
             var weekAppointments = getWeekAppointments(allDates);
+            
+            // Load blocked times for the week
+            var startDateStr = allDates[0].dateStr;
+            var endDateStr = allDates[allDates.length - 1].dateStr;
+            var blockedTimes = [];
+            try {
+                blockedTimes = await eel.get_blocked_times_for_range(startDateStr, endDateStr)();
+                
+                // Add blocked times to weekAppointments
+                for (var i = 0; i < blockedTimes.length; i++) {
+                    var block = blockedTimes[i];
+                    if (!weekAppointments[block.date]) {
+                        weekAppointments[block.date] = [];
+                    }
+                    weekAppointments[block.date].push({
+                        type: 'block',
+                        time: block.startTime,
+                        blockData: block,
+                        patientID: null,
+                        patientName: block.title,
+                        location: 'Block',
+                        isFirstAppt: false,
+                        duration: calculateDuration(block.startTime, block.endTime)
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading blocked times for week:', error);
+            }
             
             // Calculate total units for percentage widths
             var totalUnits = 0;
@@ -3057,15 +3094,26 @@ window.checkDebugStatus = function() {
                         var leftPercent = a * widthPercent;
                         var heightPx = (appt.duration / 15) * 20 - 2;
                         
-                        var bgColor, textColor;
-                        if (appt.location === 'Virtual') { bgColor = '#b19cd9'; textColor = 'white'; }
-                        else if (appt.location === 'Vaughan') { bgColor = '#f1c40f'; textColor = '#333'; }
-                        else if (appt.location === 'Downtown') { bgColor = '#e67e22'; textColor = 'white'; }
-                        else { bgColor = '#ccc'; textColor = '#333'; }
+                        var bgColor, textColor, borderLeft, clickHandler;
                         
-                        var borderLeft = appt.isFirstAppt ? 'border-left:3px solid #9b59b6;' : '';
+                        // Check if this is a blocked time
+                        if (appt.type === 'block') {
+                            bgColor = '#ffcccc';
+                            textColor = '#dc3545';
+                            borderLeft = 'border:2px solid #dc3545;';
+                            clickHandler = 'editBlock(' + appt.blockData.id + ')';
+                        } else {
+                            // Regular appointment styling
+                            if (appt.location === 'Virtual') { bgColor = '#b19cd9'; textColor = 'white'; }
+                            else if (appt.location === 'Vaughan') { bgColor = '#f1c40f'; textColor = '#333'; }
+                            else if (appt.location === 'Downtown') { bgColor = '#e67e22'; textColor = 'white'; }
+                            else { bgColor = '#ccc'; textColor = '#333'; }
+                            
+                            borderLeft = appt.isFirstAppt ? 'border-left:3px solid #9b59b6;' : '';
+                            clickHandler = 'viewPatientDetailsFromWeekView(\'' + appt.patientID + '\')';
+                        }
                         
-                        cellHtml += '<div onclick="viewPatientDetailsFromWeekView(\'' + appt.patientID + '\')" ';
+                        cellHtml += '<div onclick="' + clickHandler + '" ';
                         cellHtml += 'title="' + appt.time + ' - ' + appt.patientName + '" ';
                         cellHtml += 'style="position:absolute;top:1px;left:calc(' + leftPercent + '% + 1px);width:calc(' + widthPercent + '% - 3px);height:' + heightPx + 'px;';
                         cellHtml += 'background:' + bgColor + ';color:' + textColor + ';padding:2px 4px;border-radius:3px;font-size:10px;';
@@ -3233,6 +3281,36 @@ window.checkDebugStatus = function() {
 				}
 			}
 			
+			// Load blocked times for this date
+			eel.get_blocked_times_for_date(dateStr)(function(blockedTimes) {
+				if (blockedTimes && blockedTimes.length > 0) {
+					for (var i = 0; i < blockedTimes.length; i++) {
+						var block = blockedTimes[i];
+						var startParts = block.startTime.split(':');
+						var endParts = block.endTime.split(':');
+						var startMins = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+						var endMins = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+						var duration = endMins - startMins;
+						
+						dayAppointments.push({
+							type: 'block',
+							time: block.startTime,
+							duration: duration,
+							location: 'Block',
+							patientName: block.title,
+							blockData: block,
+							isFirstAppt: false
+						});
+					}
+				}
+				
+				// Continue rendering after blocks are loaded
+				renderDayViewPanel(dayAppointments, dateStr, dayData, panelContent, d);
+			});
+		}
+		
+		function renderDayViewPanel(dayAppointments, dateStr, dayData, panelContent, d) {
+			
 			// Sort by time
 			dayAppointments.sort(function(a, b) {
 				return a.time.localeCompare(b.time);
@@ -3320,15 +3398,26 @@ window.checkDebugStatus = function() {
 					var leftPercent = a * widthPercent;
 					var heightPx = (appt.duration / 15) * 20 - 2;
 					
-					var bgColor, textColor;
-					if (appt.location === 'Virtual') { bgColor = '#b19cd9'; textColor = 'white'; }
-					else if (appt.location === 'Vaughan') { bgColor = '#f1c40f'; textColor = '#333'; }
-					else if (appt.location === 'Downtown') { bgColor = '#e67e22'; textColor = 'white'; }
-					else { bgColor = '#ccc'; textColor = '#333'; }
+					var bgColor, textColor, borderLeft, clickHandler;
 					
-					var borderLeft = appt.isFirstAppt ? 'border-left:3px solid #9b59b6;' : '';
+					// Check if this is a blocked time
+					if (appt.type === 'block') {
+						bgColor = '#ffcccc';
+						textColor = '#dc3545';
+						borderLeft = 'border:2px solid #dc3545;';
+						clickHandler = ' onclick="editBlock(' + appt.blockData.id + ')" style="cursor:pointer;"';
+					} else {
+						// Regular appointment styling
+						if (appt.location === 'Virtual') { bgColor = '#b19cd9'; textColor = 'white'; }
+						else if (appt.location === 'Vaughan') { bgColor = '#f1c40f'; textColor = '#333'; }
+						else if (appt.location === 'Downtown') { bgColor = '#e67e22'; textColor = 'white'; }
+						else { bgColor = '#ccc'; textColor = '#333'; }
+						
+						borderLeft = appt.isFirstAppt ? 'border-left:3px solid #9b59b6;' : '';
+						clickHandler = '';
+					}
 					
-					cellHtml += '<div title="' + appt.time + ' - ' + appt.patientName + '" ';
+					cellHtml += '<div' + clickHandler + ' title="' + appt.time + ' - ' + appt.patientName + '" ';
 					cellHtml += 'style="position:absolute;top:1px;left:calc(' + leftPercent + '% + 1px);width:calc(' + widthPercent + '% - 3px);height:' + heightPx + 'px;';
 					cellHtml += 'background:' + bgColor + ';color:' + textColor + ';padding:2px 4px;border-radius:3px;font-size:10px;';
 					cellHtml += 'overflow:hidden;box-sizing:border-box;z-index:1;font-weight:600;white-space:nowrap;' + borderLeft + '">';
