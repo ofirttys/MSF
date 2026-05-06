@@ -3270,7 +3270,7 @@ window.checkDebugStatus = function() {
         }
 
 		// Render day view for appointment scheduling
-		function updateDayViewPanel(dateStr) {
+		async function updateDayViewPanel(dateStr) {
 			if (!dateStr) {
 				document.getElementById('dayViewPanelContent').innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">Select a date to view appointments</div>';
 				return;
@@ -3322,8 +3322,9 @@ window.checkDebugStatus = function() {
 				}
 			}
 			
-			// Load blocked times for this date
-			eel.get_blocked_times_for_date(dateStr)(function(blockedTimes) {
+			// Load blocked times for this date (using await)
+			try {
+				var blockedTimes = await eel.get_blocked_times_for_date(dateStr)();
 				if (blockedTimes && blockedTimes.length > 0) {
 					for (var i = 0; i < blockedTimes.length; i++) {
 						var block = blockedTimes[i];
@@ -3344,10 +3345,12 @@ window.checkDebugStatus = function() {
 						});
 					}
 				}
-				
-				// Continue rendering after blocks are loaded
-				renderDayViewPanel(dayAppointments, dateStr, dayData, panelContent, d);
-			});
+			} catch (error) {
+				console.error('Error loading blocked times for day view:', error);
+			}
+			
+			// Continue rendering after blocks are loaded
+			renderDayViewPanel(dayAppointments, dateStr, dayData, panelContent, d);
 		}
 		
 		function renderDayViewPanel(dayAppointments, dateStr, dayData, panelContent, d) {
@@ -3360,6 +3363,10 @@ window.checkDebugStatus = function() {
 			// Adjust duration based on next appointment and time slot
 			for (var i = 0; i < dayAppointments.length; i++) {
 				var appt = dayAppointments[i];
+				
+				// Skip blocks - they already have correct duration
+				if (appt.type === 'block') continue;
+				
 				var timeParts = appt.time.split(':');
 				var apptMinutes = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
 				var minutes = parseInt(timeParts[1]);
