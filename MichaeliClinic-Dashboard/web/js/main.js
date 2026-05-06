@@ -3081,17 +3081,56 @@ window.checkDebugStatus = function() {
                 // Appointments at this time
                 var dayAppts = weekAppointments[wd.dateStr] || [];
                 var apptsAtTime = [];
+                var blockAtTime = null;
+                
                 for (var a = 0; a < dayAppts.length; a++) {
-                    if (dayAppts[a].time === time) {
-                        apptsAtTime.push(dayAppts[a]);
+                    var appt = dayAppts[a];
+                    
+                    if (appt.type === 'block') {
+                        // Check if current time is within block range
+                        var blockStartParts = appt.time.split(':');
+                        var blockStartMins = parseInt(blockStartParts[0]) * 60 + parseInt(blockStartParts[1]);
+                        var currentMins = hour * 60 + parseInt(minutes);
+                        var blockEndMins = blockStartMins + appt.duration;
+                        
+                        // Only render block at its start time
+                        if (appt.time === time) {
+                            apptsAtTime.push(appt);
+                        }
+                        
+                        // Track if we're currently inside a block (for positioning other appointments)
+                        if (currentMins >= blockStartMins && currentMins < blockEndMins) {
+                            blockAtTime = appt;
+                        }
+                    } else {
+                        // Regular appointment
+                        if (appt.time === time) {
+                            apptsAtTime.push(appt);
+                        }
                     }
                 }
                 
                 if (apptsAtTime.length > 0) {
-                    var widthPercent = 100 / apptsAtTime.length;
+                    // If there's an active block but it's not in apptsAtTime, we need to account for it
+                    var hasBlockStartingHere = apptsAtTime.some(function(a) { return a.type === 'block'; });
+                    var totalItems = apptsAtTime.length;
+                    
+                    // If block is active but starts earlier, add space for it
+                    if (blockAtTime && !hasBlockStartingHere) {
+                        totalItems += 1;
+                    }
+                    
+                    var widthPercent = 100 / totalItems;
+                    var itemIndex = 0;
+                    
+                    // If block is active and starts earlier, skip first position
+                    if (blockAtTime && !hasBlockStartingHere) {
+                        itemIndex = 1;
+                    }
+                    
                     for (var a = 0; a < apptsAtTime.length; a++) {
                         var appt = apptsAtTime[a];
-                        var leftPercent = a * widthPercent;
+                        var leftPercent = itemIndex * widthPercent;
                         var heightPx = (appt.duration / 15) * 20 - 2;
                         
                         var bgColor, textColor, borderLeft, clickHandler;
@@ -3120,6 +3159,8 @@ window.checkDebugStatus = function() {
                         cellHtml += 'overflow:hidden;cursor:pointer;box-sizing:border-box;z-index:1;font-weight:600;white-space:nowrap;' + borderLeft + '">';
                         cellHtml += appt.patientName;
                         cellHtml += '</div>';
+                        
+                        itemIndex++; // Move to next position
                     }
                 }
                 
