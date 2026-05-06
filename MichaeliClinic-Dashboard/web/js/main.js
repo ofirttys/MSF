@@ -501,7 +501,9 @@ window.checkDebugStatus = function() {
             document.getElementById('changePasswordSuccess').style.display = 'none';
             
             // Open modal
-            document.getElementById('changePasswordModal').classList.add('active');
+            var changePasswordModal = document.getElementById('changePasswordModal');
+            changePasswordModal.style.display = 'flex';
+            changePasswordModal.classList.add('active');
         }
         
         async function submitPasswordChange() {
@@ -1874,7 +1876,9 @@ window.checkDebugStatus = function() {
             }
             document.getElementById('filterBtnasap').classList.add('active');
             
-            document.getElementById('freeSlotsModal').classList.add('active');
+            var freeSlotsModal = document.getElementById('freeSlotsModal');
+            freeSlotsModal.style.display = 'flex';
+            freeSlotsModal.classList.add('active');
         }
 
 // ============================================================================
@@ -2022,7 +2026,10 @@ window.checkDebugStatus = function() {
             
             document.getElementById('remindersContent').innerHTML = html;
             document.getElementById('reminderSelectAll').checked = true;
-            document.getElementById('remindersModal').classList.add('active');
+            
+            var remindersModal = document.getElementById('remindersModal');
+            remindersModal.style.display = 'flex';
+            remindersModal.classList.add('active');
         }
         
         // Toggle all reminder checkboxes
@@ -2802,8 +2809,8 @@ window.checkDebugStatus = function() {
             
             await renderWeekView();
             var modal = document.getElementById('weekViewModal');
-            modal.classList.add('active');
             modal.style.display = 'flex';
+            modal.classList.add('active');
         }
         
 		// Open portal access modal
@@ -4112,7 +4119,10 @@ window.checkDebugStatus = function() {
             
             currentCancellingApptPatient = patient;
             document.getElementById('cancelApptPatientName').textContent = formatNameWithAlias(patient.patientName, patient.patientAlias, patient.patientFirstName, patient.patientMiddleName, patient.patientLastName);
-            document.getElementById('cancelApptModal').classList.add('active');
+            
+            var cancelApptModal = document.getElementById('cancelApptModal');
+            cancelApptModal.style.display = 'flex';
+            cancelApptModal.classList.add('active');
         }
         
         async function confirmCancelAppointment(cancelledBy) {
@@ -4221,8 +4231,8 @@ window.checkDebugStatus = function() {
 			
             // Show the modal
             var modal = document.getElementById('editApptModal');
-            modal.classList.add('active');
             modal.style.display = 'flex';
+            modal.classList.add('active');
             document.getElementById('dayViewPanel').style.display = 'block';
 			updateDayViewPanel(document.getElementById('editApptDate').value);
 
@@ -4800,7 +4810,9 @@ window.checkDebugStatus = function() {
         
         // Open portal modal and check missing access
         async function openPortalModal() {
-            document.getElementById('portalModal').classList.add('active');
+            var portalModal = document.getElementById('portalModal');
+            portalModal.style.display = 'flex';
+            portalModal.classList.add('active');
             await loadPortalUsers(false);  // Use cache by default
         }
         
@@ -4918,7 +4930,9 @@ window.checkDebugStatus = function() {
                 addBar.style.display = isReadOnly ? 'none' : 'block';
             }
             
-            document.getElementById('actionItemsModal').classList.add('active');
+            var actionItemsModal = document.getElementById('actionItemsModal');
+            actionItemsModal.style.display = 'flex';
+            actionItemsModal.classList.add('active');
         }
         
         // Switch action items tab
@@ -5242,7 +5256,9 @@ window.checkDebugStatus = function() {
             document.getElementById('previewBody').innerHTML = '<p style="color: #999;">Select an email type to see preview</p>';
             
             // Show modal
-            document.getElementById('emailGeneratorModal').classList.add('active');
+            var emailGeneratorModal = document.getElementById('emailGeneratorModal');
+            emailGeneratorModal.style.display = 'flex';
+            emailGeneratorModal.classList.add('active');
         }
         
         // Handle email type change
