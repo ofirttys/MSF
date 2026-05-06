@@ -3111,26 +3111,28 @@ window.checkDebugStatus = function() {
                 }
                 
                 if (apptsAtTime.length > 0) {
-                    // If there's an active block but it's not in apptsAtTime, we need to account for it
                     var hasBlockStartingHere = apptsAtTime.some(function(a) { return a.type === 'block'; });
-                    var totalItems = apptsAtTime.length;
+                    var appointmentsOnly = apptsAtTime.filter(function(a) { return a.type !== 'block'; });
                     
-                    // If block is active but starts earlier, add space for it
-                    if (blockAtTime && !hasBlockStartingHere) {
-                        totalItems += 1;
-                    }
-                    
-                    var widthPercent = 100 / totalItems;
-                    var itemIndex = 0;
-                    
-                    // If block is active and starts earlier, skip first position
-                    if (blockAtTime && !hasBlockStartingHere) {
-                        itemIndex = 1;
-                    }
+                    // Calculate widths
+                    var totalSlots = appointmentsOnly.length + (blockAtTime ? 1 : 0);
+                    var widthPercent = totalSlots > 0 ? (100 / totalSlots) : 100;
                     
                     for (var a = 0; a < apptsAtTime.length; a++) {
                         var appt = apptsAtTime[a];
-                        var leftPercent = itemIndex * widthPercent;
+                        var leftPercent, zIndex;
+                        
+                        if (appt.type === 'block') {
+                            // Block always at position 0
+                            leftPercent = 0;
+                            zIndex = 5;
+                        } else {
+                            // Appointments start after block (if present)
+                            var apptIndex = appointmentsOnly.indexOf(appt);
+                            leftPercent = (apptIndex + (blockAtTime ? 1 : 0)) * widthPercent;
+                            zIndex = 10; // Appointments on top
+                        }
+                        
                         var heightPx = (appt.duration / 15) * 20 - 2;
                         
                         var bgColor, textColor, borderLeft, clickHandler;
@@ -3156,11 +3158,9 @@ window.checkDebugStatus = function() {
                         cellHtml += 'title="' + appt.time + ' - ' + appt.patientName + '" ';
                         cellHtml += 'style="position:absolute;top:1px;left:calc(' + leftPercent + '% + 1px);width:calc(' + widthPercent + '% - 3px);height:' + heightPx + 'px;';
                         cellHtml += 'background:' + bgColor + ';color:' + textColor + ';padding:2px 4px;border-radius:3px;font-size:10px;';
-                        cellHtml += 'overflow:hidden;cursor:pointer;box-sizing:border-box;z-index:1;font-weight:600;white-space:nowrap;' + borderLeft + '">';
+                        cellHtml += 'overflow:hidden;cursor:pointer;box-sizing:border-box;z-index:' + zIndex + ';font-weight:600;white-space:nowrap;' + borderLeft + '">';
                         cellHtml += appt.patientName;
                         cellHtml += '</div>';
-                        
-                        itemIndex++; // Move to next position
                     }
                 }
                 
