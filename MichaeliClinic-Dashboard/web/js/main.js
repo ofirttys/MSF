@@ -2711,8 +2711,8 @@ window.checkDebugStatus = function() {
             var modal = document.getElementById(modalId);
             modal.classList.remove('active');
             modal.style.display = 'none';
-			// Hide day view panel when any modal closes
-			if (modalId === 'editApptModal' || modalId === 'transitionModal') {
+			// Hide day view panel when closing modals that use it
+			if (modalId === 'editApptModal' || modalId === 'transitionModal' || modalId === 'detailsModal') {
 				document.getElementById('dayViewPanel').style.display = 'none';
 			}			
         }
@@ -4385,7 +4385,10 @@ window.checkDebugStatus = function() {
 
             document.getElementById('transitionTitle').textContent = title;
             document.getElementById('transitionFields').innerHTML = fields;
-            document.getElementById('transitionModal').classList.add('active');
+            
+            var transitionModal = document.getElementById('transitionModal');
+            transitionModal.style.display = 'flex';
+            transitionModal.classList.add('active');
             
             // Initialize Flatpickr for the new date/time inputs after a short delay
             setTimeout(function() {
