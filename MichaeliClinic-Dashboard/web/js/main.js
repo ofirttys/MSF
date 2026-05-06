@@ -5731,20 +5731,22 @@ window.checkDebugStatus = function() {
             }
             
             // Determine subject - handle welcome email special case
-            var subject = template.subject;
+            var subject = template.subject || '';
             if (emailType === 'welcome' || emailType === 'abortion') {
                 var apptIncluded = document.getElementById('emailApptIncluded');
                 if (apptIncluded && !apptIncluded.checked) {
-                    subject = template.subjectNoAppt;
+                    subject = template.subjectNoAppt || template.subject || '';
                 } else {
-                    subject = template.subjectWithAppt;
+                    subject = template.subjectWithAppt || template.subject || '';
                 }
             }
             
-            // Replace subject placeholders
-            subject = subject.replace(/\{\{patientFirstName\}\}/g, patientFirstName);
-            subject = subject.replace(/\{\{partnerFirstName\}\}/g, partnerFirstNameForSubject);
-            subject = subject.replace(/\{\{patientName\}\}/g, currentEmailPatient.patientName || '');
+            // Replace subject placeholders (only if subject exists)
+            if (subject) {
+                subject = subject.replace(/\{\{patientFirstName\}\}/g, patientFirstName);
+                subject = subject.replace(/\{\{partnerFirstName\}\}/g, partnerFirstNameForSubject);
+                subject = subject.replace(/\{\{patientName\}\}/g, currentEmailPatient.patientName || '');
+            }
             document.getElementById('previewSubject').textContent = subject;
             
             // Replace placeholders in body
