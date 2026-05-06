@@ -2161,6 +2161,10 @@ window.checkDebugStatus = function() {
             body = body.replace(/\{\{signature\}\}/g, emailTemplates.settings.signature.replace(/\n/g, '<br>'));
             body = body.replace(/\{\{disclaimers\}\}/g, emailTemplates.commonBlocks.disclaimers || '');
             
+            // Use default reminder message for bulk reminders
+            var reminderMessage = emailTemplates.commonBlocks.reminderDefault || '';
+            body = body.replace(/\{\{reminderMessage\}\}/g, reminderMessage);
+            
             return {
                 to: toList.join('; '),
                 subject: subject,
@@ -5258,6 +5262,21 @@ window.checkDebugStatus = function() {
 					html += '</div>';		
 				}
 
+				// Reminder message options (only for reminder)
+				if (emailType === 'reminder') {
+					html += '<div style="margin-bottom: 15px; padding: 12px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px;">';
+					html += '<label style="font-weight: 600; display: block; margin-bottom: 8px;">Reminder Options:</label>';
+					html += '<label style="display: block; margin-bottom: 5px;">';
+					html += '<input type="checkbox" id="emailReminderTestsIncomplete" onchange="updateEmailPreview()">';
+					html += ' Not completed tests';
+					html += '</label>';
+					html += '<label style="display: block;">';
+					html += '<input type="checkbox" id="emailReminderCycleNotStarted" onchange="updateEmailPreview()">';
+					html += ' Not completed cycle';
+					html += '</label>';
+					html += '</div>';
+				}
+
                 // Appointment included checkbox (only for welcome and followUp)
                 if (emailType === 'welcome' || emailType === 'followUp' || emailType === 'abortion') {
                     html += '<div style="margin-bottom: 15px;">';
@@ -5776,6 +5795,24 @@ window.checkDebugStatus = function() {
 				}
 			}
 			body = body.replace(/\{\{cycleOrdersBlock\}\}/g, cycleOrdersBlock);
+			
+			// Handle reminder message - based on checkboxes (only for reminder emails)
+			var reminderMessage = '';
+			if (emailType === 'reminder') {
+				var testsIncomplete = document.getElementById('emailReminderTestsIncomplete')?.checked || false;
+				var cycleNotStarted = document.getElementById('emailReminderCycleNotStarted')?.checked || false;
+				
+				if (testsIncomplete && cycleNotStarted) {
+					reminderMessage = emailTemplates.commonBlocks.reminderBothIssues || '';
+				} else if (testsIncomplete) {
+					reminderMessage = emailTemplates.commonBlocks.reminderTestsIncomplete || '';
+				} else if (cycleNotStarted) {
+					reminderMessage = emailTemplates.commonBlocks.reminderCycleNotStarted || '';
+				} else {
+					reminderMessage = emailTemplates.commonBlocks.reminderDefault || '';
+				}
+			}
+			body = body.replace(/\{\{reminderMessage\}\}/g, reminderMessage);
             
             // Handle appointment block for welcome, followUp and abortion email
             var apptIncluded = document.getElementById('emailApptIncluded');
