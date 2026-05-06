@@ -1,0 +1,179 @@
+{
+  "settings": {
+    "fontFamily": "Calibri, Arial, sans-serif",
+    "fontSize": "11pt",
+    "fontColor": "#000000",
+    "signature": "Best regards,\nDr. Michaeli's Office"
+  },
+  "locations": {
+    "downtown": {
+      "name": "Downtown Toronto",
+      "address": "250 Dundas Street West, 7th floor, Toronto",
+      "hours": "7 days a week, Monday - Sunday 7:00am - 2:30pm"
+    },
+    "vaughan": {
+      "name": "Vaughan",
+      "address": "Joseph & Wolf Lebovic Jewish Community Campus, 9600 Bathurst Street, 3rd floor, Suite 300, Vaughan",
+      "hours": "Monday - Friday between 7:00am-10:00am"
+    },
+    "mississauga": {
+      "name": "Mississauga",
+      "address": "800 Southdown Rd, Unit A4, Mississauga, Ontario L5J 2Y4",
+      "hours": "Monday - Friday between 7:00am-9:00am"
+    }
+  },
+  "clinicTypes": [
+    "Fertility",
+    "Fertility Preservation", 
+    "Fertility - Cancer Survivorship"
+  ],
+  "appointmentTypes": [
+    "In Person",
+    "Virtual (OTN)"
+  ],
+  "commonBlocks": {
+    "locationsLink": "For clinic locations and hours, please visit: <a href='https://mountsinaifertility.com/contact-us/'>https://mountsinaifertility.com/contact-us/</a>",
+    "disclaimers": "<p style='margin-top: 20px; padding-top: 15px; border-top: 1px solid #ccc; font-size: 10pt; color: #555;'><strong>Important Notes:</strong><br><span style='color: #c00;'>* Cancellations require 2 business days notice. Failure to provide notice will result in a fee of $80.00 for review appointments and $140.00 for new appointments. Appointments will not be rescheduled until the balance is paid in full.</span><br>* You must have a valid health card to receive care. Please ensure you and your partner (if applicable) bring a valid health card to your in-person appointment and update us with any change to your health card number.<br>* Fertility treatment fees are available on the Mount Sinai Fertility website: <a href=https://mountsinaifertility.com/more-information/fees/>https://mountsinaifertility.com/more-information/fees/</a>.<br>* Mount Sinai Fertility (MSF) is a teaching clinic of the University of Toronto. Medical students, residents and fellows may be involved in your care under the direct supervision of Dr. Michaeli.<br>* Our team involves both male and female health care providers and MSF cannot accommodate requests based on provider gender.<br>* For virtual appointments, Dr. Michaeli may connect up to 30 minutes after the scheduled start time. Please do not log off OTN.<br>* You must be in Ontario for your virtual consultation. If you are not in Ontario, we will need to reschedule to a later date.</p>",
+    "nursingContact": "<p><strong>Important:</strong> Contact the nursing team to report your day 1 for a treatment cycle, positive pregnancy test, or if you have questions regarding medications or results.<br>Phone: 416-586-4748 option 2<br>Email: MSFMessage.MSH@sinaihealth.ca</p>",
+    "bookingContact": "To arrange your tests at Mount Sinai Fertility call 416-586-4748 option 2 (voicemail service) or email: MSFmessage.MSH@sinaihealth.ca",
+    "appointmentDetails": "<p><strong>Appointment Details:</strong><br>Location: {{appointmentType}}{{locationInfo}}<br>Date: {{appointmentDayDate}}<br>Time: {{appointmentTime}}</p>",
+	"appointmentDetailsNoLocation": "<p><strong>Appointment Details:</strong><br>Date: {{appointmentDayDate}}<br>Time: {{appointmentTime}}</p>",
+	"bothPartnersRequired": "<p><strong>Please note:</strong> Both partners must attend the initial appointment in-person, together.</p>",
+    "testsHeader": "<p><strong>The following tests are requested by Dr. Michaeli and must be completed before your next appointment:</strong></p>",
+    "testsForPatient": "<p><strong>For {{patientFirstName}}:</strong></p>",
+    "testsForPartner": "<p><strong>For {{partnerFirstName}}:</strong></p>",
+    "otnBlock": "<p>On the day before your appointment, you will receive a separate email from \"OTN no reply\" with a link and instructions on how to connect to your virtual appointment.</p>",
+    "testsIncompleteBlock": "<p>If you are able to complete the outstanding tests before your originally scheduled appointment, please let us know and we may be able to keep your original time slot. Otherwise, please confirm the new appointment below.</p>",
+    "handoutsBlock": "<p><strong>Educational Materials:</strong> Please review the handouts relevant to your care that have been uploaded to your patient portal.</p>",
+    "referralsBlock": "<p><strong>Referral:</strong> A referral has been submitted on your behalf and you will be contacted by the relevant office to schedule an appointment.</p>",
+    "fundingBlock": "<p><strong>Ontario Fertility Program (OFP) Funding:</strong> You were added to MSF OFP waitlist. Information about OFP: <a href='https://www.ontario.ca/page/get-fertility-treatments'>https://www.ontario.ca/page/get-fertility-treatments</a></p>",
+    "treatmentBlock": "<p><strong>Treatment Instructions:</strong> Detailed instructions for your upcoming treatment cycle have been uploaded to your patient portal. Please review them carefully and contact the nursing line if you have any questions.<br>Phone: 416-586-4748 option 2<br>Email: MSFMessage.MSH@sinaihealth.ca</p>",
+    "testsIntroBlock": "<p>Test results will be reviewed at this appointment. If there are outstanding tests, the appointment will be rescheduled to a later date.</p>",
+	"cycleOrdersIUI": "<p>Dr. Michaeli has left orders for your IUI cycle in your chart. You can call in your day 1 to the nursing team (information below) to start your cycle.</p>",
+	"cycleOrdersIVF": "<p>Dr. Michaeli has left orders for your IVF cycle in your chart. You can call in your day 1 to the nursing team (information below) to start your cycle.</p>",
+	"cycleOrdersOvulation": "<p>Dr. Michaeli has left orders for your ovulation induction cycle in your chart. You can call in your day 1 to the nursing team (information below) to start your cycle.</p>",
+	"cycleOrdersEmbryo": "<p>Dr. Michaeli has left orders for your embryo transfer cycle in your chart. You can call in your day 1 to the nursing team (information below) to start your cycle.</p>",
+	"cycleOrdersGeneric": "<p>Dr. Michaeli has left orders for your cycle in your chart. You can call in your day 1 to the nursing team (information below) to start your cycle.</p>",
+	"reminderDefault": "<p>Please let us know as soon as possible if you are unable to attend. No action is required if you plan to attend.</p>",
+	"reminderTestsIncomplete": "<p>Dr. Michaeli noticed that you haven't completed all of the recommended tests.</p><p>We suggest postponing your appointment until after your tests are completed, so the visit can be as productive and informative as possible.</p><p>Please let us know as soon as possible if you are unable to attend or if you want me to reschedule your appointment to after you complete the tests.</p>",
+	"reminderCycleNotStarted": "<p>Dr. Michaeli noticed that you have not yet moved forward with the cycle planning she provided.</p><p>We suggest postponing your appointment until after your cycle is completed, so the visit can be as productive and informative as possible.</p><p>Please let us know as soon as you can if you would like to reschedule or if you are unable to attend.</p>",
+	"reminderBothIssues": "<p>Dr. Michaeli noticed that you haven't completed all of the recommended tests and have not yet moved forward with the cycle planning she provided.</p><p>We suggest postponing your appointment until after your tests and cycle are completed, so the visit can be as productive and informative as possible.</p><p>Please let us know as soon as you can if you would like to reschedule or if you are unable to attend.</p>"
+  },
+  "tests": {
+    "bloodWork": {
+      "name": "Blood Work",
+      "header": "<li><strong>Blood Work{{bloodWorkTypes}}</strong><ul><li>To book your tests at Mount Sinai Fertility call 416-586-4748 option 2 (voicemail service) or email: MSFmessage.MSH@sinaihealth.ca</li><li>No preparation is needed</li>{{amhNote}}<li>If you require a requisition for blood work at an external lab, please let us know.</li></ul></li>"
+    },
+    "amhNote": "<li>AMH is not covered by OHIP and costs ~$70-85</li>",
+    "ultrasound": {
+      "name": "Abdominal/Transvaginal Ultrasound",
+      "instructions": "<li><strong>Abdominal/Transvaginal Ultrasound</strong><ul><li>To book your tests at Mount Sinai Fertility, on the first day of your period, call 416-586-4748 option 2 (voicemail service) or email: MSFmessage.MSH@sinaihealth.ca</li><li>Full bladder is required for the ultrasound.</li><li>If no period, call/email as above and receive instructions from the nursing team.</li></ul></li>"
+    },
+    "semenAnalysis": {
+      "name": "Semen Analysis",
+      "header": "<li><strong>Semen Analysis</strong><ul><li>To book your test at Mount Sinai Fertility call 416-586-4748 option 2 (voicemail service) or email: MSFmessage.MSH@sinaihealth.ca</li><li>2-5 days of abstinence required</li></ul></li>"
+    },
+    "hsg": {
+      "name": "HSG (Hysterosalpingogram)",
+      "instructions": "<li><strong>HSG (Hysterosalpingogram)</strong><ul><li>To book your test at Mount Sinai Fertility call 416-586-4748 option 2 (voicemail service) or email: MSFmessage.MSH@sinaihealth.ca</li><li>You will be asked to book an appointment between day 6-11 of your cycle (counting day 1 as the first day of your period).</li><li>You may experience cramping, similar to period cramps during the test. You may take over-the-counter pain medication such as ibuprofen 1-2 hours before the test.</li></ul></li>"
+    },
+    "salineUltrasound": {
+      "name": "Saline Ultrasound",
+      "instructions": "<li><strong>Saline Ultrasound (SIS)</strong><ul><li>To book your test at Mount Sinai Fertility call 416-586-4748 option 2 (voicemail service) or email: MSFmessage.MSH@sinaihealth.ca</li><li>You will be asked to book an appointment between day 6-11 of your cycle (counting day 1 as the first day of your period).</li><li>You may experience cramping, similar to period cramps during the test. You may take over-the-counter pain medication such as ibuprofen 1-2 hours before the test.</li></ul></li>"
+    },
+    "endometrialBiopsy": {
+      "name": "Endometrial Biopsy",
+      "instructions": "<li><strong>Endometrial Biopsy</strong><ul><li>To book your test at Mount Sinai Fertility call 416-586-4748 option 2 (voicemail service) or email: MSFmessage.MSH@sinaihealth.ca</li><li>You may experience cramping, similar to period cramps during the test. You may take over-the-counter pain medication such as ibuprofen 1-2 hours before the test.</li></ul></li>"
+    },
+    "hysteroscopy": {
+      "name": "Hysteroscopy",
+      "instructions": "<li><strong>Hysteroscopy</strong><ul><li>To book your test at Mount Sinai Fertility call 416-586-4748 option 2 (voicemail service) or email: MSFmessage.MSH@sinaihealth.ca</li><li>You will be asked to book an appointment between day 6-11 of your cycle (counting day 1 as the first day of your period).</li></ul></li>"
+    },
+    "geneticTesting": {
+      "name": "Genetic Testing",
+      "instructions": "<li><strong>Genetic Testing</strong><ul><li>To arrange genetic testing, call 416-586-4748 ext. 6230</li></ul></li>"
+    },
+    "ivfConsent": {
+      "name": "IVF Consent Appointment",
+      "instructions": "<li><strong>IVF Consent Appointment</strong><ul><li>To book your appointment call 416-586-4748 option 2 (voicemail service) or email: MSFmessage.MSH@sinaihealth.ca</li></ul></li>"
+    },
+    "otherTest": {
+      "name": "Other Test",
+      "instructions": "<li><strong>Other Test: {{testDetails}}</strong><ul><li>{{bookingContact}}</li></ul></li>"
+    }
+  },
+  "templates": {
+    "welcome": {
+      "name": "Welcome Email",
+      "subject": "Welcome to Mount Sinai Fertility - {{patientFirstName}}{{partnerFirstName}}",
+      "body": "<p>Dear {{greeting}},</p><p>Welcome to Mount Sinai Fertility!</p><p>Your first appointment has been scheduled with Dr. Jennia Michaeli in her {{clinicType}} Clinic.</p>{{appointmentDetails}}{{bothPartnersRequired}}<p><strong>Please confirm this appointment by replying to this email.</strong></p>{{otnBlock}}{{testsBlock}}<p>{{locationsLink}}</p>{{nursingContact}}<p>We look forward to meeting you!</p><p>{{signature}}</p>{{disclaimers}}"
+    },
+	"firstAppointment": {
+      "name": "First Appointment Email",
+      "subject": "First Appointment for {{patientFirstName}}{{partnerFirstName}} with Dr. Michaeli - Please Confirm",
+      "body": "<p>Dear {{greeting}},</p><p>Your first appointment has been scheduled with Dr. Jennia Michaeli in her {{clinicType}} Clinic.</p>{{appointmentDetails}}{{bothPartnersRequired}}<p><strong>Please confirm this appointment by replying to this email.</strong></p>{{otnBlock}}{{testsBlock}}<p>{{locationsLink}}</p>{{nursingContact}}<p>We look forward to meeting you!</p><p>{{signature}}</p>{{disclaimers}}"
+    },
+	"followUp": {
+	  "name": "Post-appointment Instructions",
+	  "subject": "Post-appointment Instructions for {{patientFirstName}}{{partnerFirstName}} with Dr. Michaeli - Action Required",
+  "body": "<p>Hello {{greeting}},</p><p>Dr. Michaeli was very happy to see you at your last appointment.</p>{{cycleOrdersBlock}}{{appointmentBlock}}{{testsIntroBlock}}{{testsBlock}}{{handoutsBlock}}{{referralsBlock}}{{fundingBlock}}<p>{{locationsLink}}</p>{{nursingContact}}<p>{{signature}}</p>{{disclaimers}}",
+	  "appointmentIncludedBlock": "<p>Your next appointment has been scheduled with Dr. Jennia Michaeli in her {{clinicType}} Clinic to discuss next steps and results.</p>{{appointmentDetails}}<p><strong>Please confirm this appointment by replying to this email.</strong></p>{{otnBlock}}",
+	  "appointmentPendingBlock": "<p>Your next follow-up appointment will be scheduled to discuss next steps and test results. We will contact you soon with appointment details.</p>"
+	},
+	"nextAppointment": {
+      "name": "Next Appointment Email", 
+      "subject": "Next Appointment for {{patientFirstName}}{{partnerFirstName}} with Dr. Michaeli - Please Confirm",
+      "body": "<p>Hello {{greeting}},</p><p>Your next appointment has been scheduled with Dr. Jennia Michaeli in her {{clinicType}} Clinic.</p>{{appointmentDetails}}<p><strong>Please confirm this appointment by replying to this email.</strong></p>{{otnBlock}}{{testsIntroBlock}}{{testsBlock}}{{handoutsBlock}}{{referralsBlock}}{{fundingBlock}}<p>{{locationsLink}}</p>{{nursingContact}}<p>{{signature}}</p>{{disclaimers}}"
+    },
+    "reschedulingPatient": {
+      "name": "Rescheduling (Patient Request)",
+      "subject": "Rescheduled Appointment for {{patientFirstName}}{{partnerFirstName}} with Dr. Michaeli - Please Confirm",
+      "body": "<p>Hello {{greeting}},</p><p>As per your request, your appointment has been rescheduled.</p>{{appointmentDetails}}<p><strong>Please confirm this appointment by replying to this email.</strong></p>{{otnBlock}}<p>{{locationsLink}}</p><p>{{signature}}</p>{{disclaimers}}"
+    },
+    "reschedulingPhysician": {
+      "name": "Rescheduling (Physician Request)",
+      "subject": "Important: Appointment Rescheduled for {{patientFirstName}}{{partnerFirstName}} with Dr. Michaeli",
+      "body": "<p>Hello {{greeting}},</p><p>We need to reschedule your upcoming appointment with Dr. Michaeli.</p><p><strong>Reason:</strong> {{rescheduleReason}}</p>{{testsIncompleteBlock}}{{appointmentDetails}}<p><strong>Please confirm this appointment by replying to this email.</strong></p>{{otnBlock}}<p>We apologize for any inconvenience.</p><p>{{locationsLink}}</p>{{nursingContact}}<p>{{signature}}</p>{{disclaimers}}"
+    },
+    "cancellation": {
+      "name": "Appointment Cancellation",
+      "subject": "Mount Sinai Fertility - Appointment Cancellation with Dr. Michaeli for {{patientFirstName}}{{partnerFirstName}}",
+      "body": "<p>Hello {{greeting}},</p><p>{{cancellationReason}}</p><p>{{locationsLink}}</p>{{nursingContact}}<p>{{signature}}</p>{{disclaimers}}"
+    },
+    "partnerInfoRequired": {
+      "name": "Partner Information Required",
+      "subject": "Mount Sinai Fertility - Partner Information Required for {{patientFirstName}}",
+      "body": "<p>Hello {{patientFirstName}},</p><p>To complete your file, we require the following information for your partner:</p><ul><li>Name:</li><li>Birthday:</li><li>Address:</li><li>Mobile Phone:</li><li>Email:</li><li>Health Card:</li></ul><p>Please reply to this email with the above information at your earliest convenience.</p><p>Thank you for your cooperation.</p>{{nursingContact}}<p>{{signature}}</p>{{disclaimers}}"
+    },
+	"abortion": {
+      "name": "Pregnancy Loss",
+      "subjectWithAppt": "Mount Sinai Fertility - Appointment for {{patientFirstName}}{{partnerFirstName}} - Please Confirm",
+      "subjectNoAppt": "Mount Sinai Fertility - {{patientFirstName}}, We Are Here For You",
+      "body": "<p>Dear {{greeting}},</p><p>I'm so deeply sorry to hear about your loss. Thank you for reaching out and sharing this with me. I can only imagine how difficult this has been for you.</p>{{appointmentBlock}}<p>{{signature}}</p>{{disclaimers}}",
+      "appointmentIncludedBlock": "<p>Your next appointment has been scheduled with Dr. Jennia Michaeli in her {{clinicType}} Clinic.</p>{{appointmentDetails}}<p><strong>Please confirm this appointment by replying to this email.</strong></p>{{otnBlock}}<p>{{locationsLink}}</p>",
+      "appointmentPendingBlock": "<p>I've spoken with Dr. Michaeli, and I've placed you on our cancellation waitlist. I will do everything I can to find an earlier appointment for you.</p><p>I'll be in touch as soon as I have an update.</p>"
+    },
+    "noShow": {
+        "name": "No Show / Late Cancellation",
+		"subject": "Mount Sinai Fertility - Missed Appointment for {{patientFirstName}}{{partnerFirstName}} - Action Required",
+		"bodyNoShow": "<p>Dear {{greeting}},</p><p>We noticed that you were unable to attend your scheduled appointment with Dr. Michaeli.</p><p>As per the clinic's cancellation policy: <em>\"If for any reason you cannot make your appointment, we require a minimum of 2 business days' notice. Failure to provide 48 hours business notice to change or cancel an appointment will result in a fee of $80.00 for review appointments and $140.00 for new in-person appointments. Appointments will not be rescheduled until the balance is paid in full.\"</em></p><p>Once payment has been received in full, I will be happy to reschedule your appointment with Dr. Michaeli at our next availability.</p><p>If you have any questions or believe this was sent in error, please don't hesitate to contact us.</p><p>{{signature}}</p>{{disclaimers}}",
+		"bodyLateCancellation": "<p>Dear {{greeting}},</p><p>We received your cancellation request for your scheduled appointment with Dr. Michaeli.</p><p>As per the clinic's cancellation policy: <em>\"If for any reason you cannot make your appointment, we require a minimum of 2 business days' notice. Failure to provide 48 hours business notice to change or cancel an appointment will result in a fee of $80.00 for review appointments and $140.00 for new in-person appointments. Appointments will not be rescheduled until the balance is paid in full.\"</em></p><p>Once payment has been received in full, I will be happy to reschedule your appointment with Dr. Michaeli at our next availability.</p><p>If you have any questions or believe this was sent in error, please don't hesitate to contact us.</p><p>{{signature}}</p>{{disclaimers}}"
+	},
+    "reminder": {
+      "name": "Appointment Reminder",
+      "subject": "Reminder: Upcoming Appointment for {{patientFirstName}}{{partnerFirstName}} with Dr. Michaeli",
+      "body": "<p>Dear {{greeting}},</p><p>Hope you are doing well!</p><p>This is a reminder for your upcoming appointment:</p>{{appointmentDetails}}{{reminderMessage}}<p>Dr. Michaeli is looking forward to seeing you!</p><p>{{signature}}</p>{{disclaimers}}"
+    }
+  },
+  "rescheduleReasons": {
+    "midTreatment": "You are currently mid-treatment cycle and do not need a review appointment at this time. Your appointment has been rescheduled to after your treatment is complete.",
+    "physicianUnavailable": "Unfortunately, Dr. Michaeli is no longer available during your originally scheduled time slot.",
+    "testsIncomplete": "Your follow-up tests have not been completed yet. To ensure we can properly review your results, we have rescheduled your appointment to allow time for test completion."
+  },
+  "cancellationReasons": {
+    "pregnant": "Congratulations on your pregnancy!<br>As you no longer require fertility treatment at this time, your upcoming appointment with Dr. Michaeli has been cancelled. We wish you all the best on this exciting journey. Should you need our services in the future, please don't hesitate to reach out.",
+    "patientRequest": "As per your request, your upcoming appointment with Dr. Michaeli has been cancelled.",
+    "noReach": "As we were unable to reach you, the appointment with Dr. Michaeli has been cancelled. Please contact us to reschedule at your earliest convenience.",
+    "other": "Your upcoming appointment with Dr. Michaeli has been cancelled."
+  }
+}

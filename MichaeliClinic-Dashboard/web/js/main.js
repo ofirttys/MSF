@@ -3114,8 +3114,36 @@ window.checkDebugStatus = function() {
                     var hasBlockStartingHere = apptsAtTime.some(function(a) { return a.type === 'block'; });
                     var appointmentsOnly = apptsAtTime.filter(function(a) { return a.type !== 'block'; });
                     
-                    // Calculate widths
-                    var totalSlots = appointmentsOnly.length + (blockAtTime ? 1 : 0);
+                    // If a block is starting here, check how many appointments fall ANYWHERE in its duration
+                    var maxAppointmentsDuringBlock = 0;
+                    if (hasBlockStartingHere) {
+                        var blockItem = apptsAtTime.find(function(a) { return a.type === 'block'; });
+                        if (blockItem) {
+                            var blockStartMins = hour * 60 + parseInt(minutes);
+                            var blockEndMins = blockStartMins + blockItem.duration;
+                            
+                            // Count max concurrent appointments during block duration
+                            for (var checkMins = blockStartMins; checkMins < blockEndMins; checkMins += 15) {
+                                var checkHour = Math.floor(checkMins / 60);
+                                var checkMin = checkMins % 60;
+                                var checkTime = ('0' + checkHour).slice(-2) + ':' + ('0' + checkMin).slice(-2);
+                                
+                                var apptsAtCheckTime = dayAppts.filter(function(a) {
+                                    return a.type !== 'block' && a.time === checkTime;
+                                }).length;
+                                
+                                maxAppointmentsDuringBlock = Math.max(maxAppointmentsDuringBlock, apptsAtCheckTime);
+                            }
+                        }
+                    }
+                    
+                    // Calculate widths - use max appointments during block if block is starting
+                    var totalSlots;
+                    if (hasBlockStartingHere && maxAppointmentsDuringBlock > appointmentsOnly.length) {
+                        totalSlots = maxAppointmentsDuringBlock + 1; // +1 for the block itself
+                    } else {
+                        totalSlots = appointmentsOnly.length + (blockAtTime ? 1 : 0);
+                    }
                     var widthPercent = totalSlots > 0 ? (100 / totalSlots) : 100;
                     
                     for (var a = 0; a < apptsAtTime.length; a++) {
@@ -3466,8 +3494,36 @@ window.checkDebugStatus = function() {
 				var hasBlockStartingHere = apptsAtTime.some(function(a) { return a.type === 'block'; });
 				var appointmentsOnly = apptsAtTime.filter(function(a) { return a.type !== 'block'; });
 				
-				// Calculate widths
-				var totalSlots = appointmentsOnly.length + (blockAtTime ? 1 : 0);
+				// If a block is starting here, check how many appointments fall ANYWHERE in its duration
+				var maxAppointmentsDuringBlock = 0;
+				if (hasBlockStartingHere) {
+					var blockItem = apptsAtTime.find(function(a) { return a.type === 'block'; });
+					if (blockItem) {
+						var blockStartMins = hour * 60 + parseInt(minutes);
+						var blockEndMins = blockStartMins + blockItem.duration;
+						
+						// Count max concurrent appointments during block duration
+						for (var checkMins = blockStartMins; checkMins < blockEndMins; checkMins += 15) {
+							var checkHour = Math.floor(checkMins / 60);
+							var checkMin = checkMins % 60;
+							var checkTime = ('0' + checkHour).slice(-2) + ':' + ('0' + checkMin).slice(-2);
+							
+							var apptsAtCheckTime = dayAppointments.filter(function(a) {
+								return a.type !== 'block' && a.time === checkTime;
+							}).length;
+							
+							maxAppointmentsDuringBlock = Math.max(maxAppointmentsDuringBlock, apptsAtCheckTime);
+						}
+					}
+				}
+				
+				// Calculate widths - use max appointments during block if block is starting
+				var totalSlots;
+				if (hasBlockStartingHere && maxAppointmentsDuringBlock > appointmentsOnly.length) {
+					totalSlots = maxAppointmentsDuringBlock + 1; // +1 for the block itself
+				} else {
+					totalSlots = appointmentsOnly.length + (blockAtTime ? 1 : 0);
+				}
 				var widthPercent = totalSlots > 0 ? (100 / totalSlots) : 100;
 				
 				for (var a = 0; a < apptsAtTime.length; a++) {
