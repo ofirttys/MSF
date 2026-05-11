@@ -2036,7 +2036,25 @@
 						<div class="form-section">
 							<div class="form-section-title" style="margin-bottom: 0; color: #667eea;">Referral Information</div>
 							
-							<div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+							<!-- File selector FIRST -->
+							<div class="form-row" style="grid-template-columns: 1fr;">
+								<div class="form-group">
+									<label style="font-weight: 600; color: #667eea;">Referral File (PDF)</label>
+									<div style="display: flex; gap: 5px;">
+										<input type="text" id="fileName" readonly 
+											   style="background: #f0f0f0; flex: 1; cursor: pointer;" 
+											   onclick="selectFile()" 
+											   placeholder="Click to select PDF file...">
+										<button type="button" onclick="viewSelectedFile()" 
+												class="btn btn-primary btn-small" 
+												id="viewFileBtn" 
+												style="display: none;">View</button>
+									</div>
+								</div>
+							</div>
+							
+							<!-- Dates row -->
+							<div class="form-row" style="grid-template-columns: 1fr 1fr;">
 								<div class="form-group">
 									<label class="required">Referral Date</label>
 									<input type="text" id="referralDate" class="datepicker" required>
@@ -2044,19 +2062,6 @@
 								<div class="form-group">
 									<label class="required">Received Date</label>
 									<input type="text" id="receivedDate" class="datepicker" required>
-								</div>
-								<div class="form-group">
-									<label>File Name</label>
-									<div style="display: flex; gap: 5px;">
-										<input type="text" id="fileName" readonly 
-											   style="background: #f0f0f0; flex: 1; cursor: pointer;" 
-											   onclick="selectFile()" 
-											   placeholder="Click to select file...">
-										<button type="button" onclick="viewSelectedFile()" 
-												class="btn btn-primary btn-small" 
-												id="viewFileBtn" 
-												style="display: none;">View</button>
-									</div>
 								</div>
 							</div>
 							
@@ -5723,8 +5728,11 @@ Have a great day.`
 				console.log('Starting saveReferral...');
 				
 				// Validate required fields
+				const referralDate = document.getElementById('referralDate').value;
 				const receivedDate = document.getElementById('receivedDate').value;
 				const referringPhysician = document.getElementById('referringPhysician').value;
+				const billingNumber = document.getElementById('billingNumber').value;
+				const physicianFax = document.getElementById('physicianFax').value;
 				const requestedLocation = document.getElementById('requestedLocation').value;
 				const requestedPhysician = document.getElementById('requestedPhysician').value;
 				const referralType = document.getElementById('referralType').value;
@@ -5738,6 +5746,12 @@ Have a great day.`
 				console.log('Validating required fields...');
 				
 				// Check required fields
+				if (!referralDate) {
+					document.getElementById('currentFile').textContent = 'Error: Referral Date is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('referralDate').focus();
+					return;
+				}
 				if (!receivedDate) {
 					document.getElementById('currentFile').textContent = 'Error: Received Date is required';
 					document.getElementById('statusBar').style.color = '#e74c3c';
@@ -5750,6 +5764,18 @@ Have a great day.`
 					document.getElementById('currentFile').textContent = 'Error: Referring Physician Name is required';
 					document.getElementById('statusBar').style.color = '#e74c3c';
 					document.getElementById('referringPhysician').focus();
+					return;
+				}
+				if (!isSelfReferral && !billingNumber) {
+					document.getElementById('currentFile').textContent = 'Error: Billing Number is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('billingNumber').focus();
+					return;
+				}
+				if (!isSelfReferral && !physicianFax) {
+					document.getElementById('currentFile').textContent = 'Error: Fax is required';
+					document.getElementById('statusBar').style.color = '#e74c3c';
+					document.getElementById('physicianFax').focus();
 					return;
 				}
 				if (!requestedLocation) {
