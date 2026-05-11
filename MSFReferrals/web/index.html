@@ -2671,6 +2671,7 @@
                 errorDiv.textContent = result.message;
                 errorDiv.style.display = 'block';
             }
+            
             } catch (error) {
                 console.error('Password change error:', error);
                 const errorDiv = document.getElementById('passwordChangeError');
@@ -4667,7 +4668,6 @@ Have a great day.`
             const originalBtnText = btn.textContent;
             btn.textContent = 'Assigning...';
             
-            try {
             const physician = document.getElementById('assignedPhysicianSelect').value;
             
             if (!physician) {
@@ -4696,7 +4696,6 @@ Have a great day.`
                 
             } catch (error) {
                 showErrorModal('Assign Error', 'Failed to assign physician: ' + error.message);
-            }
             } finally {
                 // Always re-enable button
                 btn.disabled = false;
@@ -4847,7 +4846,6 @@ Have a great day.`
             const originalBtnText = btn.textContent;
             btn.textContent = 'Submitting...';
             
-            try {
             const mrn = document.getElementById('cernerMRN').value.trim();
             
             if (!mrn) {
@@ -4878,7 +4876,6 @@ Have a great day.`
                 
             } catch (error) {
                 showErrorModal('Save Error', 'Failed to save Cerner entry: ' + error.message);
-            }
             } finally {
                 // Always re-enable button
                 btn.disabled = false;
@@ -4939,7 +4936,6 @@ Have a great day.`
             const originalBtnText = btn.textContent;
             btn.textContent = 'Submitting...';
             
-            try {
             const pid = document.getElementById('eivfPID').value.trim();
             
             if (!pid) {
@@ -4967,7 +4963,6 @@ Have a great day.`
                 
             } catch (error) {
                 showErrorModal('Save Error', 'Failed to save eIVF entry: ' + error.message);
-            }
             } finally {
                 // Always re-enable button
                 btn.disabled = false;
@@ -5006,7 +5001,6 @@ Have a great day.`
             const originalBtnText = btn.textContent;
             btn.textContent = 'Assigning...';
             
-            try {
             const mdAdmin = document.getElementById('assignedMdAdminSelect').value;
             
             if (!mdAdmin) {
@@ -5033,7 +5027,6 @@ Have a great day.`
                 
             } catch (error) {
                 showErrorModal('Assign Error', 'Failed to assign MD Admin: ' + error.message);
-            }
             } finally {
                 // Always re-enable button
                 btn.disabled = false;
@@ -5117,7 +5110,6 @@ Have a great day.`
                 
             } catch (error) {
                 showErrorModal('Status Update Error', 'Failed to update status: ' + error.message);
-            }
             } finally {
                 // Always re-enable button
                 btn.disabled = false;
@@ -5145,7 +5137,6 @@ Have a great day.`
             const originalBtnText = btn.textContent;
             btn.textContent = 'Returning...';
             
-            try {
             const reason = document.getElementById('reactivationReason').value.trim();
             
             if (!reason) {
@@ -5174,7 +5165,6 @@ Have a great day.`
                 
             } catch (error) {
                 showErrorModal('Return to Active Error', 'Failed to return referral to active: ' + error.message);
-            }
             } finally {
                 // Always re-enable button
                 btn.disabled = false;
