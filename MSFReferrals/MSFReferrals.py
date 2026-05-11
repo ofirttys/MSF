@@ -80,11 +80,11 @@ def _simple_hash(s):
     return hex_result[:8]
 
 def get_db_connection():
-    """Get database connection with WAL mode enabled"""
+    """Get database connection with DELETE mode for maximum data safety"""
     conn = sqlite3.connect(DATABASE_FILE, timeout=30.0)
     conn.row_factory = sqlite3.Row  # Access columns by name
-    conn.execute('PRAGMA journal_mode=WAL')
-    conn.execute('PRAGMA synchronous=NORMAL')
+    conn.execute('PRAGMA journal_mode=DELETE')
+    conn.execute('PRAGMA synchronous=FULL')
     return conn
 
 def timestamp_to_date(timestamp):
@@ -907,7 +907,14 @@ def add_referral(referral_data):
             if referral_data.get('fileName'):
                 release_file_claim(referral_data['fileName'])
             
+            # BUG FIX #2: Ensure referralID is set and convert timestamps back to dates for frontend
             referral_data['referralID'] = referral_id
+            
+            # Convert timestamps back to date strings for frontend display
+            for field in date_fields:
+                if field in referral_data and referral_data[field]:
+                    referral_data[field] = timestamp_to_date(referral_data[field])
+            
             return {'status': 'success', 'referral': referral_data}
             
         except Exception as e:

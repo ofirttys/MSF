@@ -187,9 +187,10 @@ def create_database(db_path):
         displayOrder INTEGER
     );
 
-    -- Indexes
+    -- Indexes for fast filtering and sorting
     CREATE INDEX idx_status ON referrals(referralStatus);
     CREATE INDEX idx_received_date ON referrals(receivedDate);
+    CREATE INDEX idx_last_attempt_date ON referrals(lastAttemptDate);
     CREATE INDEX idx_type ON referrals(referralType);
     CREATE INDEX idx_physician ON referrals(requestedPhysician);
     CREATE INDEX idx_last_name ON referrals(patientLastName);
@@ -200,9 +201,9 @@ def create_database(db_path):
     CREATE INDEX idx_notes_referral ON notes_history(referralID);
     CREATE INDEX idx_status_referral ON status_history(referralID);
 
-    -- Enable WAL mode for better concurrency
-    PRAGMA journal_mode=WAL;
-    PRAGMA synchronous=NORMAL;
+    -- Use DELETE mode for maximum data safety (not WAL)
+    PRAGMA journal_mode=DELETE;
+    PRAGMA synchronous=FULL;
     PRAGMA cache_size=10000;
     """)
     
