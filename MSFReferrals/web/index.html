@@ -2036,8 +2036,7 @@
 						<div class="form-section">
 							<div class="form-section-title" style="margin-bottom: 0; color: #667eea;">Referral Information</div>
 							
-							<!-- File selector FIRST -->
-							<div class="form-row" style="grid-template-columns: 1fr;">
+							<div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
 								<div class="form-group">
 									<label style="font-weight: 600; color: #667eea;">Referral File (PDF)</label>
 									<div style="display: flex; gap: 5px;">
@@ -2051,10 +2050,6 @@
 												style="display: none;">View</button>
 									</div>
 								</div>
-							</div>
-							
-							<!-- Dates row -->
-							<div class="form-row" style="grid-template-columns: 1fr 1fr;">
 								<div class="form-group">
 									<label class="required">Referral Date</label>
 									<input type="text" id="referralDate" class="datepicker" required>
@@ -5480,8 +5475,8 @@ Have a great day.`
 						}, 3000);
 					}
 					
-					// Auto-open the viewer
-					await openFileFromPath(result.fileName);
+					// Auto-open the viewer using full path (file is still in Pending/)
+					await openFileFromPath(result.fullPath);
 				}
 			} catch(e) {
 				showErrorModal('File Selection Error', e.message);
