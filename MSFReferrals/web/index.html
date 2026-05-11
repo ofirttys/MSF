@@ -2671,12 +2671,17 @@
                 errorDiv.textContent = result.message;
                 errorDiv.style.display = 'block';
             }
-        } finally {
-            // Always re-enable button
-            btn.disabled = false;
-            btn.textContent = originalBtnText;
+            } catch (error) {
+                console.error('Password change error:', error);
+                const errorDiv = document.getElementById('passwordChangeError');
+                errorDiv.textContent = 'An error occurred: ' + error.message;
+                errorDiv.style.display = 'block';
+            } finally {
+                // Always re-enable button
+                btn.disabled = false;
+                btn.textContent = originalBtnText;
+            }
         }
-    }
         
         async function loadUsersForManagement() {
             const result = await eel.get_users()();
@@ -4595,12 +4600,15 @@ Have a great day.`
                 showSuccessModal('Email Saved', '1 email saved.\n\nIn Outlook, click the "Create Emails" button to open it.');
                 closeModal('contactIntakeModal');
             }
-        } finally {
-            // Always re-enable button
-            btn.disabled = false;
-            btn.textContent = originalBtnText;
+            } catch (error) {
+                console.error('Send intake email error:', error);
+                showErrorModal('Error', 'Failed to save email: ' + error.message);
+            } finally {
+                // Always re-enable button
+                btn.disabled = false;
+                btn.textContent = originalBtnText;
+            }
         }
-    }
         
         function openRecordReferringContactModal() {
             // Clear comment
