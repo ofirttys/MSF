@@ -2521,8 +2521,19 @@ if __name__ == '__main__':
         print(f"  python Convert-CSV-To-SQLite.py referral-status.csv DB/referrals.db")
         sys.exit(1)
     
-    # Initialize Eel
-    eel.init('web')
+    # Determine web folder location
+    # When running as EXE, web folder is next to exe (not extracted from exe)
+    # When running as script, web folder is in same directory
+    if getattr(sys, 'frozen', False):
+        # Running as compiled exe - web folder next to exe
+        web_folder = os.path.join(os.path.dirname(sys.executable), 'web')
+    else:
+        # Running as script - web folder in same directory
+        web_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web')
+    
+    # Initialize Eel with explicit web folder path
+    eel.init(web_folder)
+    print(f"📁 Web folder: {web_folder}")
     
     # Set Windows taskbar icon (Windows only)
     if sys.platform == 'win32':
