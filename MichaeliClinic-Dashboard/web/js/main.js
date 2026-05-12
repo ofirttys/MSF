@@ -198,6 +198,7 @@ window.checkDebugStatus = function() {
 
         // Data storage
         var patients = [];
+        var remindersPatientData = []; // Fresh patient data fetched for reminders modal
         var clinicDays = {}; // Clinic days data: { "YYYY-MM-DD": { vaughan: true, virtual: true, ... } }
         var currentViewDate = new Date();
         var currentEditingPatient = null;
@@ -1964,6 +1965,8 @@ window.checkDebugStatus = function() {
             var appointmentsForDate = [];
             try {
                 appointmentsForDate = await eel.get_patients_by_ids(appointmentIDs)();
+                // Store in global variable so sendReminders can use fresh data
+                remindersPatientData = appointmentsForDate;
             } catch (error) {
                 console.error('Error loading patients for reminders:', error);
                 showErrorModal('Error loading patient data for reminders.');
@@ -2072,9 +2075,10 @@ window.checkDebugStatus = function() {
                 var patientID = checkboxes[i].getAttribute('data-patient-id');
                 var patient = null;
                 
-                for (var j = 0; j < patients.length; j++) {
-                    if (patients[j].patientID === patientID) {
-                        patient = patients[j];
+                // Use fresh data from remindersPatientData instead of stale global patients array
+                for (var j = 0; j < remindersPatientData.length; j++) {
+                    if (remindersPatientData[j].patientID === patientID) {
+                        patient = remindersPatientData[j];
                         break;
                     }
                 }
