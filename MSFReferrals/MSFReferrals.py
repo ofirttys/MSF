@@ -8,6 +8,7 @@ import threading
 import time
 import traceback
 import shutil
+import pytz
 from pathlib import Path
 from datetime import datetime, timedelta
 import psutil
@@ -103,20 +104,29 @@ def row_to_dict(row):
 def create_daily_backup():
     """Create daily backup of database if one doesn't exist for today"""
     try:
-        today = datetime.now().strftime('%Y%m%d')
-        backup_filename = f'referrals-{today}.db'
-        backup_path = os.path.join(DB_FOLDER, backup_filename)
+        # Create backups folder if it doesn't exist (same as clinic dashboard)
+        backup_folder = os.path.join(DB_FOLDER, 'backups')
+        if not os.path.exists(backup_folder):
+            os.makedirs(backup_folder)
         
-        # Check if backup for today already exists
-        if os.path.exists(backup_path):
-            print(f'Daily backup already exists: {backup_filename}')
-            return True
+        # Use EST timezone for timestamp (same as clinic dashboard)
+        est = pytz.timezone('America/Toronto')  # EST/EDT
+        now_est = datetime.now(est)
+        
+        # Format: YYYYMMDD_HHMMSS (matches clinic dashboard format)
+        timestamp = now_est.strftime('%Y%m%d_%H%M%S')
+        backup_filename = f'referrals-{timestamp}.db'
+        backup_path = os.path.join(backup_folder, backup_filename)
         
         # Create backup by copying current database
         if os.path.exists(DATABASE_FILE):
-            import shutil
             shutil.copy2(DATABASE_FILE, backup_path)
-            print(f'✅ Daily backup created: {backup_filename}')
+            
+            # Get file size for info
+            file_size = os.path.getsize(backup_path)
+            size_mb = file_size / (1024 * 1024)
+            
+            print(f'✅ Daily backup created: {backup_filename} ({size_mb:.2f} MB)')
             return True
         else:
             print(f'⚠️ Warning: Database file not found, cannot create backup')
