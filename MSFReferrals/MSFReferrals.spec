@@ -20,17 +20,19 @@ a = Analysis(
     ],
     hiddenimports=[
         'bottle_websocket',
-        # PIL REMOVED - not needed, reportlab doesn't require it for PDFs
+        # tkinter needed for file selection dialogs (eel.select_file)
+        'tkinter',
+        'tkinter.filedialog',
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # GUI toolkits - not needed
-        'tkinter',
-        '_tkinter',
-        'tcl',
-        'tk',
+        # GUI toolkits - not needed (except tkinter for file dialogs)
+        # 'tkinter',    # NEEDED for file selection dialogs
+        # '_tkinter',   # NEEDED for tkinter
+        # 'tcl',        # NEEDED for tkinter
+        # 'tk',         # NEEDED for tkinter
         'PyQt5',
         'PyQt6',
         'PySide2',
@@ -39,13 +41,23 @@ a = Analysis(
         'gi',
 
         # Scientific/ML libraries - definitely not needed
+        # PIL no longer needed - using reportlab direct image loading
         'numpy',
+        'numpy.core',
+        'numpy.core._multiarray_umath',
+        'numpy.core.multiarray',
+        'numpy.distutils',
+        'numpy.f2py',
+        'numpy.fft',
+        'numpy.linalg',
+        'numpy.random',
+        'numpy.testing',
         'pandas',
         'scipy',
         'sklearn',
         'matplotlib',
-        'PIL',
-        'Pillow',
+        'PIL',        # No longer needed!
+        'Pillow',     # No longer needed!
         'cv2',
         'tensorflow',
         'torch',
