@@ -1771,6 +1771,7 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
         from reportlab.lib.pagesizes import letter
         from reportlab.pdfgen import canvas
         from reportlab.lib.units import inch
+        from reportlab.lib.utils import ImageReader
         from pypdf import PdfWriter, PdfReader
         import io
         from datetime import datetime
@@ -1801,18 +1802,18 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
         logo_path = os.path.join(exe_dir, 'msf_logo.png')
         if os.path.exists(logo_path):
             try:
-                # Use drawImage directly with file path (no PIL needed)
-                # Fixed dimensions for PNG logo (adjust these based on your actual logo)
+                img = ImageReader(logo_path)
+                # Get original image dimensions in pixels
+                img_width_px, img_height_px = img.getSize()
+                # Scale to reasonable size for PDF (2.25 inches wide = 1.5x larger, maintain aspect ratio)
                 logo_width = 2.25 * inch
-                logo_height = 1.0 * inch  # Adjust ratio as needed for your logo
-                
+                logo_height = logo_width * (img_height_px / img_width_px)
                 # Position in upper left with small margin
                 x_position = 0.5 * inch
                 y_logo = height - 0.5 * inch - logo_height
-                
-                c.drawImage(logo_path, x_position, y_logo, 
+                c.drawImage(img, x_position, y_logo, 
                            width=logo_width, height=logo_height, 
-                           preserveAspectRatio=True)
+                           mask='auto', preserveAspectRatio=True)
             except Exception as e:
                 print(f"Could not add logo: {e}")
         

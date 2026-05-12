@@ -23,6 +23,10 @@ a = Analysis(
         # tkinter needed for file selection dialogs (eel.select_file)
         'tkinter',
         'tkinter.filedialog',
+        # PIL needed for reportlab image handling (but keep it minimal)
+        'PIL.Image',
+        'PIL.PngImagePlugin',
+        'PIL.JpegImagePlugin',
     ],
     hookspath=[],
     hooksconfig={},
@@ -41,7 +45,7 @@ a = Analysis(
         'gi',
 
         # Scientific/ML libraries - definitely not needed
-        # PIL no longer needed - using reportlab direct image loading
+        # PIL needed for reportlab, but numpy is NOT needed
         'numpy',
         'numpy.core',
         'numpy.core._multiarray_umath',
@@ -56,8 +60,8 @@ a = Analysis(
         'scipy',
         'sklearn',
         'matplotlib',
-        'PIL',        # No longer needed!
-        'Pillow',     # No longer needed!
+        # 'PIL',        # Needed for reportlab images
+        # 'Pillow',     # Needed for reportlab images
         'cv2',
         'tensorflow',
         'torch',
