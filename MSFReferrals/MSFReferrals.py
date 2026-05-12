@@ -1569,21 +1569,27 @@ def record_contact_attempt(contact_data):
 
 @eel.expose
 def save_emails_to_file(emails_array):
-    """Save emails to temp/pending-emails.json for Outlook VBA to process"""
+    """Save emails to Downloads/pending-emails.json for Outlook VBA to process"""
     try:
-        # Create temp directory if it doesn't exist
-        temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp')
-        os.makedirs(temp_dir, exist_ok=True)
+        # Get Downloads folder path (same as clinic dashboard)
+        if os.name == 'nt':  # Windows
+            downloads_path = os.path.join(os.environ['USERPROFILE'], 'Downloads')
+        else:  # Mac/Linux
+            downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
         
-        # Save to pending-emails.json
-        file_path = os.path.join(temp_dir, 'pending-emails.json')
+        # Save to pending-emails.json in Downloads
+        file_path = os.path.join(downloads_path, 'pending-emails.json')
         
+        # Write JSON (will overwrite existing file)
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(emails_array, f, indent=2, ensure_ascii=False)
         
+        print(f"✓ Email saved to: {file_path}")
+        
         return {
             'status': 'success',
-            'message': f'{len(emails_array)} email(s) saved to {file_path}'
+            'message': f'{len(emails_array)} email(s) saved to {file_path}',
+            'filepath': file_path
         }
         
     except Exception as e:
