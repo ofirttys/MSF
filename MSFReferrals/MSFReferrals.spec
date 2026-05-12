@@ -20,20 +20,17 @@ a = Analysis(
     ],
     hiddenimports=[
         'bottle_websocket',
-        'PIL',
-        'PIL.Image',
-        'PIL.PngImagePlugin',
-        'PIL.JpegImagePlugin',
+        # PIL REMOVED - not needed, reportlab doesn't require it for PDFs
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # GUI toolkits - not needed (except tkinter for file dialogs)
-        # 'tkinter',  # NEEDED for file dialogs
-        # '_tkinter', # NEEDED for file dialogs  
-        # 'tcl',      # NEEDED for tkinter
-        # 'tk',       # NEEDED for tkinter
+        # GUI toolkits - not needed
+        'tkinter',
+        '_tkinter',
+        'tcl',
+        'tk',
         'PyQt5',
         'PyQt6',
         'PySide2',
@@ -42,11 +39,13 @@ a = Analysis(
         'gi',
 
         # Scientific/ML libraries - definitely not needed
+        'numpy',
+        'pandas',
         'scipy',
         'sklearn',
         'matplotlib',
-        # 'PIL',      # REMOVED - needed by reportlab
-        # 'Pillow',   # REMOVED - needed by reportlab
+        'PIL',
+        'Pillow',
         'cv2',
         'tensorflow',
         'torch',
@@ -70,6 +69,9 @@ a = Analysis(
         'curses',
         'antigravity',
         'this',
+        
+        # Text processing we don't need
+        'pyphen',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -110,53 +112,61 @@ coll = COLLECT(
     name='MSFReferrals',
 )
 
-# ── Post-build cleanup ────────────────────────────────────────────────────────
+# ============================================================================
+# POST-BUILD: COPY DB FOLDER STRUCTURE
+# ============================================================================
+# After PyInstaller finishes, we manually copy the DB folder structure
+# to the dist/MSFReferrals/ directory (same level as the .exe)
+# This keeps the database separate from the _internal folder
 
-internal_dir = os.path.join(
-    DISTPATH, 'MSFReferrals', '_internal'
-)
+print("\n" + "="*70)
+print("POST-BUILD: Setting up DB folder structure...")
+print("="*70)
 
-if os.path.exists(internal_dir):
-    total_removed = 0
-    total_saved   = 0
+dist_folder = os.path.join('dist', 'MSFReferrals')
+db_dest = os.path.join(dist_folder, 'DB')
 
-    # 1. Remove .dist-info and .data metadata folders
-    print('\n── Removing metadata folders ──')
-    for item in os.listdir(internal_dir):
-        item_path = os.path.join(internal_dir, item)
-        if re.search(r'\.(dist-info|data)$', item) and os.path.isdir(item_path):
-            size = sum(
-                os.path.getsize(os.path.join(r, f))
-                for r, _, files in os.walk(item_path)
-                for f in files
-            )
-            shutil.rmtree(item_path)
-            total_removed += 1
-            total_saved   += size
-            print(f'  Removed: {item}  ({size // 1024} KB)')
+# Create DB folder structure if it doesn't exist
+if not os.path.exists(db_dest):
+    os.makedirs(db_dest)
+    print(f"✓ Created: {db_dest}")
+else:
+    print(f"✓ DB folder already exists: {db_dest}")
 
-    # 2. Remove debug symbols and test files
-    print('\n── Removing debug/test files ──')
-    REMOVE_PATTERNS = [
-        r'\.pdb$',         # Windows debug symbols
-        r'\.chm$',         # Help files
-        r'test_.*\.pyc$',  # Test bytecode
-        r'.*_test\.pyc$',  # Test bytecode
-    ]
+# Create backups subfolder
+backups_dest = os.path.join(db_dest, 'backups')
+if not os.path.exists(backups_dest):
+    os.makedirs(backups_dest)
+    print(f"✓ Created: {backups_dest}")
+else:
+    print(f"✓ Backups folder already exists: {backups_dest}")
 
-    for root, dirs, files in os.walk(internal_dir):
-        dirs[:] = [d for d in dirs if d != 'web']  # Don't touch web folder
-        for fname in files:
-            for pattern in REMOVE_PATTERNS:
-                if re.search(pattern, fname, re.IGNORECASE):
-                    fpath = os.path.join(root, fname)
-                    size  = os.path.getsize(fpath)
-                    os.remove(fpath)
-                    total_removed += 1
-                    total_saved   += size
-                    print(f'  Removed: {fname}  ({size} B)')
-                    break
+# Create Referrals folder structure
+referrals_dest = os.path.join(dist_folder, 'Referrals')
+linked_dest = os.path.join(referrals_dest, 'Linked')
+pending_dest = os.path.join(referrals_dest, 'Pending')
 
-    print(f'\n── Cleanup complete ──')
-    print(f'  Items removed : {total_removed}')
-    print(f'  Space saved   : {total_saved // 1024} KB  ({total_saved // 1024 // 1024} MB)')
+for folder in [referrals_dest, linked_dest, pending_dest]:
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+        print(f"✓ Created: {folder}")
+    else:
+        print(f"✓ Folder already exists: {folder}")
+
+# Copy templates.json if it exists
+templates_src = os.path.join('DB', 'templates.json')
+templates_dest = os.path.join(db_dest, 'templates.json')
+if os.path.exists(templates_src):
+    shutil.copy2(templates_src, templates_dest)
+    print(f"✓ Copied: templates.json")
+else:
+    print(f"⚠ Warning: templates.json not found in DB folder")
+
+print("\n" + "="*70)
+print("Build complete!")
+print("="*70)
+print(f"\nExecutable location: {os.path.join(dist_folder, 'MSFReferrals.exe')}")
+print(f"DB folder location: {db_dest}")
+print(f"Referrals folder: {referrals_dest}")
+print("\nREMINDER: Copy your actual database file (referrals.db) to the DB folder")
+print("="*70 + "\n")
