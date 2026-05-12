@@ -8,7 +8,6 @@ import threading
 import time
 import traceback
 import shutil
-import pytz
 from pathlib import Path
 from datetime import datetime, timedelta
 import psutil
@@ -102,19 +101,15 @@ def row_to_dict(row):
     return {key: row[key] for key in row.keys()}
 
 def create_daily_backup():
-    """Create daily backup of database if one doesn't exist for today"""
+    """Create daily backup of database (uses local system time)"""
     try:
         # Create backups folder if it doesn't exist (same as clinic dashboard)
         backup_folder = os.path.join(DB_FOLDER, 'backups')
         if not os.path.exists(backup_folder):
             os.makedirs(backup_folder)
         
-        # Use EST timezone for timestamp (same as clinic dashboard)
-        est = pytz.timezone('America/Toronto')  # EST/EDT
-        now_est = datetime.now(est)
-        
-        # Format: YYYYMMDD_HHMMSS (matches clinic dashboard format)
-        timestamp = now_est.strftime('%Y%m%d_%H%M%S')
+        # Generate backup filename with timestamp (uses local system time)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_filename = f'referrals-{timestamp}.db'
         backup_path = os.path.join(backup_folder, backup_filename)
         
