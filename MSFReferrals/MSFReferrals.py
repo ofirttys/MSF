@@ -1830,15 +1830,12 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
         # Address lines (centered, smaller)
         c.setFont("Helvetica", 10)
         c.setFillColorRGB(0.2, 0.2, 0.2)  # Dark gray
-        address_line1 = settings.get('addressLine1', 'Mount Sinai Hospital')
-        address_line2 = settings.get('addressLine2', '700 University Avenue, 3rd Floor')
-        address_line3 = settings.get('addressLine3', 'Toronto, ON M5G 1Z5')
+        address_line1 = settings.get('addressLine2', '250 Dundas St. West, 7th Floor')
+        address_line2 = settings.get('addressLine3', 'Toronto, ON M5T 2Z5')
         
         c.drawCentredString(width / 2, y_position, address_line1)
         y_position -= 12
         c.drawCentredString(width / 2, y_position, address_line2)
-        y_position -= 12
-        c.drawCentredString(width / 2, y_position, address_line3)
         y_position -= 16
         
         # Contact info line (centered, with separators)
