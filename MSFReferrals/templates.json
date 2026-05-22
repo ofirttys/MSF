@@ -3,7 +3,7 @@
     "fontFamily": "Calibri, Arial, sans-serif",
     "fontSize": "11pt",
     "fontColor": "#000000",
-    "signature": "<br>Mount Sinai Fertility Referral Coordinator<br>T: 416-586-4800 x 2778<br>F: 416-586-4686<br>E: MSF.Referral@sinaihealth.ca",
+    "signature": "Mount Sinai Fertility Referral Coordinator\nT: 416-586-4800 x 2778\nF: 416-586-4686\nE: MSF.Referral@sinaihealth.ca",
     "headerText": "MOUNT SINAI FERTILITY",
     "addressLine2": "250 Dundas St. West, 7th Floor",
     "addressLine3": "Toronto, ON M5T 2Z5",
@@ -62,7 +62,7 @@
     },
     "araPhysician": {
       "name": "ARA Patient",
-      "body": "{{currentDate}}\n\nDear Dr. {{referringPhysician}},\n\nRe: {{patientName}}                    HC: {{patientHC}}\n\nWe received your referral for the above-named patient for fertility. Prior to accepting this referral, we feel it is important to inform you that your patient exceeds our recommended age limit for some of our fertility treatment options.\n\nWe currently only recommend fertility treatments such as in-vitro fertilization to patients who are younger than 43 years of age due to the age-related decline in ovarian function as egg quantity and quality both decline dramatically after the age of 40. Only patients who are under 43 can access funding for IVF from the Ontario Fertility Program. In addition, the live birth rates using assisted reproductive technologies are very low for those greater than age 43.\n\nWe would be happy to see your patient to discuss fertility options such as egg donation which would offer the best chance for pregnancy.\n\nWe ask that you convey this information to your patient. We have also provided a patient information letter below if you would like to share this with your patient. If your patient would still like to proceed with a referral, please resend a referral letter with this updated information.\n\nSincerely,\n\n{{signature}}\nT: 416-586-4800 x 2778\nF: 416-586-4686"
+      "body": "{{currentDate}}\n\nDear Dr. {{referringPhysician}},\n\nRe: {{patientName}}                    HC: {{patientHC}}\n\nWe received your referral for the above-named patient for fertility. Prior to accepting this referral, we feel it is important to inform you that your patient exceeds our recommended age limit for some of our fertility treatment options.\n\nWe currently only recommend fertility treatments such as in-vitro fertilization to patients who are younger than 43 years of age due to the age-related decline in ovarian function as egg quantity and quality both decline dramatically after the age of 40. Only patients who are under 43 can access funding for IVF from the Ontario Fertility Program. In addition, the live birth rates using assisted reproductive technologies are very low for those greater than age 43.\n\nWe would be happy to see your patient to discuss fertility options such as egg donation which would offer the best chance for pregnancy.\n\nWe ask that you convey this information to your patient. We have also provided a patient information letter below if you would like to share this with your patient. If your patient would still like to proceed with a referral, please resend a referral letter with this updated information.\n\nSincerely,\n\n{{signature}}"
     },
     "semenAnalysis": {
       "name": "Semen Analysis",
