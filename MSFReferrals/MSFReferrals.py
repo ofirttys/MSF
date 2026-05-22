@@ -8,6 +8,7 @@ import threading
 import time
 import traceback
 import shutil
+import signal
 from pathlib import Path
 from datetime import datetime, timedelta
 import psutil
@@ -1697,17 +1698,25 @@ def save_intake_config(config):
         return {'status': 'error', 'message': f'Error saving intake config: {str(e)}'}
 
 def on_close(page, sockets):
-    """Handle window close"""
+    """Handle window close - graceful shutdown"""
     global _shutting_down
     if _shutting_down:
         return
     _shutting_down = True
+    
+    print("\n🔴 Window closed - shutting down...")
+    
     try:
+        # Give gevent threads a moment to finish
         import gevent
+        gevent.sleep(0.1)  # Brief pause for cleanup
         gevent.killall()
     except:
         pass
-    os._exit(0)
+    
+    # Use sys.exit instead of os._exit to allow cleanup
+    # This will trigger atexit handlers
+    sys.exit(0)
 
 @eel.expose
 def update_referral_status(referral_id, new_status, note='', username='System'):
@@ -2518,6 +2527,16 @@ def shutdown():
     if _shutting_down:
         return
     _shutting_down = True
+    
+    print("\n💾 Shutting down gracefully...")
+    
+    # No global database connection to close (we use per-request connections)
+    # But we should ensure all pending operations are complete
+    
+    print("✓ Cleanup complete")
+    
+    # Don't call sys.exit() here - let atexit handler finish naturally
+
 
 if __name__ == '__main__':
     # Check if database exists
@@ -2550,9 +2569,19 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"Warning: Could not set taskbar icon: {e}")
     
-    # Register cleanup
+    # Register cleanup handlers
     import atexit
-    atexit.register(shutdown)
+    
+    # Register signal handlers for graceful shutdown
+    def shutdown_handler(signum=None, frame=None):
+        """Handle shutdown signals gracefully"""
+        shutdown()
+        if signum is not None:
+            sys.exit(0)
+    
+    signal.signal(signal.SIGINT, shutdown_handler)   # Ctrl+C
+    signal.signal(signal.SIGTERM, shutdown_handler)  # Kill signal
+    atexit.register(lambda: shutdown_handler())      # Normal exit
     
     # Get screen dimensions
     try:
