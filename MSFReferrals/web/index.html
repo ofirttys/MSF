@@ -4374,7 +4374,8 @@ Have a great day.`
                 const result = await eel.generate_fax_pdf(
                     currentViewingReferral.referralID,
                     faxBody,
-                    currentViewingReferral.fileName || ''
+                    currentViewingReferral.fileName || '',
+					templateKey
                 )();
                 
                 if (result.status === 'error') {

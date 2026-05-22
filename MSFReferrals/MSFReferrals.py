@@ -1765,7 +1765,7 @@ def update_referral_status(referral_id, new_status, note='', username='System'):
             }
 
 @eel.expose
-def generate_fax_pdf(referral_id, fax_content, original_filename):
+def generate_fax_pdf(referral_id, fax_content, original_filename, template_key=''):
     """Generate a professional fax PDF with logo using reportlab and auto-open"""
     try:
         from reportlab.lib.pagesizes import letter
@@ -1910,6 +1910,20 @@ def generate_fax_pdf(referral_id, fax_content, original_filename):
         template_pdf = PdfReader(buffer)
         for page in template_pdf.pages:
             pdf_writer.add_page(page)
+
+        # Add ARA letter PDF (only for araPhysician template)
+        if template_key == 'araPhysician':
+            ara_letter_path = os.path.join(DB_FOLDER, 'ARAletter.pdf')
+            if os.path.exists(ara_letter_path):
+                try:
+                    ara_pdf = PdfReader(ara_letter_path)
+                    for page in ara_pdf.pages:
+                        pdf_writer.add_page(page)
+                    print(f"✓ Added ARA letter: {ara_letter_path}")
+                except Exception as e:
+                    print(f"Warning: Could not add ARA letter: {e}")
+            else:
+                print(f"⚠️ ARA letter not found at: {ara_letter_path}")
         
         # Add original referral if it exists
         if original_filename:
