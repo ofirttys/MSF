@@ -557,5 +557,4 @@ if __name__ == "__main__":
         size=(1440, 900),
         port=8765,
         block=True,
-        **({"icon": icon} if icon else {}),
     )
