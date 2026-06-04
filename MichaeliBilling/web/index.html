@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MichaeliBilling</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script type="text/javascript" src="/eel.js"></script>
+</head>
+<body>
+
+<!-- ══ SIDEBAR ══════════════════════════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">Ƀ</div>
+    <div>
+      <div class="brand-title">MichaeliBilling</div>
+      <div class="brand-sub">Dr. J. Michaeli</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <button class="nav-btn active" data-view="import" onclick="showView('import')">
+      <span class="nav-icon">⬆</span> Import Session
+    </button>
+    <button class="nav-btn" data-view="review" onclick="showView('review')">
+      <span class="nav-icon">✎</span> Review &amp; Edit
+    </button>
+    <button class="nav-btn" data-view="history" onclick="showView('history')">
+      <span class="nav-icon">☰</span> Session History
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="status-dot" id="dbStatus"></div>
+    <span id="dbStatusText">Connecting…</span>
+  </div>
+</aside>
+
+<!-- ══ MAIN ══════════════════════════════════════════════════════════════════ -->
+<main class="main">
+
+  <!-- ── VIEW: Import ───────────────────────────────────────────────────── -->
+  <section id="view-import" class="view active">
+    <div class="view-header">
+      <h1>Import Session</h1>
+      <p class="view-sub">Load a billing export XLS file to begin a new session</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="drop-icon">📂</div>
+      <div class="drop-title">Drop XLS file here</div>
+      <div class="drop-sub">or click to browse — .xls / .xlsx</div>
+      <input type="file" id="fileInput" accept=".xls,.xlsx" style="display:none" onchange="handleFileSelect(event)"/>
+    </div>
+
+    <div id="importStatus" class="import-status hidden"></div>
+  </section>
+
+  <!-- ── VIEW: Review & Edit ────────────────────────────────────────────── -->
+  <section id="view-review" class="view">
+    <div class="view-header">
+      <div>
+        <h1>Review &amp; Edit</h1>
+        <p class="view-sub" id="reviewSubtitle">No session loaded</p>
+      </div>
+      <div class="header-actions">
+        <div class="export-group">
+          <span class="export-label">Export:</span>
+          <button class="btn btn-outline" onclick="exportReport('xlsx')">XLSX</button>
+          <button class="btn btn-outline" onclick="exportReport('docx')">Word</button>
+          <button class="btn btn-outline" onclick="exportReport('pdf')">PDF</button>
+        </div>
+        <button class="btn btn-primary" onclick="saveSession()">
+          <span>💾</span> Save to Database
+        </button>
+      </div>
+    </div>
+
+    <!-- Summary bar -->
+    <div class="summary-bar" id="summaryBar" style="display:none">
+      <div class="summary-card">
+        <div class="summary-val" id="sumTotal">—</div>
+        <div class="summary-lbl">Encounters</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-val" id="sumFemale">—</div>
+        <div class="summary-lbl">Female</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-val" id="sumMale">—</div>
+        <div class="summary-lbl">Male</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-val" id="sumVirtual">—</div>
+        <div class="summary-lbl">Virtual</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-val" id="sumCheckedOut">—</div>
+        <div class="summary-lbl">Checked Out</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-val" id="sumFee">—</div>
+        <div class="summary-lbl">Total Fee</div>
+      </div>
+    </div>
+
+    <div class="table-wrap" id="encounterTableWrap" style="display:none">
+      <table class="enc-table" id="encounterTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Time</th>
+            <th>Patient</th>
+            <th>HC#</th>
+            <th>Sex</th>
+            <th>Visit Type</th>
+            <th>Facility</th>
+            <th>Status</th>
+            <th>Referring MD</th>
+            <th>MD License</th>
+            <th>Billing Code(s)</th>
+            <th>Dx</th>
+            <th>Notes</th>
+            <th>Fee</th>
+          </tr>
+        </thead>
+        <tbody id="encounterTbody"></tbody>
+      </table>
+    </div>
+
+    <div class="empty-state" id="reviewEmpty">
+      <div class="empty-icon">📋</div>
+      <div>No session loaded. Import an XLS file first.</div>
+    </div>
+  </section>
+
+  <!-- ── VIEW: History ──────────────────────────────────────────────────── -->
+  <section id="view-history" class="view">
+    <div class="view-header">
+      <h1>Session History</h1>
+      <p class="view-sub">All saved billing sessions</p>
+    </div>
+    <div class="table-wrap">
+      <table class="enc-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Date</th><th>Encounters</th><th>Source File</th>
+            <th>Imported At</th><th>Submitted</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="historyTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<!-- ══ MODAL: Encounter Editor ══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="editModal" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2 id="modalTitle">Edit Encounter</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="modal-section">
+        <div class="modal-info-grid" id="modalInfoGrid"></div>
+      </div>
+
+      <div class="modal-section">
+        <label class="field-label">Billing Code(s) <span class="field-hint">— select one or more</span></label>
+        <div class="code-grid" id="billingCodeGrid"></div>
+      </div>
+
+      <div class="modal-section">
+        <label class="field-label">Dx Code(s) <span class="field-hint">— select one or more</span></label>
+        <div class="code-grid dx-grid" id="dxCodeGrid"></div>
+      </div>
+
+      <div class="modal-section">
+        <label class="field-label">Notes</label>
+        <textarea id="modalNotes" class="notes-input" rows="3" placeholder="Optional notes…"></textarea>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <div class="modal-fee" id="modalFeeDisplay"></div>
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="applyEdit()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══════════════════════════════════════════════════════════════════ -->
+<div id="toast" class="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
