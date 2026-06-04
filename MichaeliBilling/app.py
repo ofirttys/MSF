@@ -10,16 +10,16 @@ import json
 import os
 import sys
 import logging
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR   = Path(__file__).parent
-DB_PATH    = BASE_DIR / "db"    / "billing.db"
+DB_PATH    = BASE_DIR / "db"      / "billing.db"
 EXPORT_DIR = BASE_DIR / "exports"
 LOG_DIR    = BASE_DIR / "logs"
 WEB_DIR    = BASE_DIR / "web"
-ICON_PATH  = BASE_DIR / "Billing.ico"
 
 for d in (DB_PATH.parent, EXPORT_DIR, LOG_DIR):
     d.mkdir(parents=True, exist_ok=True)
@@ -32,7 +32,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("MichaeliBilling")
 
-# ── Reference data ─────────────────────────────────────────────────────────────
+# ── Reference data ────────────────────────────────────────────────────────────
 BILLING_CODES = {
     "A205": {"desc": "Consultation*",                     "fee": 134.25},
     "A935": {"desc": "Special surgical consultation",     "fee": 194.65},
@@ -136,7 +136,6 @@ def referring_license(row) -> str:
     for col in ("State_License_No", "Upin"):
         val = str(row.get(col, "") or "").strip()
         if val and val.lower() not in ("nan", ""):
-            # strip float suffix e.g. "22827.0" → "22827"
             if "." in val:
                 try:
                     val = str(int(float(val)))
@@ -164,7 +163,7 @@ def get_reference_data():
 
 @eel.expose
 def import_xls(file_path: str):
-    """Parse XLS/XLSX daily billing export. Returns encounter list (unsaved)."""
+    """Parse XLS/XLSX daily billing export from a filesystem path."""
     try:
         ext    = Path(file_path).suffix.lower()
         engine = "xlrd" if ext == ".xls" else "openpyxl"
@@ -182,14 +181,13 @@ def import_xls(file_path: str):
         for _, row in df.iterrows():
             row = row.to_dict()
 
-            # Sex: prefer explicit column, fall back to Visit_Type inference
+            # Sex: prefer explicit Ptn_Sex column, fall back to Visit_Type inference
             if has_sex_col and pd.notna(row.get("Ptn_Sex")):
                 sex = parse_sex(row["Ptn_Sex"])
             else:
                 vt  = str(row.get("Visit_Type", "")).upper()
                 sex = "F" if ("FEMALE" in vt or "NPF" in vt) else "M" if "MALE" in vt else "U"
 
-            # Partner ID: convert float → int string
             partner_raw = row.get("Ptn_Partner_Id")
             partner_id  = str(int(partner_raw)) if pd.notna(partner_raw) else ""
 
@@ -235,8 +233,35 @@ def import_xls(file_path: str):
         return {"ok": False, "error": str(e)}
 
 @eel.expose
+def import_xls_bytes(byte_array: list, filename: str):
+    """
+    Receive raw file bytes from the browser (drag-and-drop or file picker),
+    write to a temp file, parse it, then delete the temp file.
+    This works around the browser security restriction that prevents JavaScript
+    from accessing the full filesystem path of a dropped/selected file.
+    """
+    try:
+        ext      = Path(filename).suffix.lower()
+        tmp_path = Path(tempfile.mktemp(suffix=ext))
+        tmp_path.write_bytes(bytes(byte_array))
+
+        result = import_xls(str(tmp_path))
+
+        tmp_path.unlink(missing_ok=True)
+
+        # Restore the original filename (import_xls would have used the temp name)
+        if result.get("ok"):
+            result["source_file"] = filename
+
+        return result
+
+    except Exception as e:
+        log.exception("import_xls_bytes failed")
+        return {"ok": False, "error": str(e)}
+
+@eel.expose
 def save_session(session_date: str, source_file: str, encounters: list):
-    """Commit a reviewed session to the database (explicit user action)."""
+    """Commit a reviewed session to the database (explicit user action only)."""
     try:
         con = db_con()
         cur = con.cursor()
@@ -257,19 +282,19 @@ def save_session(session_date: str, source_file: str, encounters: list):
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (
                 session_id,
-                e.get("patient_id",""),        e.get("partner_id",""),
-                e.get("patient_name",""),       e.get("health_card",""),
-                e.get("visit_type",""),         e.get("facility",""),
-                e.get("status",""),             e.get("encounter_date",""),
-                e.get("start_time",""),         e.get("end_time",""),
+                e.get("patient_id",""),         e.get("partner_id",""),
+                e.get("patient_name",""),        e.get("health_card",""),
+                e.get("visit_type",""),          e.get("facility",""),
+                e.get("status",""),              e.get("encounter_date",""),
+                e.get("start_time",""),          e.get("end_time",""),
                 e.get("duration_min"),
-                e.get("referring_md",""),       e.get("referring_md_license",""),
+                e.get("referring_md",""),        e.get("referring_md_license",""),
                 e.get("schedule_notes",""),
-                e.get("last_encounter_date",""),e.get("last_encounter_type",""),
-                e.get("months_since_last"),     e.get("provider_enc_count"),
+                e.get("last_encounter_date",""), e.get("last_encounter_type",""),
+                e.get("months_since_last"),      e.get("provider_enc_count"),
                 json.dumps(e.get("billing_codes", [])),
                 json.dumps(e.get("dx_codes", [])),
-                e.get("sex",""),                e.get("notes",""),
+                e.get("sex",""),                 e.get("notes",""),
             ))
 
         con.commit()
@@ -347,10 +372,10 @@ def export_report(session_id: int, encounters: list, fmt: str):
     try:
         rows = []
         for e in encounters:
-            codes    = e.get("billing_codes", [])
-            dxs      = e.get("dx_codes", [])
-            dx_str   = "; ".join([f"{d} – {DX_CODES.get(d, d)}" for d in dxs])
-            code_str = "; ".join(
+            codes     = e.get("billing_codes", [])
+            dxs       = e.get("dx_codes", [])
+            dx_str    = "; ".join([f"{d} – {DX_CODES.get(d, d)}" for d in dxs])
+            code_str  = "; ".join(
                 [f"{c} – {BILLING_CODES[c]['desc']}" if c in BILLING_CODES else c for c in codes]
             )
             fee_total = sum(BILLING_CODES.get(c, {}).get("fee", 0) for c in codes)
@@ -398,7 +423,6 @@ def export_report(session_id: int, encounters: list, fmt: str):
                     max_len = max((len(str(c.value or "")) for c in col), default=8)
                     ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 4, 55)
 
-                # Alternate row shading
                 from openpyxl.styles import PatternFill as PF
                 alt_fill = PF("solid", fgColor="EEF2F7")
                 for row_idx, row in enumerate(ws.iter_rows(min_row=2), 2):
@@ -411,52 +435,45 @@ def export_report(session_id: int, encounters: list, fmt: str):
         # ── DOCX ──────────────────────────────────────────────────────────────
         elif fmt == "docx":
             from docx import Document
-            from docx.shared import Pt, RGBColor, Inches, Cm
+            from docx.shared import Pt, RGBColor, Cm
             from docx.enum.text import WD_ALIGN_PARAGRAPH
             from docx.oxml.ns import qn
             from docx.oxml import OxmlElement
 
             doc = Document()
 
-            # Page margins
             for section in doc.sections:
                 section.left_margin   = Cm(1.5)
                 section.right_margin  = Cm(1.5)
                 section.top_margin    = Cm(1.8)
                 section.bottom_margin = Cm(1.8)
 
-            # Title
-            title      = doc.add_heading("", 0)
-            title_run  = title.add_run("MichaeliBilling — Billing Report")
+            title     = doc.add_heading("", 0)
+            title_run = title.add_run("MichaeliBilling — Billing Report")
             title_run.font.color.rgb = RGBColor(0x1B, 0x3A, 0x5C)
             title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-            # Subtitle
-            sub = doc.add_paragraph()
+            sub     = doc.add_paragraph()
             sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
             sub_run = sub.add_run(
                 f"Dr. J. Michaeli  |  Date: {rows[0]['Date'] if rows else ''}  |  "
                 f"Encounters: {len(rows)}  |  "
                 f"Total: ${sum(r['Fee ($)'] for r in rows):.2f}"
             )
-            sub_run.font.size  = Pt(10)
+            sub_run.font.size      = Pt(10)
             sub_run.font.color.rgb = RGBColor(0x4A, 0x6A, 0x82)
-
             doc.add_paragraph("")
 
-            # Table
             table = doc.add_table(rows=1, cols=len(df.columns))
             table.style = "Table Grid"
 
-            # Header row
             for i, col_name in enumerate(df.columns):
-                cell     = table.rows[0].cells[i]
+                cell      = table.rows[0].cells[i]
                 cell.text = col_name
                 run       = cell.paragraphs[0].runs[0]
                 run.bold  = True
-                run.font.size = Pt(8)
+                run.font.size      = Pt(8)
                 run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-                # Header cell shading
                 tc_pr = cell._tc.get_or_add_tcPr()
                 shd   = OxmlElement("w:shd")
                 shd.set(qn("w:fill"), "1B3A5C")
@@ -467,7 +484,7 @@ def export_report(session_id: int, encounters: list, fmt: str):
             for row_data in df.itertuples(index=False):
                 cells = table.add_row().cells
                 for i, val in enumerate(row_data):
-                    cells[i].text                         = str(val)
+                    cells[i].text = str(val)
                     cells[i].paragraphs[0].runs[0].font.size = Pt(8)
 
             out = EXPORT_DIR / f"{base_name}.docx"
@@ -491,7 +508,7 @@ def export_report(session_id: int, encounters: list, fmt: str):
                 topMargin=1.5*cm, bottomMargin=1.5*cm
             )
 
-            styles = getSampleStyleSheet()
+            styles      = getSampleStyleSheet()
             title_style = ParagraphStyle(
                 "MBTitle", parent=styles["Title"],
                 fontSize=14, alignment=TA_CENTER,
@@ -552,9 +569,16 @@ if __name__ == "__main__":
     init_db()
     eel.init(str(WEB_DIR))
 
-    eel.start(
-        "index.html",
-        size=(1440, 900),
-        port=8765,
-        block=True,
-    )
+    print("Starting MichaeliBilling...")
+    try:
+        print("Trying Microsoft Edge...")
+        eel.start("index.html", size=(1440, 900), port=8765, mode="edge", block=True)
+    except (OSError, Exception) as e:
+        print(f"Edge not available: {e}")
+        try:
+            print("Trying Chrome...")
+            eel.start("index.html", size=(1440, 900), port=8765, mode="chrome", block=True)
+        except (OSError, Exception) as e2:
+            print(f"Chrome not available: {e2}")
+            print("Falling back to default browser...")
+            eel.start("index.html", size=(1440, 900), port=8765, mode=None, block=True)

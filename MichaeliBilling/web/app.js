@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 function setDbStatus(ok) {
   const dot  = document.getElementById("dbStatus");
   const text = document.getElementById("dbStatusText");
-  dot.className  = "status-dot " + (ok ? "ok" : "err");
+  dot.className    = "status-dot " + (ok ? "ok" : "err");
   text.textContent = ok ? "DB connected" : "DB error";
 }
 
@@ -60,17 +60,17 @@ function handleFileSelect(evt) {
 }
 
 async function processFile(file) {
-  const statusEl = document.getElementById("importStatus");
-  statusEl.className = "import-status hidden";
-  statusEl.textContent = "";
-
+  document.getElementById("importStatus").className = "import-status hidden";
   showStatus("Parsing " + file.name + "…", "ok", false);
 
   try {
-    // Eel needs a filesystem path — on desktop this is the real path
-    // In dev we use the file.path property (Electron / pywebview / eel all expose it)
-    const filePath = file.path || file.name;
-    const result   = await eel.import_xls(filePath)();
+    // Read file as bytes and send to Python.
+    // This approach works for both drag-and-drop and the file picker —
+    // the browser never exposes the full filesystem path for security reasons,
+    // so we send the raw bytes instead and let Python write a temp file.
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array  = Array.from(new Uint8Array(arrayBuffer));
+    const result      = await eel.import_xls_bytes(uint8Array, file.name)();
 
     if (!result.ok) {
       showStatus("❌ " + result.error, "err", true);
@@ -96,7 +96,7 @@ async function processFile(file) {
 }
 
 function showStatus(msg, cls, visible) {
-  const el = document.getElementById("importStatus");
+  const el     = document.getElementById("importStatus");
   el.textContent = msg;
   el.className   = "import-status " + cls + (visible ? "" : " hidden");
 }
@@ -106,9 +106,9 @@ function renderReviewTable() {
   const enc = currentSession.encounters;
   if (!enc || enc.length === 0) return;
 
-  document.getElementById("reviewEmpty").style.display       = "none";
+  document.getElementById("reviewEmpty").style.display        = "none";
   document.getElementById("encounterTableWrap").style.display = "block";
-  document.getElementById("summaryBar").style.display        = "flex";
+  document.getElementById("summaryBar").style.display         = "flex";
   document.getElementById("reviewSubtitle").textContent =
     `${currentSession.session_date} — ${currentSession.source_file}`;
 
@@ -124,7 +124,8 @@ function renderReviewTable() {
     tr.innerHTML = `
       <td style="color:var(--text-dim);font-size:11px">${i + 1}</td>
       <td style="white-space:nowrap;font-family:var(--font);font-size:12px">
-        ${e.start_time}<br><span style="color:var(--text-dim)">${e.end_time}</span>
+        ${escHtml(e.start_time)}<br>
+        <span style="color:var(--text-dim)">${escHtml(e.end_time)}</span>
       </td>
       <td style="font-weight:600">${escHtml(e.patient_name)}</td>
       <td style="font-family:var(--font);font-size:11px;color:var(--text-sub)">${escHtml(e.health_card)}</td>
@@ -132,10 +133,10 @@ function renderReviewTable() {
       <td style="font-size:11px;color:var(--text-sub)">${escHtml(e.visit_type)}</td>
       <td style="font-size:11px;color:var(--text-sub)">${escHtml(e.facility)}</td>
       <td>${statusBadge(e.status)}</td>
-      <td style="font-size:11px">${escHtml(e.referring_md)}<br>
+      <td style="font-size:11px">
+        ${escHtml(e.referring_md)}<br>
         <span style="color:var(--text-dim);font-family:var(--font);font-size:10px">${escHtml(e.referring_md_license)}</span>
       </td>
-      <td style="font-size:10px;color:var(--text-dim);font-family:var(--font)">${escHtml(e.referring_md_license)}</td>
       <td id="cell-billing-${i}">${renderCodeChips(e.billing_codes, false)}</td>
       <td id="cell-dx-${i}">${renderCodeChips(e.dx_codes, true)}</td>
       <td style="font-size:11px;color:var(--text-sub)">${escHtml(e.notes)}</td>
@@ -148,18 +149,21 @@ function renderReviewTable() {
 }
 
 function updateSummary(enc) {
-  document.getElementById("sumTotal").textContent       = enc.length;
-  document.getElementById("sumFemale").textContent      = enc.filter(e => e.sex === "F").length;
-  document.getElementById("sumMale").textContent        = enc.filter(e => e.sex === "M").length;
-  document.getElementById("sumVirtual").textContent     = enc.filter(e => e.facility === "Virtual").length;
-  document.getElementById("sumCheckedOut").textContent  = enc.filter(e => e.status === "Checked-Out").length;
+  document.getElementById("sumTotal").textContent      = enc.length;
+  document.getElementById("sumFemale").textContent     = enc.filter(e => e.sex === "F").length;
+  document.getElementById("sumMale").textContent       = enc.filter(e => e.sex === "M").length;
+  document.getElementById("sumVirtual").textContent    = enc.filter(e => e.facility === "Virtual").length;
+  document.getElementById("sumCheckedOut").textContent = enc.filter(e => e.status === "Checked-Out").length;
   const total = enc.reduce((s, e) => s + calcFee(e.billing_codes), 0);
   document.getElementById("sumFee").textContent = "$" + total.toFixed(2);
 }
 
 function renderCodeChips(codes, isDx) {
-  if (!codes || codes.length === 0) return '<span style="color:var(--text-dim)">—</span>';
-  return codes.map(c => `<span class="chip${isDx ? ' dx' : ''}">${escHtml(c)}</span>`).join("");
+  if (!codes || codes.length === 0)
+    return '<span style="color:var(--text-dim)">—</span>';
+  return codes.map(c =>
+    `<span class="chip${isDx ? " dx" : ""}">${escHtml(c)}</span>`
+  ).join("");
 }
 
 function statusBadge(status) {
@@ -177,11 +181,9 @@ function openEdit(index) {
   editingIndex = index;
   const e = currentSession.encounters[index];
 
-  document.getElementById("modalTitle").textContent =
-    `Edit — ${e.patient_name}`;
+  document.getElementById("modalTitle").textContent = `Edit — ${e.patient_name}`;
 
   // Info grid
-  const infoGrid = document.getElementById("modalInfoGrid");
   const infoFields = [
     ["Date",           e.encounter_date],
     ["Time",           `${e.start_time} – ${e.end_time}`],
@@ -199,7 +201,7 @@ function openEdit(index) {
     ["Months Since",   e.months_since_last ?? "—"],
     ["Notes Flag",     e.schedule_notes || "—"],
   ];
-  infoGrid.innerHTML = infoFields.map(([lbl, val]) => `
+  document.getElementById("modalInfoGrid").innerHTML = infoFields.map(([lbl, val]) => `
     <div class="info-cell">
       <div class="info-cell-label">${lbl}</div>
       <div class="info-cell-value">${escHtml(String(val))}</div>
@@ -207,33 +209,30 @@ function openEdit(index) {
   `).join("");
 
   // Billing code chips
-  const bcGrid = document.getElementById("billingCodeGrid");
-  bcGrid.innerHTML = Object.entries(REF.billing_codes).map(([code, info]) => {
-    const sel = e.billing_codes.includes(code) ? "selected" : "";
-    return `
-      <div class="code-chip ${sel}" data-code="${code}" onclick="toggleCode(this,'billing')">
-        <span class="code-chip-code">${code}</span>
-        <span class="code-chip-desc">${escHtml(info.desc)}</span>
-        <span class="code-chip-fee">$${info.fee.toFixed(2)}</span>
-      </div>
-    `;
-  }).join("");
+  document.getElementById("billingCodeGrid").innerHTML =
+    Object.entries(REF.billing_codes).map(([code, info]) => {
+      const sel = e.billing_codes.includes(code) ? "selected" : "";
+      return `
+        <div class="code-chip ${sel}" data-code="${code}" onclick="toggleCode(this,'billing')">
+          <span class="code-chip-code">${code}</span>
+          <span class="code-chip-desc">${escHtml(info.desc)}</span>
+          <span class="code-chip-fee">$${info.fee.toFixed(2)}</span>
+        </div>`;
+    }).join("");
 
   // Dx code chips
-  const dxGrid = document.getElementById("dxCodeGrid");
-  dxGrid.innerHTML = Object.entries(REF.dx_codes).map(([code, desc]) => {
-    const sel = e.dx_codes.includes(code) ? "selected dx-chip" : "";
-    return `
-      <div class="code-chip ${sel} dx-chip" data-code="${code}" onclick="toggleCode(this,'dx')">
-        <span class="code-chip-code">${code}</span>
-        <span class="code-chip-desc">${escHtml(desc)}</span>
-      </div>
-    `;
-  }).join("");
+  document.getElementById("dxCodeGrid").innerHTML =
+    Object.entries(REF.dx_codes).map(([code, desc]) => {
+      const sel = e.dx_codes.includes(code) ? "selected dx-chip" : "";
+      return `
+        <div class="code-chip ${sel} dx-chip" data-code="${code}" onclick="toggleCode(this,'dx')">
+          <span class="code-chip-code">${code}</span>
+          <span class="code-chip-desc">${escHtml(desc)}</span>
+        </div>`;
+    }).join("");
 
   document.getElementById("modalNotes").value = e.notes || "";
   updateModalFee();
-
   document.getElementById("editModal").classList.add("open");
 }
 
@@ -258,29 +257,21 @@ function applyEdit() {
     .map(el => el.dataset.code);
   const notes = document.getElementById("modalNotes").value.trim();
 
-  if (billingCodes.length === 0) {
-    toast("Select at least one billing code.", "warn");
-    return;
-  }
-  if (dxCodes.length === 0) {
-    toast("Select at least one Dx code.", "warn");
-    return;
-  }
+  if (billingCodes.length === 0) { toast("Select at least one billing code.", "warn"); return; }
+  if (dxCodes.length === 0)      { toast("Select at least one Dx code.", "warn");      return; }
 
   const e = currentSession.encounters[editingIndex];
   e.billing_codes = billingCodes;
   e.dx_codes      = dxCodes;
   e.notes         = notes;
 
-  // Update row in table
   document.getElementById(`cell-billing-${editingIndex}`).innerHTML = renderCodeChips(billingCodes, false);
   document.getElementById(`cell-dx-${editingIndex}`).innerHTML      = renderCodeChips(dxCodes, true);
   document.getElementById(`cell-fee-${editingIndex}`).textContent   = "$" + calcFee(billingCodes).toFixed(2);
 
-  // Update summary totals
   updateSummary(currentSession.encounters);
 
-  // If session is already saved, update DB record
+  // If session is already in the DB, persist the change immediately
   if (e.id) {
     eel.update_encounter(e.id, billingCodes, dxCodes, notes)().then(r => {
       if (!r.ok) toast("DB update failed: " + r.error, "err");
@@ -303,7 +294,6 @@ async function saveSession() {
     toast("No session loaded.", "warn");
     return;
   }
-
   if (currentSession.session_id !== null) {
     toast("Session already saved to database.", "warn");
     return;
@@ -345,7 +335,7 @@ async function exportReport(fmt) {
 // ── History ───────────────────────────────────────────────────────────────────
 async function loadHistory() {
   const sessions = await eel.get_sessions()();
-  const tbody = document.getElementById("historyTbody");
+  const tbody    = document.getElementById("historyTbody");
   tbody.innerHTML = "";
 
   if (!sessions || sessions.length === 0) {
@@ -367,7 +357,9 @@ async function loadHistory() {
       }</td>
       <td style="display:flex;gap:6px">
         <button class="btn btn-outline btn-sm" onclick="loadSessionFromHistory(${s.id})">Load</button>
-        ${!s.submitted ? `<button class="btn btn-success btn-sm" onclick="markSubmitted(${s.id})">Mark Submitted</button>` : ""}
+        ${!s.submitted
+          ? `<button class="btn btn-success btn-sm" onclick="markSubmitted(${s.id})">Mark Submitted</button>`
+          : ""}
       </td>
     `;
     tbody.appendChild(tr);
@@ -405,15 +397,15 @@ async function markSubmitted(sessionId) {
 function escHtml(str) {
   if (!str) return "";
   return String(str)
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 let _toastTimer = null;
 function toast(msg, cls = "ok") {
-  const el = document.getElementById("toast");
+  const el     = document.getElementById("toast");
   el.textContent = msg;
   el.className   = "toast " + cls + " show";
   if (_toastTimer) clearTimeout(_toastTimer);
