@@ -552,8 +552,6 @@ if __name__ == "__main__":
     init_db()
     eel.init(str(WEB_DIR))
 
-    icon = str(ICON_PATH) if ICON_PATH.exists() else None
-
     eel.start(
         "index.html",
         size=(1440, 900),
