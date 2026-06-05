@@ -128,26 +128,47 @@ function renderReviewTable() {
   enc.forEach((e, i) => {
     const tr = document.createElement("tr");
     tr.dataset.index = i;
-    tr.addEventListener("click", () => openEdit(i));
+    tr.id = `row-${i}`;
 
-    // Referring MD: name on top, billing# below (empty if nan/blank)
+    // Flag class
+    if (e.flag_level) tr.classList.add(`flag-${e.flag_level}`);
+    if (!e.included)  tr.classList.add("excluded");
+
+    // Click opens edit — but not on the checkbox cell
+    tr.addEventListener("click", ev => {
+      if (ev.target.classList.contains("inc-checkbox")) return;
+      openEdit(i);
+    });
+
+    // Referring MD cell
     const mdName    = cleanVal(e.referring_md);
     const mdLicense = cleanVal(e.referring_md_license);
+    const copiedTag = e.md_copied ? `<span class="md-copied">↑ copied from partner</span>` : "";
     const mdCell    = mdName
-      ? `<div class="md-cell">${escHtml(mdName)}${mdLicense ? `<div class="md-license">${escHtml(mdLicense)}</div>` : ""}</div>`
+      ? `<div class="md-cell">${escHtml(mdName)}${copiedTag}${mdLicense ? `<div class="md-license">${escHtml(mdLicense)}</div>` : ""}</div>`
       : (mdLicense ? `<div class="md-license" style="margin-top:0">${escHtml(mdLicense)}</div>` : `<span style="color:var(--text-dim)">—</span>`);
 
+    // Flag dot
+    const dot = e.flag_level
+      ? `<span class="flag-dot ${e.flag_level}"></span>`
+      : "";
+
     tr.innerHTML = `
-      <td style="color:var(--text-dim);font-size:11px">${i + 1}</td>
+      <td onclick="event.stopPropagation()">
+        <input type="checkbox" class="inc-checkbox" id="chk-${i}"
+          ${e.included ? "checked" : ""}
+          onchange="toggleIncluded(${i}, this.checked)"/>
+      </td>
+      <td style="color:var(--text-dim);font-size:11px">${dot}${i + 1}</td>
       <td class="time-cell" id="cell-time-${i}">
         ${escHtml(e.start_time)}<br>
         <span class="time-end">${escHtml(e.end_time)}</span>
       </td>
       <td style="font-weight:600">${escHtml(e.patient_name)}</td>
-      <td style="font-family:'Courier New',monospace;font-size:11px;color:var(--text-sub)">${escHtml(e.health_card)}</td>
+      <td style="font-family:'Courier New',monospace;font-size:11px;color:var(--text-sub)" id="cell-hc-${i}">${escHtml(e.health_card)}</td>
       <td><span class="sex-badge ${e.sex}">${e.sex}</span></td>
       <td>${statusBadge(e.status)}</td>
-      <td>${mdCell}</td>
+      <td id="cell-md-${i}">${mdCell}</td>
       <td id="cell-billing-${i}">${renderCodeChips(e.billing_codes, false)}</td>
       <td id="cell-dx-${i}">${renderCodeChips(e.dx_codes, true)}</td>
       <td style="font-size:11px;color:var(--text-sub)" id="cell-notes-${i}">${escHtml(e.notes)}</td>
@@ -269,6 +290,20 @@ function openEdit(index) {
 
   document.getElementById("modalNotes").value = e.notes || "";
   updateModalFee();
+
+  // Flag banner at top of modal
+  const existingBanner = document.getElementById("modalFlagBanner");
+  if (existingBanner) existingBanner.remove();
+  if (e.flag_level && e.flag_messages && e.flag_messages.length > 0) {
+    const banner = document.createElement("div");
+    banner.id        = "modalFlagBanner";
+    banner.className = `flag-banner ${e.flag_level}`;
+    const icons = { red: "🔴", orange: "🟠", yellow: "🟡" };
+    banner.innerHTML = `<div class="flag-banner-title">${icons[e.flag_level] || "⚠"} Flags</div>`
+      + e.flag_messages.map(m => `<div>• ${escHtml(m)}</div>`).join("");
+    document.querySelector(".modal-body").prepend(banner);
+  }
+
   document.getElementById("editModal").classList.add("open");
 }
 
@@ -287,7 +322,7 @@ function updateModalFee() {
 }
 
 function applyEdit() {
-  const billingCodes = [...document.querySelectorAll("#billingCodeGrid .code-chip.selected")]
+  const billingCodes = [...document.querySelectorAll("#billingCodeGroups .code-chip.selected")]
     .map(el => el.dataset.code);
   const dxCodes = [...document.querySelectorAll("#dxCodeGrid .code-chip.selected")]
     .map(el => el.dataset.code);
@@ -321,10 +356,20 @@ function applyEdit() {
 
   updateSummary(currentSession.encounters);
 
+  // Update MD cell in table
+  const mdCopied  = e.md_copied || false;
+  const copiedTag = mdCopied ? `<span class="md-copied">↑ copied from partner</span>` : "";
+  const mdLicDisp = cleanVal(mdLicense);
+  document.getElementById(`cell-md-${editingIndex}`).innerHTML =
+    referringMd
+      ? `<div class="md-cell">${escHtml(referringMd)}${copiedTag}${mdLicDisp ? `<div class="md-license">${escHtml(mdLicDisp)}</div>` : ""}</div>`
+      : `<span style="color:var(--text-dim)">—</span>`;
+  document.getElementById(`cell-hc-${editingIndex}`).textContent = healthCard;
+
   // Persist immediately if already saved to DB
   if (e.id) {
     eel.update_encounter(e.id, billingCodes, dxCodes, notes, startTime, endTime,
-                         healthCard, referringMd, mdLicense)().then(r => {
+                         healthCard, referringMd, mdLicense, e.included)().then(r => {
       if (!r.ok) toast("DB update failed: " + r.error, "err");
     });
   }
@@ -362,6 +407,42 @@ async function exportReport(fmt) {
   )();
   if (!result.ok) toast("Export failed: " + result.error, "err");
   else            toast(`✓ Saved: ${result.path}`, "ok");
+}
+
+// ── Include toggle ───────────────────────────────────────────────────────────
+function toggleIncluded(index, checked) {
+  const e = currentSession.encounters[index];
+  e.included = checked;
+  const row = document.getElementById(`row-${index}`);
+  if (row) row.classList.toggle("excluded", !checked);
+  updateSummary(currentSession.encounters);
+
+  // Persist if already in DB
+  if (e.id) {
+    eel.update_encounter(e.id,
+      e.billing_codes, e.dx_codes, e.notes || "",
+      e.start_time || "", e.end_time || "",
+      e.health_card || "", e.referring_md || "", e.referring_md_license || "",
+      checked
+    )().then(r => { if (!r.ok) toast("DB update failed: " + r.error, "err"); });
+  }
+}
+
+// ── Reload session ────────────────────────────────────────────────────────────
+function reloadSession() {
+  if (currentSession.encounters.length > 0) {
+    if (!confirm("This will clear the current session. Any unsaved changes will be lost. Continue?"))
+      return;
+  }
+  currentSession = { session_date: "", source_file: "", encounters: [], session_id: null };
+  document.getElementById("encounterTableWrap").style.display = "none";
+  document.getElementById("summaryBar").style.display         = "none";
+  document.getElementById("reviewEmpty").style.display        = "flex";
+  document.getElementById("reviewSubtitle").textContent       = "No session loaded";
+  document.getElementById("importStatus").className           = "import-status hidden";
+  // Reset file input so same file can be re-selected
+  document.getElementById("fileInput").value = "";
+  showView("import");
 }
 
 // ── History ───────────────────────────────────────────────────────────────────

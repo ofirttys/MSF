@@ -1,0 +1,7 @@
+2026-06-05 05:56:53,598  INFO  Database initialised at C:\Users\ofir\OneDrive\Documents\GitHub\MSF\MichaeliBilling\db\billing.db
+2026-06-05 05:56:54,416  INFO  127.0.0.1 - - [2026-06-05 05:56:54] "GET /index.html HTTP/1.1" 200 11726 0.003184
+2026-06-05 05:56:54,507  INFO  127.0.0.1 - - [2026-06-05 05:56:54] "GET /style.css HTTP/1.1" 200 20267 0.003107
+2026-06-05 05:56:54,510  INFO  127.0.0.1 - - [2026-06-05 05:56:54] "GET /eel.js HTTP/1.1" 200 6262 0.000916
+2026-06-05 05:56:54,513  INFO  127.0.0.1 - - [2026-06-05 05:56:54] "GET /app.js HTTP/1.1" 200 24690 0.002191
+2026-06-05 05:56:56,180  INFO  127.0.0.1 - - [2026-06-05 05:56:56] "GET /favicon.ico HTTP/1.1" 404 882 0.007432
+2026-06-05 05:57:06,378  INFO  Imported 31 encounters from C:\Users\ofir\AppData\Local\Temp\tmpkhxl51qg.xls

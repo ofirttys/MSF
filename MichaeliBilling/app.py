@@ -13,6 +13,7 @@ import logging
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from billing_rules import assign_billing_codes
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR   = Path(__file__).parent
@@ -131,7 +132,11 @@ def init_db():
             dx_codes             TEXT,
             sex                  TEXT,
             notes                TEXT,
-            locked               INTEGER DEFAULT 0
+            locked               INTEGER DEFAULT 0,
+            flag_level           TEXT DEFAULT "",
+            flag_messages        TEXT DEFAULT "[]",
+            included             INTEGER DEFAULT 1,
+            md_copied            INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS patient_records (
@@ -262,11 +267,18 @@ def import_xls(file_path: str):
                 "months_since_last":    safe_int(row.get("MonthsSinceLastEncounter")),
                 "provider_enc_count":   safe_int(row.get("ProviderEncounterCount")),
                 "sex":                  sex,
-                "billing_codes":        ["A205"],
+                "billing_codes":        [],
                 "dx_codes":             default_dx(sex),
                 "notes":                "",
+                "flag_level":           "",
+                "flag_messages":        [],
+                "included":             True,
+                "md_copied":            False,
             }
             encounters.append(enc)
+
+        # Run billing rules engine
+        encounters = assign_billing_codes(encounters, DB_PATH)
 
         session_date = encounters[0]["encounter_date"] if encounters else ""
         log.info("Imported %d encounters from %s", len(encounters), file_path)
@@ -328,8 +340,9 @@ def save_session(session_date: str, source_file: str, encounters: list):
                    visit_type, facility, status, encounter_date, start_time, end_time,
                    duration_min, referring_md, referring_md_license, schedule_notes,
                    last_encounter_date, last_encounter_type, months_since_last,
-                   provider_enc_count, billing_codes, dx_codes, sex, notes)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                   provider_enc_count, billing_codes, dx_codes, sex, notes,
+                   flag_level, flag_messages, included, md_copied)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (
                 session_id,
                 e.get("patient_id",""),         e.get("partner_id",""),
@@ -345,6 +358,10 @@ def save_session(session_date: str, source_file: str, encounters: list):
                 json.dumps(e.get("billing_codes", [])),
                 json.dumps(e.get("dx_codes", [])),
                 e.get("sex",""),                 e.get("notes",""),
+                e.get("flag_level",""),
+                json.dumps(e.get("flag_messages",[])),
+                1 if e.get("included", True) else 0,
+                1 if e.get("md_copied", False) else 0,
             ))
 
         # Also write to patient_records (the clean billing ledger)
@@ -402,8 +419,11 @@ def get_session_encounters(session_id: int):
     result = []
     for r in rows:
         d = dict(r)
-        d["billing_codes"] = json.loads(d["billing_codes"] or "[]")
-        d["dx_codes"]      = json.loads(d["dx_codes"]      or "[]")
+        d["billing_codes"]  = json.loads(d["billing_codes"]  or "[]")
+        d["dx_codes"]       = json.loads(d["dx_codes"]       or "[]")
+        d["flag_messages"]  = json.loads(d.get("flag_messages") or "[]")
+        d["included"]       = bool(d.get("included", 1))
+        d["md_copied"]      = bool(d.get("md_copied", 0))
         result.append(d)
     return result
 
@@ -411,18 +431,20 @@ def get_session_encounters(session_id: int):
 def update_encounter(encounter_id: int, billing_codes: list, dx_codes: list,
                      notes: str, start_time: str = "", end_time: str = "",
                      health_card: str = "", referring_md: str = "",
-                     referring_md_license: str = ""):
+                     referring_md_license: str = "", included: bool = True):
     try:
         con = db_con()
         con.execute(
             """UPDATE encounters
                SET billing_codes=?, dx_codes=?, notes=?,
                    start_time=?, end_time=?,
-                   health_card=?, referring_md=?, referring_md_license=?
+                   health_card=?, referring_md=?, referring_md_license=?,
+                   included=?
                WHERE id=?""",
             (json.dumps(billing_codes), json.dumps(dx_codes), notes,
              start_time, end_time,
              health_card, referring_md, referring_md_license,
+             1 if included else 0,
              encounter_id)
         )
         con.commit()
@@ -452,6 +474,9 @@ def export_report(session_id: int, encounters: list, fmt: str):
     try:
         rows = []
         for e in encounters:
+            # Respect the included checkbox — skip excluded rows
+            if not e.get("included", True):
+                continue
             codes     = e.get("billing_codes", [])
             dxs       = e.get("dx_codes", [])
             # Codes and Dx as numbers only, semicolon-separated

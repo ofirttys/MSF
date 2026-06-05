@@ -75,6 +75,9 @@
           <button class="btn btn-outline" onclick="exportReport('docx')">Word</button>
           <button class="btn btn-outline" onclick="exportReport('pdf')">PDF</button>
         </div>
+        <button class="btn btn-outline" onclick="reloadSession()">
+          <span>↺</span> Load New / Reload
+        </button>
         <button class="btn btn-primary" onclick="saveSession()">
           <span>💾</span> Save to Database
         </button>
@@ -113,6 +116,7 @@
       <table class="enc-table" id="encounterTable">
         <thead>
           <tr>
+            <th title="Include in report">✓</th>
             <th>#</th>
             <th>Time</th>
             <th>Patient</th>
