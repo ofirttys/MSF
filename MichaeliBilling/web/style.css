@@ -730,3 +730,12 @@ body.light .date-input { color-scheme: light; }
 .flag-banner.orange { background: rgba(245,166,35,0.12); border: 1px solid var(--warning); color: var(--warning); }
 .flag-banner.yellow { background: rgba(241,196,15,0.10); border: 1px solid #F1C40F;        color: #c9a800; }
 .flag-banner-title  { font-weight: 700; margin-bottom: 2px; }
+
+/* ── Sidebar brand icon image ──────────────────────────────────────────────── */
+.brand-icon-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: contain;
+  flex-shrink: 0;
+}

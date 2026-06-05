@@ -5,7 +5,7 @@
 #   pip install pyinstaller
 #
 # Build command (run from the MichaeliBilling folder):
-#   pyinstaller MichaeliBilling.spec
+#   py -m PyInstaller MichaeliBilling.spec --clean
 #
 # Output:
 #   dist/MichaeliBilling/MichaeliBilling.exe   (folder-based distribution)
