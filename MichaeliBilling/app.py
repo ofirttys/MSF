@@ -338,12 +338,16 @@ def get_session_encounters(session_id: int):
     return result
 
 @eel.expose
-def update_encounter(encounter_id: int, billing_codes: list, dx_codes: list, notes: str):
+def update_encounter(encounter_id: int, billing_codes: list, dx_codes: list,
+                     notes: str, start_time: str = "", end_time: str = ""):
     try:
         con = db_con()
         con.execute(
-            "UPDATE encounters SET billing_codes=?, dx_codes=?, notes=? WHERE id=?",
-            (json.dumps(billing_codes), json.dumps(dx_codes), notes, encounter_id)
+            """UPDATE encounters
+               SET billing_codes=?, dx_codes=?, notes=?, start_time=?, end_time=?
+               WHERE id=?""",
+            (json.dumps(billing_codes), json.dumps(dx_codes), notes,
+             start_time, end_time, encounter_id)
         )
         con.commit()
         con.close()
@@ -374,33 +378,39 @@ def export_report(session_id: int, encounters: list, fmt: str):
         for e in encounters:
             codes     = e.get("billing_codes", [])
             dxs       = e.get("dx_codes", [])
-            dx_str    = "; ".join([f"{d} – {DX_CODES.get(d, d)}" for d in dxs])
-            code_str  = "; ".join(
-                [f"{c} – {BILLING_CODES[c]['desc']}" if c in BILLING_CODES else c for c in codes]
-            )
+            # Codes and Dx as numbers only, semicolon-separated
+            dx_str    = "; ".join(dxs)
+            code_str  = "; ".join(codes)
             fee_total = sum(BILLING_CODES.get(c, {}).get("fee", 0) for c in codes)
 
+            def clean(v):
+                """Return empty string instead of nan/None."""
+                if v is None: return ""
+                s = str(v).strip()
+                return "" if s.lower() == "nan" else s
+
             rows.append({
-                "Date":                 e.get("encounter_date", ""),
-                "Start Time":           e.get("start_time", ""),
-                "End Time":             e.get("end_time", ""),
-                "Patient Name":         e.get("patient_name", ""),
-                "Health Card":          e.get("health_card", ""),
-                "Sex":                  e.get("sex", ""),
-                "Visit Type":           e.get("visit_type", ""),
-                "Facility":             e.get("facility", ""),
-                "Status":               e.get("status", ""),
+                "Date":                 clean(e.get("encounter_date")),
+                "Start Time":           clean(e.get("start_time")),
+                "End Time":             clean(e.get("end_time")),
+                "Patient Name":         clean(e.get("patient_name")),
+                "Health Card":          clean(e.get("health_card")),
+                "Sex":                  clean(e.get("sex")),
                 "Dx":                   dx_str,
                 "Billing Code(s)":      code_str,
                 "Fee ($)":              fee_total,
-                "Referring Physician":  e.get("referring_md", ""),
-                "Referring MD License": e.get("referring_md_license", ""),
-                "Notes":                e.get("notes", ""),
+                "Referring Physician":  clean(e.get("referring_md")),
+                "Referring MD Billing#": clean(e.get("referring_md_license")),
+                "Notes":                clean(e.get("notes")),
             })
 
-        df        = pd.DataFrame(rows)
-        ts        = datetime.now().strftime("%Y%m%d_%H%M%S")
-        base_name = f"BillingReport_Session{session_id}_{ts}"
+        df           = pd.DataFrame(rows)
+        session_date = rows[0]["Date"] if rows else datetime.now().strftime("%Y-%m-%d")
+
+        # Running report ID: count existing files for this date across all formats
+        existing  = list(EXPORT_DIR.glob(f"DrMichaeli-BillingReport_{session_date}_*"))
+        report_id = len(existing) + 1
+        base_name = f"DrMichaeli-BillingReport_{session_date}_{report_id}"
 
         # ── XLSX ──────────────────────────────────────────────────────────────
         if fmt == "xlsx":
@@ -409,23 +419,33 @@ def export_report(session_id: int, encounters: list, fmt: str):
 
             out = EXPORT_DIR / f"{base_name}.xlsx"
             with pd.ExcelWriter(out, engine="openpyxl") as writer:
-                df.to_excel(writer, index=False, sheet_name="Billing Report")
+                # Write two header rows then data
+                df.to_excel(writer, index=False, sheet_name="Billing Report", startrow=3)
                 ws = writer.sheets["Billing Report"]
 
+                # Row 1: title, Row 2: date, Row 3: blank
+                ws.cell(1, 1).value = "Dr. Michaeli - Billing Report"
+                ws.cell(1, 1).font  = Font(bold=True, size=13, color="1B3A5C")
+                ws.cell(2, 1).value = f"Date: {session_date}"
+                ws.cell(2, 1).font  = Font(size=10, color="4A6A82")
+
+                # Style column header row (row 4)
                 header_fill = PatternFill("solid", fgColor="1B3A5C")
                 header_font = Font(bold=True, color="FFFFFF", size=10)
-                for cell in ws[1]:
+                for cell in ws[4]:
                     cell.fill      = header_fill
                     cell.font      = header_font
                     cell.alignment = Alignment(horizontal="center", wrap_text=True)
 
+                # Auto-size columns
                 for col_idx, col in enumerate(ws.columns, 1):
                     max_len = max((len(str(c.value or "")) for c in col), default=8)
                     ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 4, 55)
 
+                # Alternate row shading from row 5 onward
                 from openpyxl.styles import PatternFill as PF
                 alt_fill = PF("solid", fgColor="EEF2F7")
-                for row_idx, row in enumerate(ws.iter_rows(min_row=2), 2):
+                for row_idx, row in enumerate(ws.iter_rows(min_row=5), 5):
                     if row_idx % 2 == 0:
                         for cell in row:
                             cell.fill = alt_fill
@@ -448,20 +468,17 @@ def export_report(session_id: int, encounters: list, fmt: str):
                 section.top_margin    = Cm(1.8)
                 section.bottom_margin = Cm(1.8)
 
+            # Title
             title     = doc.add_heading("", 0)
-            title_run = title.add_run("MichaeliBilling — Billing Report")
+            title_run = title.add_run("Dr. Michaeli - Billing Report")
             title_run.font.color.rgb = RGBColor(0x1B, 0x3A, 0x5C)
-            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-            sub     = doc.add_paragraph()
-            sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            sub_run = sub.add_run(
-                f"Dr. J. Michaeli  |  Date: {rows[0]['Date'] if rows else ''}  |  "
-                f"Encounters: {len(rows)}  |  "
-                f"Total: ${sum(r['Fee ($)'] for r in rows):.2f}"
-            )
-            sub_run.font.size      = Pt(10)
-            sub_run.font.color.rgb = RGBColor(0x4A, 0x6A, 0x82)
+            # Date line
+            date_p   = doc.add_paragraph()
+            date_run = date_p.add_run(f"Date: {session_date}")
+            date_run.font.size      = Pt(11)
+            date_run.font.color.rgb = RGBColor(0x4A, 0x6A, 0x82)
+
             doc.add_paragraph("")
 
             table = doc.add_table(rows=1, cols=len(df.columns))
@@ -499,7 +516,6 @@ def export_report(session_id: int, encounters: list, fmt: str):
             from reportlab.lib import colors
             from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
             from reportlab.lib.units import cm
-            from reportlab.lib.enums import TA_CENTER
 
             out     = EXPORT_DIR / f"{base_name}.pdf"
             doc_pdf = SimpleDocTemplate(
@@ -510,26 +526,19 @@ def export_report(session_id: int, encounters: list, fmt: str):
 
             styles      = getSampleStyleSheet()
             title_style = ParagraphStyle(
-                "MBTitle", parent=styles["Title"],
-                fontSize=14, alignment=TA_CENTER,
-                textColor=colors.HexColor("#1B3A5C")
+                "MBTitle", parent=styles["Heading1"],
+                fontSize=14, textColor=colors.HexColor("#1B3A5C"),
+                spaceAfter=4,
             )
-            sub_style = ParagraphStyle(
-                "MBSub", parent=styles["Normal"],
-                fontSize=9, alignment=TA_CENTER,
-                textColor=colors.HexColor("#4A6A82")
+            date_style = ParagraphStyle(
+                "MBDate", parent=styles["Normal"],
+                fontSize=10, textColor=colors.HexColor("#4A6A82"),
+                spaceAfter=12,
             )
 
             story = [
-                Paragraph("MichaeliBilling — Billing Report", title_style),
-                Spacer(1, 0.2*cm),
-                Paragraph(
-                    f"Dr. J. Michaeli  &nbsp;|&nbsp;  Date: {rows[0]['Date'] if rows else ''}  "
-                    f"&nbsp;|&nbsp;  Encounters: {len(rows)}  "
-                    f"&nbsp;|&nbsp;  Total: ${sum(r['Fee ($)'] for r in rows):.2f}",
-                    sub_style
-                ),
-                Spacer(1, 0.5*cm),
+                Paragraph("Dr. Michaeli - Billing Report", title_style),
+                Paragraph(f"Date: {session_date}", date_style),
             ]
 
             header = list(df.columns)
