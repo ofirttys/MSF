@@ -104,6 +104,22 @@ def init_db():
             locked               INTEGER DEFAULT 0
         );
 
+        CREATE TABLE IF NOT EXISTS patient_records (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id    TEXT,
+            patient_name  TEXT NOT NULL,
+            record_date   TEXT NOT NULL,
+            billing_codes TEXT NOT NULL,
+            dx_codes      TEXT NOT NULL,
+            source        TEXT,
+            source_ref    TEXT,
+            created_at    TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_pr_patient_id   ON patient_records(patient_id);
+        CREATE INDEX IF NOT EXISTS idx_pr_patient_name ON patient_records(patient_name COLLATE NOCASE);
+        CREATE INDEX IF NOT EXISTS idx_pr_record_date  ON patient_records(record_date);
+
         CREATE TABLE IF NOT EXISTS historical_imports (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             imported_at TEXT NOT NULL,
@@ -297,6 +313,26 @@ def save_session(session_date: str, source_file: str, encounters: list):
                 e.get("sex",""),                 e.get("notes",""),
             ))
 
+        # Also write to patient_records (the clean billing ledger)
+        for e in encounters:
+            if not e.get("patient_name","").strip():
+                continue
+            cur.execute("""
+                INSERT INTO patient_records
+                  (patient_id, patient_name, record_date, billing_codes, dx_codes,
+                   source, source_ref, created_at)
+                VALUES (?,?,?,?,?,?,?,?)
+            """, (
+                e.get("patient_id",""),
+                e.get("patient_name","").strip(),
+                e.get("encounter_date",""),
+                json.dumps(e.get("billing_codes",[])),
+                json.dumps(e.get("dx_codes",[])),
+                "session",
+                str(session_id),
+                datetime.now().isoformat(),
+            ))
+
         con.commit()
         con.close()
         log.info("Saved session #%d (%s, %d encounters)", session_id, session_date, len(encounters))
@@ -390,18 +426,17 @@ def export_report(session_id: int, encounters: list, fmt: str):
                 return "" if s.lower() == "nan" else s
 
             rows.append({
-                "Date":                 clean(e.get("encounter_date")),
-                "Start Time":           clean(e.get("start_time")),
-                "End Time":             clean(e.get("end_time")),
-                "Patient Name":         clean(e.get("patient_name")),
-                "Health Card":          clean(e.get("health_card")),
-                "Sex":                  clean(e.get("sex")),
-                "Dx":                   dx_str,
-                "Billing Code(s)":      code_str,
-                "Fee ($)":              fee_total,
-                "Referring Physician":  clean(e.get("referring_md")),
-                "Referring MD Billing#": clean(e.get("referring_md_license")),
-                "Notes":                clean(e.get("notes")),
+                "Date":                clean(e.get("encounter_date")),
+                "Start Time":          clean(e.get("start_time")),
+                "End Time":            clean(e.get("end_time")),
+                "Patient Name":        clean(e.get("patient_name")),
+                "Health Card":         clean(e.get("health_card")),
+                "Sex":                 clean(e.get("sex")),
+                "Dx":                  dx_str,
+                "Billing Code(s)":     code_str,
+                "Referring Physician": clean(e.get("referring_md")),
+                "Billing#":            clean(e.get("referring_md_license")),
+                "Notes":               clean(e.get("notes")),
             })
 
         df           = pd.DataFrame(rows)
@@ -569,9 +604,178 @@ def export_report(session_id: int, encounters: list, fmt: str):
         return {"ok": False, "error": traceback.format_exc()}
 
 @eel.expose
-def import_historical_csv(file_path: str):
-    """Stub — format TBD."""
-    return {"ok": False, "error": "Historical CSV import not yet implemented. Format TBD."}
+def import_historical_csv_bytes(byte_array: list, filename: str):
+    """
+    Import historical billing records from a CSV file sent as bytes from the browser.
+
+    Expected CSV columns (case-insensitive, any order):
+        patient_id   — optional
+        patient_name — required
+        date         — YYYY-MM-DD
+        billing_codes — semicolon-separated codes e.g. "A205;K013"
+        dx_codes      — semicolon-separated codes e.g. "628;606"
+    """
+    import tempfile, csv, io
+    try:
+        raw = bytes(byte_array).decode("utf-8-sig")   # handle BOM if present
+        reader = csv.DictReader(io.StringIO(raw))
+
+        # Normalise column names to lower-case stripped
+        def norm(d):
+            return {k.strip().lower(): v.strip() for k, v in d.items()}
+
+        con = db_con()
+        cur = con.cursor()
+
+        # Log the import
+        cur.execute(
+            "INSERT INTO historical_imports (imported_at, source_file, row_count) VALUES (?,?,?)",
+            (datetime.now().isoformat(), filename, 0)
+        )
+        import_id = cur.lastrowid
+
+        inserted = 0
+        skipped  = 0
+        errors   = []
+
+        for i, raw_row in enumerate(reader, start=2):   # row 2 = first data row
+            row = norm(raw_row)
+
+            name = row.get("patient_name","").strip()
+            date = row.get("date","").strip()
+
+            if not name or not date:
+                skipped += 1
+                errors.append(f"Row {i}: missing patient_name or date — skipped")
+                continue
+
+            # Parse codes — accept semicolons or commas as separators
+            def parse_codes(val):
+                if not val: return []
+                return [c.strip() for c in val.replace(",",";").split(";") if c.strip()]
+
+            billing = parse_codes(row.get("billing_codes",""))
+            dx      = parse_codes(row.get("dx_codes",""))
+
+            if not billing:
+                skipped += 1
+                errors.append(f"Row {i}: {name} — no billing codes, skipped")
+                continue
+
+            cur.execute("""
+                INSERT INTO patient_records
+                  (patient_id, patient_name, record_date, billing_codes, dx_codes,
+                   source, source_ref, created_at)
+                VALUES (?,?,?,?,?,?,?,?)
+            """, (
+                row.get("patient_id",""),
+                name, date,
+                json.dumps(billing),
+                json.dumps(dx),
+                "csv_import",
+                filename,
+                datetime.now().isoformat(),
+            ))
+            inserted += 1
+
+        # Update row count
+        cur.execute("UPDATE historical_imports SET row_count=? WHERE id=?", (inserted, import_id))
+        con.commit()
+        con.close()
+
+        log.info("CSV import: %d inserted, %d skipped from %s", inserted, skipped, filename)
+        return {
+            "ok": True,
+            "inserted": inserted,
+            "skipped":  skipped,
+            "errors":   errors[:20],   # cap error list
+        }
+
+    except Exception as e:
+        log.exception("import_historical_csv_bytes failed")
+        return {"ok": False, "error": str(e)}
+
+
+@eel.expose
+def search_patient_records(query: str = "", date: str = "", page: int = 1, page_size: int = 50):
+    """
+    Search patient_records.
+    query  — matches patient_name or patient_id (partial, case-insensitive)
+    date   — exact date filter YYYY-MM-DD (optional)
+    Returns paginated results + total count.
+    """
+    try:
+        con  = db_con()
+        q    = query.strip()
+        d    = date.strip()
+
+        where_parts = []
+        params      = []
+
+        if q:
+            where_parts.append("(patient_name LIKE ? OR patient_id LIKE ?)")
+            params += [f"%{q}%", f"%{q}%"]
+        if d:
+            where_parts.append("record_date = ?")
+            params.append(d)
+
+        where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+        total = con.execute(
+            f"SELECT COUNT(*) FROM patient_records {where}", params
+        ).fetchone()[0]
+
+        offset = (page - 1) * page_size
+        rows   = con.execute(
+            f"""SELECT * FROM patient_records {where}
+                ORDER BY record_date DESC, patient_name ASC
+                LIMIT ? OFFSET ?""",
+            params + [page_size, offset]
+        ).fetchall()
+        con.close()
+
+        result = []
+        for r in rows:
+            d2 = dict(r)
+            d2["billing_codes"] = json.loads(d2["billing_codes"] or "[]")
+            d2["dx_codes"]      = json.loads(d2["dx_codes"]      or "[]")
+            result.append(d2)
+
+        return {"ok": True, "records": result, "total": total, "page": page, "page_size": page_size}
+
+    except Exception as e:
+        log.exception("search_patient_records failed")
+        return {"ok": False, "error": str(e), "records": [], "total": 0}
+
+
+@eel.expose
+def get_patient_history(patient_id: str = "", patient_name: str = ""):
+    """Return all billing records for a specific patient (by ID or exact name)."""
+    try:
+        con = db_con()
+        if patient_id:
+            rows = con.execute(
+                "SELECT * FROM patient_records WHERE patient_id=? ORDER BY record_date DESC",
+                (patient_id,)
+            ).fetchall()
+        else:
+            rows = con.execute(
+                "SELECT * FROM patient_records WHERE patient_name LIKE ? ORDER BY record_date DESC",
+                (f"%{patient_name}%",)
+            ).fetchall()
+        con.close()
+
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["billing_codes"] = json.loads(d["billing_codes"] or "[]")
+            d["dx_codes"]      = json.loads(d["dx_codes"]      or "[]")
+            result.append(d)
+
+        return {"ok": True, "records": result}
+
+    except Exception as e:
+        return {"ok": False, "error": str(e), "records": []}
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":

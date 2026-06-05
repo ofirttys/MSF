@@ -409,3 +409,147 @@ function toast(msg, cls = "ok") {
   if (_toastTimer) clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => el.classList.remove("show"), 4000);
 }
+
+// ── Patient Records ───────────────────────────────────────────────────────────
+let recordsPage  = 1;
+const PAGE_SIZE  = 50;
+let _searchTimer = null;
+
+function debounceSearch() {
+  if (_searchTimer) clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(searchRecords, 350);
+}
+
+function clearSearch() {
+  document.getElementById("searchQuery").value = "";
+  document.getElementById("searchDate").value  = "";
+  recordsPage = 1;
+  searchRecords();
+}
+
+async function searchRecords(page) {
+  if (page) recordsPage = page;
+  const query = document.getElementById("searchQuery").value.trim();
+  const date  = document.getElementById("searchDate").value.trim();
+
+  const result = await eel.search_patient_records(query, date, recordsPage, PAGE_SIZE)();
+
+  if (!result.ok) { toast("Search failed: " + result.error, "err"); return; }
+
+  renderRecordsTable(result.records, result.total);
+  renderPagination(result.total);
+}
+
+function renderRecordsTable(records, total) {
+  const tbody  = document.getElementById("recordsTbody");
+  const empty  = document.getElementById("recordsEmpty");
+  const wrap   = document.getElementById("recordsTableWrap");
+  const count  = document.getElementById("recordsCount");
+
+  count.textContent = total > 0 ? `${total.toLocaleString()} record${total !== 1 ? "s" : ""}` : "";
+
+  if (!records || records.length === 0) {
+    empty.style.display = "flex";
+    wrap.style.display  = "none";
+    return;
+  }
+
+  empty.style.display = "none";
+  wrap.style.display  = "block";
+  tbody.innerHTML     = "";
+
+  records.forEach(r => {
+    const tr = document.createElement("tr");
+    const src = r.source === "csv_import" ? "csv_import" : "session";
+    tr.innerHTML = `
+      <td style="font-family:'Courier New',monospace;font-size:12px;white-space:nowrap">${escHtml(r.record_date)}</td>
+      <td style="font-weight:600">${escHtml(r.patient_name)}</td>
+      <td style="font-family:'Courier New',monospace;font-size:11px;color:var(--text-sub)">${escHtml(r.patient_id || "—")}</td>
+      <td>${renderCodeChips(r.billing_codes, false)}</td>
+      <td>${renderCodeChips(r.dx_codes, true)}</td>
+      <td><span class="source-badge ${src}">${src === "csv_import" ? "CSV" : "Session"}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderPagination(total) {
+  const container = document.getElementById("recordsPagination");
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  container.innerHTML = "";
+
+  if (totalPages <= 1) return;
+
+  const prev = document.createElement("button");
+  prev.className = "page-btn";
+  prev.textContent = "← Prev";
+  prev.disabled = recordsPage <= 1;
+  prev.onclick = () => searchRecords(recordsPage - 1);
+  container.appendChild(prev);
+
+  // Page number buttons (show up to 7 around current)
+  const start = Math.max(1, recordsPage - 3);
+  const end   = Math.min(totalPages, recordsPage + 3);
+  for (let p = start; p <= end; p++) {
+    const btn = document.createElement("button");
+    btn.className = "page-btn" + (p === recordsPage ? " active" : "");
+    btn.textContent = p;
+    btn.onclick = () => searchRecords(p);
+    container.appendChild(btn);
+  }
+
+  const next = document.createElement("button");
+  next.className = "page-btn";
+  next.textContent = "Next →";
+  next.disabled = recordsPage >= totalPages;
+  next.onclick = () => searchRecords(recordsPage + 1);
+  container.appendChild(next);
+}
+
+// ── CSV Import ────────────────────────────────────────────────────────────────
+async function importCsv(evt) {
+  const file = evt.target.files[0];
+  evt.target.value = "";   // reset so same file can be re-selected
+  if (!file) return;
+
+  const statusEl = document.getElementById("csvStatus");
+  statusEl.className   = "import-status ok";
+  statusEl.textContent = `Importing ${file.name}…`;
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array  = Array.from(new Uint8Array(arrayBuffer));
+    const result      = await eel.import_historical_csv_bytes(uint8Array, file.name)();
+
+    if (!result.ok) {
+      statusEl.className   = "import-status err";
+      statusEl.textContent = "❌ " + result.error;
+      return;
+    }
+
+    let msg = `✓ Imported ${result.inserted} record(s) from ${file.name}`;
+    if (result.skipped > 0) msg += ` (${result.skipped} skipped)`;
+    statusEl.className   = "import-status ok";
+    statusEl.textContent = msg;
+
+    if (result.errors && result.errors.length > 0) {
+      console.warn("CSV import warnings:", result.errors);
+    }
+
+    // Refresh the table
+    searchRecords(1);
+
+  } catch (e) {
+    statusEl.className   = "import-status err";
+    statusEl.textContent = "❌ " + e.toString();
+  }
+}
+
+// Load records when switching to that view
+const _origShowView = showView;
+window.showView = function(name) {
+  _origShowView(name);
+  if (name === "records" && document.getElementById("recordsTbody").innerHTML === "") {
+    searchRecords(1);
+  }
+};
