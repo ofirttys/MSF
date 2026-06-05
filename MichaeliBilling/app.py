@@ -33,19 +33,49 @@ logging.basicConfig(
 log = logging.getLogger("MichaeliBilling")
 
 # ── Reference data ────────────────────────────────────────────────────────────
+# Billing codes organised by clinical group.
+# Each code: {"desc": str, "fee": float, "group": str}
 BILLING_CODES = {
-    "A205": {"desc": "Consultation*",                     "fee": 134.25},
-    "A935": {"desc": "Special surgical consultation",     "fee": 194.65},
-    "A206": {"desc": "Repeat consultation",               "fee":  71.45},
-    "A203": {"desc": "Specific assessment",               "fee":  62.65},
-    "A204": {"desc": "Partial assessment",                "fee":  40.50},
-    "K013": {"desc": "Individual Counselling x3",         "fee":  80.00},
-    "K033": {"desc": "Individual Counselling",            "fee":  56.30},
-    "K040": {"desc": "Group counselling x3",              "fee":  80.00},
-    "K041": {"desc": "Group counselling",                 "fee":  56.30},
-    "A101": {"desc": "Limited Virtual Care by Video",     "fee":  20.00},
-    "A102": {"desc": "Limited Virtual Care by Telephone", "fee":  15.00},
+    # ── Consultations ──────────────────────────────────────────────────────────
+    "A205": {"desc": "Consultation*",                  "fee": 134.25, "group": "Consultations"},
+    "A935": {"desc": "Special surgical consultation",  "fee": 194.65, "group": "Consultations"},
+    "A206": {"desc": "Repeat consultation",            "fee":  71.45, "group": "Consultations"},
+    "A203": {"desc": "Specific assessment",            "fee":  62.65, "group": "Consultations"},
+    "A204": {"desc": "Partial assessment",             "fee":  40.50, "group": "Consultations"},
+    # ── Counselling ────────────────────────────────────────────────────────────
+    "K013": {"desc": "Individual Counselling x3",      "fee":  80.00, "group": "Counselling"},
+    "K033": {"desc": "Individual Counselling",         "fee":  56.30, "group": "Counselling"},
+    "K040": {"desc": "Group counselling x3",           "fee":  80.00, "group": "Counselling"},
+    "K041": {"desc": "Group counselling",              "fee":  56.30, "group": "Counselling"},
+    # ── Virtual / Phone ────────────────────────────────────────────────────────
+    "A101": {"desc": "Limited Virtual Care by Video",     "fee": 20.00, "group": "Virtual / Phone"},
+    "A102": {"desc": "Limited Virtual Care by Telephone", "fee": 15.00, "group": "Virtual / Phone"},
+    "K300": {"desc": "Virtual appointment",               "fee":  0.00, "group": "Virtual / Phone"},
+    "K301": {"desc": "Phone call",                        "fee":  0.00, "group": "Virtual / Phone"},
+    # ── Ultrasound ─────────────────────────────────────────────────────────────
+    "J164C": {"desc": "Follicle monitoring",                    "fee": 0.00, "group": "Ultrasound"},
+    "J164B": {"desc": "Follicle monitoring",                    "fee": 0.00, "group": "Ultrasound"},
+    "J476B": {"desc": "Transvaginal sonohysterography (Echovist)", "fee": 0.00, "group": "Ultrasound"},
+    "J476C": {"desc": "Transvaginal sonohysterography (Echovist)", "fee": 0.00, "group": "Ultrasound"},
+    "J165B": {"desc": "Transvaginal sonohysterography",         "fee": 0.00, "group": "Ultrasound"},
+    "J165C": {"desc": "Transvaginal sonohysterography",         "fee": 0.00, "group": "Ultrasound"},
+    "J138B": {"desc": "Intracavitary ultrasound",               "fee": 0.00, "group": "Ultrasound"},
+    "J138C": {"desc": "Intracavitary ultrasound",               "fee": 0.00, "group": "Ultrasound"},
+    "J149":  {"desc": "Ultrasonic guidance of biopsy/aspiration/amniocentesis", "fee": 0.00, "group": "Ultrasound"},
+    # ── Procedures ─────────────────────────────────────────────────────────────
+    "G399A": {"desc": "Transvaginal sonohysterography, intro of catheter", "fee": 0.00, "group": "Procedures"},
+    "J008A": {"desc": "Hysterosalpingogram",                               "fee": 0.00, "group": "Procedures"},
+    "E861":  {"desc": "Paracervical block",                                "fee": 0.00, "group": "Procedures"},
+    "Z770":  {"desc": "Endometrial sampling",                              "fee": 0.00, "group": "Procedures"},
+    "Z582":  {"desc": "Hysteroscopy (diagnostic)",                         "fee": 0.00, "group": "Procedures"},
+    "Z583":  {"desc": "Hysteroscopy (with uterine biopsy)",                "fee": 0.00, "group": "Procedures"},
+    "Z587":  {"desc": "Hysteroscopy (with resection of polyps/fibroids)",  "fee": 0.00, "group": "Procedures"},
+    "Z585":  {"desc": "Hysteroscopy (with cannulization of tubes)",        "fee": 0.00, "group": "Procedures"},
+    "S756":  {"desc": "Missed abortion / evacuation of molar pregnancy",   "fee": 0.00, "group": "Procedures"},
 }
+
+# Group order for display
+BILLING_CODE_GROUPS = ["Consultations", "Counselling", "Virtual / Phone", "Ultrasound", "Procedures"]
 
 DX_CODES = {
     "628": "Other Disorders of Female Genital Tract: Infertility",
@@ -175,7 +205,11 @@ def safe_int(val):
 
 @eel.expose
 def get_reference_data():
-    return {"billing_codes": BILLING_CODES, "dx_codes": DX_CODES}
+    return {
+        "billing_codes":        BILLING_CODES,
+        "billing_code_groups":  BILLING_CODE_GROUPS,
+        "dx_codes":             DX_CODES,
+    }
 
 @eel.expose
 def import_xls(file_path: str):
@@ -375,15 +409,21 @@ def get_session_encounters(session_id: int):
 
 @eel.expose
 def update_encounter(encounter_id: int, billing_codes: list, dx_codes: list,
-                     notes: str, start_time: str = "", end_time: str = ""):
+                     notes: str, start_time: str = "", end_time: str = "",
+                     health_card: str = "", referring_md: str = "",
+                     referring_md_license: str = ""):
     try:
         con = db_con()
         con.execute(
             """UPDATE encounters
-               SET billing_codes=?, dx_codes=?, notes=?, start_time=?, end_time=?
+               SET billing_codes=?, dx_codes=?, notes=?,
+                   start_time=?, end_time=?,
+                   health_card=?, referring_md=?, referring_md_license=?
                WHERE id=?""",
             (json.dumps(billing_codes), json.dumps(dx_codes), notes,
-             start_time, end_time, encounter_id)
+             start_time, end_time,
+             health_card, referring_md, referring_md_license,
+             encounter_id)
         )
         con.commit()
         con.close()

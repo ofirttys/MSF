@@ -200,22 +200,19 @@ function openEdit(index) {
 
   document.getElementById("modalTitle").textContent = `Edit — ${e.patient_name}`;
 
-  // Info grid (read-only context fields)
+  // Info grid — read-only context only (no editable fields here)
   const infoFields = [
-    ["Date",           e.encounter_date],
-    ["Facility",       e.facility],
-    ["Visit Type",     e.visit_type],
-    ["Status",         e.status],
-    ["Sex",            e.sex === "F" ? "Female" : e.sex === "M" ? "Male" : "Unknown"],
-    ["Health Card",    e.health_card],
-    ["Patient ID",     e.patient_id],
-    ["Partner ID",     e.partner_id || "—"],
-    ["Referring MD",   cleanVal(e.referring_md) || "—"],
-    ["MD Billing#",    cleanVal(e.referring_md_license) || "—"],
-    ["Prior Visits",   e.provider_enc_count ?? "—"],
-    ["Last Encounter", e.last_encounter_date || "—"],
-    ["Months Since",   e.months_since_last ?? "—"],
-    ["Notes Flag",     e.schedule_notes || "—"],
+    ["Date",          e.encounter_date],
+    ["Facility",      e.facility],
+    ["Visit Type",    e.visit_type],
+    ["Status",        e.status],
+    ["Sex",           e.sex === "F" ? "Female" : e.sex === "M" ? "Male" : "Unknown"],
+    ["Patient ID",    e.patient_id],
+    ["Partner ID",    e.partner_id || "—"],
+    ["Total Visits",  e.provider_enc_count ?? "—"],
+    ["Last NP Visit", e.last_encounter_date || "—"],
+    ["Months Since",  e.months_since_last ?? "—"],
+    ["Schedule Note", e.schedule_notes || "—"],
   ];
   document.getElementById("modalInfoGrid").innerHTML = infoFields.map(([lbl, val]) => `
     <div class="info-cell">
@@ -224,21 +221,40 @@ function openEdit(index) {
     </div>
   `).join("");
 
-  // Editable time fields
-  document.getElementById("modalStartTime").value = e.start_time || "";
-  document.getElementById("modalEndTime").value   = e.end_time   || "";
+  // Editable fields
+  document.getElementById("modalStartTime").value   = e.start_time          || "";
+  document.getElementById("modalEndTime").value     = e.end_time            || "";
+  document.getElementById("modalHealthCard").value  = cleanVal(e.health_card);
+  document.getElementById("modalReferringMd").value = cleanVal(e.referring_md);
+  document.getElementById("modalMdLicense").value   = cleanVal(e.referring_md_license);
 
-  // Billing code chips
-  document.getElementById("billingCodeGrid").innerHTML =
-    Object.entries(REF.billing_codes).map(([code, info]) => {
+  // Billing code chips — grouped
+  const groups = REF.billing_code_groups || [];
+  const byGroup = {};
+  Object.entries(REF.billing_codes).forEach(([code, info]) => {
+    const g = info.group || "Other";
+    if (!byGroup[g]) byGroup[g] = [];
+    byGroup[g].push([code, info]);
+  });
+
+  document.getElementById("billingCodeGroups").innerHTML = groups.map(grp => {
+    if (!byGroup[grp]) return "";
+    const chips = byGroup[grp].map(([code, info]) => {
       const sel = e.billing_codes.includes(code) ? "selected" : "";
+      const fee = info.fee > 0 ? `<span class="code-chip-fee">$${info.fee.toFixed(2)}</span>` : "";
       return `
         <div class="code-chip ${sel}" data-code="${code}" onclick="toggleCode(this,'billing')">
           <span class="code-chip-code">${code}</span>
           <span class="code-chip-desc">${escHtml(info.desc)}</span>
-          <span class="code-chip-fee">$${info.fee.toFixed(2)}</span>
+          ${fee}
         </div>`;
     }).join("");
+    return `
+      <div class="code-group">
+        <div class="code-group-label">${escHtml(grp)}</div>
+        <div class="code-grid">${chips}</div>
+      </div>`;
+  }).join("");
 
   // Dx code chips
   document.getElementById("dxCodeGrid").innerHTML =
@@ -275,19 +291,25 @@ function applyEdit() {
     .map(el => el.dataset.code);
   const dxCodes = [...document.querySelectorAll("#dxCodeGrid .code-chip.selected")]
     .map(el => el.dataset.code);
-  const notes     = document.getElementById("modalNotes").value.trim();
-  const startTime = document.getElementById("modalStartTime").value.trim();
-  const endTime   = document.getElementById("modalEndTime").value.trim();
+  const notes       = document.getElementById("modalNotes").value.trim();
+  const startTime   = document.getElementById("modalStartTime").value.trim();
+  const endTime     = document.getElementById("modalEndTime").value.trim();
+  const healthCard  = document.getElementById("modalHealthCard").value.trim();
+  const referringMd = document.getElementById("modalReferringMd").value.trim();
+  const mdLicense   = document.getElementById("modalMdLicense").value.trim();
 
   if (billingCodes.length === 0) { toast("Select at least one billing code.", "warn"); return; }
   if (dxCodes.length === 0)      { toast("Select at least one Dx code.", "warn");      return; }
 
   const e = currentSession.encounters[editingIndex];
-  e.billing_codes = billingCodes;
-  e.dx_codes      = dxCodes;
-  e.notes         = notes;
-  e.start_time    = startTime;
-  e.end_time      = endTime;
+  e.billing_codes        = billingCodes;
+  e.dx_codes             = dxCodes;
+  e.notes                = notes;
+  e.start_time           = startTime;
+  e.end_time             = endTime;
+  e.health_card          = healthCard;
+  e.referring_md         = referringMd;
+  e.referring_md_license = mdLicense;
 
   // Update table cells
   document.getElementById(`cell-time-${editingIndex}`).innerHTML =
@@ -301,7 +323,8 @@ function applyEdit() {
 
   // Persist immediately if already saved to DB
   if (e.id) {
-    eel.update_encounter(e.id, billingCodes, dxCodes, notes, startTime, endTime)().then(r => {
+    eel.update_encounter(e.id, billingCodes, dxCodes, notes, startTime, endTime,
+                         healthCard, referringMd, mdLicense)().then(r => {
       if (!r.ok) toast("DB update failed: " + r.error, "err");
     });
   }
