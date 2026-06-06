@@ -14,11 +14,13 @@
 # The exe expects Microsoft Edge to be installed (falls back to Chrome).
 
 import os
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, collect_all
 
 block_cipher = None
 
 # ── Collect all data files needed at runtime ──────────────────────────────────
+
+_pil_datas, _pil_binaries, _pil_hiddenimports = collect_all('PIL')
 
 added_files = [
     # Web frontend (HTML / CSS / JS)
@@ -30,8 +32,8 @@ added_files = [
     # reportlab fonts and data
     *collect_data_files('reportlab'),
 
-    # Pillow — required by reportlab
-    *collect_data_files('PIL'),
+    # Pillow — required by reportlab (collect_all ensures binaries/.pyd files are included)
+    *_pil_datas,
 ]
 
 # ── Hidden imports ────────────────────────────────────────────────────────────
@@ -83,9 +85,9 @@ hidden_imports = [
 a = Analysis(
     ['app.py'],
     pathex=['.'],
-    binaries=[],
+    binaries=[*_pil_binaries],
     datas=added_files,
-    hiddenimports=hidden_imports,
+    hiddenimports=hidden_imports + _pil_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
