@@ -29,6 +29,9 @@ added_files = [
 
     # reportlab fonts and data
     *collect_data_files('reportlab'),
+
+    # Pillow — required by reportlab
+    *collect_data_files('PIL'),
 ]
 
 # ── Hidden imports ────────────────────────────────────────────────────────────
@@ -67,6 +70,12 @@ hidden_imports = [
 
     # Billing rules (same folder as app.py)
     'billing_rules',
+
+    # Pillow — required by reportlab for PDF generation
+    'PIL',
+    'PIL.Image',
+    'PIL.ImageDraw',
+    'PIL.ImageFont',
 ]
 
 # ── Analysis ──────────────────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ from pathlib import Path
 from billing_rules import assign_billing_codes
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-BASE_DIR   = Path(__file__).parent
+BASE_DIR   = Path(sys.executable).parent if getattr(sys, 'frozen', False) else Path(__file__).parent
 DB_PATH    = BASE_DIR / "db"      / "billing.db"
 EXPORT_DIR = BASE_DIR / "exports"
 LOG_DIR    = BASE_DIR / "logs"
