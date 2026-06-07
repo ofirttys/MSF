@@ -639,12 +639,14 @@ def export_report(session_id: int, encounters: list, fmt: str):
             story = [
                 Paragraph("Dr. Michaeli - Billing Report", title_style),
                 Paragraph(f"Date: {session_date}", date_style),
+                Spacer(1, 0.5*cm),
+                Spacer(1, 0.5*cm),
             ]
 
             header = list(df.columns)
             data   = [header] + [[str(v) for v in row] for _, row in df.iterrows()]
 
-            t = Table(data, repeatRows=1)
+            t = Table(data, repeatRows=1, hAlign='LEFT')
             t.setStyle(TableStyle([
                 ("BACKGROUND",     (0, 0), (-1, 0), colors.HexColor("#1B3A5C")),
                 ("TEXTCOLOR",      (0, 0), (-1, 0), colors.white),
