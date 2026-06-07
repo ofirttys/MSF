@@ -1,104 +1,57 @@
-# MichaeliBilling.spec
-# PyInstaller spec file for building MichaeliBilling.exe
-#
-# Prerequisites:
-#   pip install pyinstaller
-#
-# Build command (run from the MichaeliBilling folder):
-#   py -m PyInstaller MichaeliBilling.spec --clean
-#
-# Output:
-#   dist/MichaeliBilling/MichaeliBilling.exe   (folder-based distribution)
-#
-# To run on another machine, copy the entire dist/MichaeliBilling/ folder.
-# The exe expects Microsoft Edge to be installed (falls back to Chrome).
+# -*- mode: python ; coding: utf-8 -*-
 
 import os
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules, collect_all
+import shutil
 
 block_cipher = None
 
-# ── Collect all data files needed at runtime ──────────────────────────────────
-
-_pil_datas, _pil_binaries, _pil_hiddenimports = collect_all('PIL')
-
-added_files = [
-    # Web frontend (HTML / CSS / JS)
-    ('web',             'web'),
-
-    # Eel's own web assets (bottle, etc.)
-    *collect_data_files('eel'),
-
-    # reportlab fonts and data
-    *collect_data_files('reportlab'),
-
-    # Pillow — required by reportlab (collect_all ensures binaries/.pyd files are included)
-    *_pil_datas,
-]
-
-# ── Hidden imports ────────────────────────────────────────────────────────────
-# Modules that PyInstaller's static analysis misses
-
-hidden_imports = [
-    # Eel
-    'eel',
-    'bottle',
-    'whbottle',
-
-    # Pandas Excel engines
-    'xlrd',
-    'openpyxl',
-    'openpyxl.styles',
-    'openpyxl.utils',
-
-    # python-docx internals
-    'docx',
-    'docx.oxml',
-    'docx.oxml.ns',
-    'docx.shared',
-    'docx.enum.text',
-
-    # reportlab
-    'reportlab',
-    'reportlab.lib',
-    'reportlab.lib.pagesizes',
-    'reportlab.lib.styles',
-    'reportlab.lib.units',
-    'reportlab.lib.enums',
-    'reportlab.lib.colors',
-    'reportlab.platypus',
-    'reportlab.platypus.tables',
-    'reportlab.pdfgen',
-
-    # Billing rules (same folder as app.py)
-    'billing_rules',
-
-    # Pillow — required by reportlab for PDF generation
-    'PIL',
-    'PIL.Image',
-    'PIL.ImageDraw',
-    'PIL.ImageFont',
-]
-
-# ── Analysis ──────────────────────────────────────────────────────────────────
-
 a = Analysis(
     ['app.py'],
-    pathex=['.'],
-    binaries=[*_pil_binaries],
-    datas=added_files,
-    hiddenimports=hidden_imports + _pil_hiddenimports,
+    pathex=[],
+    binaries=[],
+    datas=[
+        ('web', 'web'),
+        ('Billing.ico', '.'),       # Icon in root for Windows API
+        ('Billing.ico', 'web'),     # Icon in web folder for HTML favicon
+    ],
+    hiddenimports=[
+        'bottle_websocket',
+        # PIL needed for reportlab image handling
+        'PIL.Image',
+        'PIL.PngImagePlugin',
+        'PIL.JpegImagePlugin',
+        # Billing rules engine
+        'billing_rules',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # Trim unused heavy packages
         'tkinter',
-        'matplotlib',
-        'scipy',
-        'PIL',
         'PyQt5',
+        'PyQt6',
+        'PySide2',
+        'PySide6',
         'wx',
+        'gi',
+        'scipy',
+        'sklearn',
+        'matplotlib',
+        'cv2',
+        'tensorflow',
+        'torch',
+        'pip',
+        'pydoc',
+        'doctest',
+        'ftplib',
+        'imaplib',
+        'poplib',
+        'smtplib',
+        'telnetlib',
+        'turtle',
+        'curses',
+        'antigravity',
+        'this',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -118,8 +71,14 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,          # no console window
-    icon='Billing.ico',     # taskbar / exe icon — place Billing.ico in project root
+    upx_exclude=[],
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon='Billing.ico',
 )
 
 coll = COLLECT(
@@ -132,3 +91,26 @@ coll = COLLECT(
     upx_exclude=[],
     name='MichaeliBilling',
 )
+
+# ============================================================================
+# POST-BUILD: CREATE RUNTIME FOLDERS NEXT TO EXE
+# ============================================================================
+print("\n" + "="*70)
+print("POST-BUILD: Setting up folder structure...")
+print("="*70)
+
+dist_folder = os.path.join('dist', 'MichaeliBilling')
+
+for folder in ['db', 'exports', 'logs']:
+    path = os.path.join(dist_folder, folder)
+    if not os.path.exists(path):
+        os.makedirs(path)
+        print(f"✓ Created: {path}")
+    else:
+        print(f"✓ Already exists: {path}")
+
+print("\n" + "="*70)
+print("Build complete!")
+print("="*70)
+print(f"\nExecutable: {os.path.join(dist_folder, 'MichaeliBilling.exe')}")
+print("="*70 + "\n")
