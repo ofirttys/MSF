@@ -222,7 +222,19 @@ def import_xls(file_path: str):
     try:
         ext    = Path(file_path).suffix.lower()
         engine = "xlrd" if ext == ".xls" else "openpyxl"
-        df     = pd.read_excel(file_path, engine=engine)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            # Read raw first to find the real header row (eIVF may prepend metadata rows)
+            raw = pd.read_excel(file_path, engine=engine, header=None)
+        # Find the row where "Visit_Type" appears — that is the real header
+        header_row = next(
+            (i for i, val in enumerate(raw.iloc[:, 0]) if str(val).strip() == "Visit_Type"),
+            0
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            df = pd.read_excel(file_path, engine=engine, header=header_row)
 
         required = {"Visit_Type", "Schedule_Date", "From_Time", "To_Time",
                     "Scheduled_EntityName", "Patient_ID"}
