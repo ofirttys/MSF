@@ -114,6 +114,7 @@ def init_db():
             partner_id           TEXT,
             patient_name         TEXT NOT NULL,
             health_card          TEXT,
+            dob                  TEXT,
             visit_type           TEXT,
             facility             TEXT,
             status               TEXT,
@@ -263,6 +264,7 @@ def import_xls(file_path: str):
                 "partner_id":           partner_id,
                 "patient_name":         str(row.get("Scheduled_EntityName", "")).strip(),
                 "health_card":          str(row.get("Ptn_SSN", "") or "").strip(),
+                "dob":                  str(row.get("Ptn_DOB", "") or "").strip(),
                 "visit_type":           str(row.get("Visit_Type", "") or "").strip(),
                 "facility":             str(row.get("Facility_Name", "") or "").strip(),
                 "status":               str(row.get("Status", "") or "").strip(),
@@ -348,17 +350,18 @@ def save_session(session_date: str, source_file: str, encounters: list):
         for e in encounters:
             cur.execute("""
                 INSERT INTO encounters
-                  (session_id, patient_id, partner_id, patient_name, health_card,
+                  (session_id, patient_id, partner_id, patient_name, health_card, dob,
                    visit_type, facility, status, encounter_date, start_time, end_time,
                    duration_min, referring_md, referring_md_license, schedule_notes,
                    last_encounter_date, last_encounter_type, months_since_last,
                    provider_enc_count, billing_codes, dx_codes, sex, notes,
                    flag_level, flag_messages, included, md_copied)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (
                 session_id,
                 e.get("patient_id",""),         e.get("partner_id",""),
                 e.get("patient_name",""),        e.get("health_card",""),
+                e.get("dob",""),
                 e.get("visit_type",""),          e.get("facility",""),
                 e.get("status",""),              e.get("encounter_date",""),
                 e.get("start_time",""),          e.get("end_time",""),
@@ -507,6 +510,7 @@ def export_report(session_id: int, encounters: list, fmt: str):
                 "Start Time":          clean(e.get("start_time")),
                 "End Time":            clean(e.get("end_time")),
                 "Patient Name":        clean(e.get("patient_name")),
+                "DOB":                 clean(e.get("dob")),
                 "Health Card":         clean(e.get("health_card")),
                 "Sex":                 clean(e.get("sex")),
                 "Dx":                  dx_str,

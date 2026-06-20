@@ -45,6 +45,24 @@ def vt_contains(enc, *keywords) -> bool:
     vt = (enc.get("visit_type") or "").upper()
     return any(k in vt for k in keywords)
 
+def is_new_patient_visit(enc) -> bool:
+    """
+    Returns True if this encounter should be treated as a new patient visit
+    regardless of ProviderEncounterCount. This covers two cases:
+      - ProviderEncounterCount = 1 (truly first visit)
+      - Visit_Type contains "NP" AND MonthsSinceLastEncounter = 0
+        (returning patient whose LatestNPEncounterDate = today = this visit)
+    """
+    count  = enc.get("provider_enc_count") or 1
+    months = enc.get("months_since_last")
+    if count == 1:
+        return True
+    # months = 0 and NP in visit type means this IS the new patient visit
+    if vt_contains(enc, "NP") and months == 0:
+        return True
+    return False
+
+
 def a203_used_this_year(patient_id: str, patient_name: str,
                         encounter_date: str, db_path: Path) -> bool:
     """Check if A203 was already used for this patient in the same calendar year."""
@@ -154,12 +172,14 @@ def assign_billing_codes(encounters: list, db_path: Path) -> list:
     # Group partners together for couple logic
     processed = set()
 
-    for enc in encounters:
-        if enc["patient_id"] in processed:
+    for i, enc in enumerate(encounters):
+        # Use patient_id as key; fall back to index if patient_id is empty
+        enc_key = enc.get("patient_id") or f"__idx_{i}"
+
+        if enc_key in processed:
             continue
         if enc["flag_level"] == "red" and not is_valid_ohip(clean(enc.get("health_card"))):
-            # No OHIP — skip billing assignment, already flagged
-            processed.add(enc["patient_id"])
+            processed.add(enc_key)
             continue
 
         partner_id  = enc.get("partner_id", "")
@@ -167,12 +187,13 @@ def assign_billing_codes(encounters: list, db_path: Path) -> list:
 
         # Only pair if partner is actually in session
         if partner_enc:
+            partner_key = partner_enc.get("patient_id") or f"__idx_{encounters.index(partner_enc)}"
             _assign_couple(enc, partner_enc, db_path)
-            processed.add(enc["patient_id"])
-            processed.add(partner_enc["patient_id"])
+            processed.add(enc_key)
+            processed.add(partner_key)
         else:
             _assign_solo(enc, db_path)
-            processed.add(enc["patient_id"])
+            processed.add(enc_key)
 
     return encounters
 
@@ -198,8 +219,8 @@ def _assign_solo(enc, db_path: Path):
             "First visit but Visit Type does not contain 'NP'. Please verify.")
         return
 
-    if count == 1:
-        # First / new-patient visit
+    if is_new_patient_visit(enc):
+        # First visit or returning patient with new referral (months=0, NP visit type)
         if enc.get("duration_min") == 60:
             code = "A935"
         elif has_referring(enc):
@@ -272,8 +293,8 @@ def _assign_female_male(female, male, db_path: Path):
 
     both_ref = f_ref and m_ref
 
-    if count == 1:
-        # Rule 7: A935 if 60-min first visit
+    if is_new_patient_visit(female):
+        # First visit or returning patient with new referral
         f_code = "A935" if female.get("duration_min") == 60 else "A205"
         if both_ref:
             m_code = "A935" if male.get("duration_min") == 60 else "A205"
@@ -337,7 +358,8 @@ def _assign_same_sex(enc_a, enc_b, db_path: Path):
 
     count = p1.get("provider_enc_count") or 1
 
-    if count == 1:
+    if is_new_patient_visit(p1):
+        # First visit or returning patient with new referral
         p1_code = "A935" if p1.get("duration_min") == 60 else "A205"
         p2_code = ("A935" if p2.get("duration_min") == 60 else "A205") if both_ref else "A203"
         p1["billing_codes"].append(p1_code)

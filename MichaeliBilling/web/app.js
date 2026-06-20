@@ -224,6 +224,7 @@ function openEdit(index) {
   // Info grid — read-only context only (no editable fields here)
   const infoFields = [
     ["Date",          e.encounter_date],
+    ["DOB",           e.dob || "—"],
     ["Facility",      e.facility],
     ["Visit Type",    e.visit_type],
     ["Status",        e.status],
