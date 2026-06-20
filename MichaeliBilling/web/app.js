@@ -171,7 +171,7 @@ function renderReviewTable() {
       <td id="cell-md-${i}">${mdCell}</td>
       <td id="cell-billing-${i}">${renderCodeChips(e.billing_codes, false)}</td>
       <td id="cell-dx-${i}">${renderCodeChips(e.dx_codes, true)}</td>
-      <td style="font-size:11px;color:var(--text-sub)" id="cell-notes-${i}">${escHtml(e.notes)}</td>
+      <td style="font-size:11px;color:var(--text-sub)" id="cell-notes-${i}">${escHtml(cleanVal(e.schedule_notes))}</td>
       <td style="font-weight:600;color:var(--success);white-space:nowrap" id="cell-fee-${i}">
         $${calcFee(e.billing_codes).toFixed(2)}
       </td>
@@ -224,17 +224,17 @@ function openEdit(index) {
   // Info grid — read-only context only (no editable fields here)
   const infoFields = [
     ["Date",          e.encounter_date],
-    ["DOB",           e.dob || "—"],
+    ["DOB",           cleanVal(e.dob) || "—"],
     ["Facility",      e.facility],
     ["Visit Type",    e.visit_type],
     ["Status",        e.status],
     ["Sex",           e.sex === "F" ? "Female" : e.sex === "M" ? "Male" : "Unknown"],
     ["Patient ID",    e.patient_id],
-    ["Partner ID",    e.partner_id || "—"],
+    ["Partner ID",    cleanVal(e.partner_id) || "—"],
     ["Total Visits",  e.provider_enc_count ?? "—"],
     ["Last NP Visit", e.last_encounter_date || "—"],
     ["Months Since",  e.months_since_last ?? "—"],
-    ["Schedule Note", e.schedule_notes || "—"],
+    ["Schedule Note", cleanVal(e.schedule_notes) || "—"],
   ];
   document.getElementById("modalInfoGrid").innerHTML = infoFields.map(([lbl, val]) => `
     <div class="info-cell">
@@ -352,7 +352,7 @@ function applyEdit() {
     `${escHtml(startTime)}<br><span class="time-end">${escHtml(endTime)}</span>`;
   document.getElementById(`cell-billing-${editingIndex}`).innerHTML = renderCodeChips(billingCodes, false);
   document.getElementById(`cell-dx-${editingIndex}`).innerHTML      = renderCodeChips(dxCodes, true);
-  document.getElementById(`cell-notes-${editingIndex}`).textContent = notes;
+  document.getElementById(`cell-notes-${editingIndex}`).textContent = cleanVal(currentSession.encounters[editingIndex].schedule_notes);
   document.getElementById(`cell-fee-${editingIndex}`).textContent   = "$" + calcFee(billingCodes).toFixed(2);
 
   updateSummary(currentSession.encounters);
