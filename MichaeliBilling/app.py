@@ -13,7 +13,7 @@ import logging
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from billing_rules import assign_billing_codes
+from billing_rules import assign_billing_codes, assign_billing_codes_ivf_day
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR   = Path(sys.executable).parent if getattr(sys, 'frozen', False) else Path(__file__).parent
@@ -64,15 +64,15 @@ BILLING_CODES = {
     "J138C": {"desc": "Intracavitary ultrasound",               "fee": 0.00, "group": "Ultrasound"},
     "J149":  {"desc": "Ultrasonic guidance of biopsy/aspiration/amniocentesis", "fee": 0.00, "group": "Ultrasound"},
     # ── Procedures ─────────────────────────────────────────────────────────────
-    "G399A": {"desc": "Transvaginal sonohysterography, intro of catheter", "fee": 0.00, "group": "Procedures"},
-    "J008A": {"desc": "Hysterosalpingogram",                               "fee": 0.00, "group": "Procedures"},
-    "E861":  {"desc": "Paracervical block",                                "fee": 0.00, "group": "Procedures"},
-    "Z770":  {"desc": "Endometrial sampling",                              "fee": 0.00, "group": "Procedures"},
-    "Z582":  {"desc": "Hysteroscopy (diagnostic)",                         "fee": 0.00, "group": "Procedures"},
-    "Z583":  {"desc": "Hysteroscopy (with uterine biopsy)",                "fee": 0.00, "group": "Procedures"},
-    "Z587":  {"desc": "Hysteroscopy (with resection of polyps/fibroids)",  "fee": 0.00, "group": "Procedures"},
-    "Z585":  {"desc": "Hysteroscopy (with cannulization of tubes)",        "fee": 0.00, "group": "Procedures"},
-    "S756":  {"desc": "Missed abortion / evacuation of molar pregnancy",   "fee": 0.00, "group": "Procedures"},
+    "G399A": {"desc": "Transvaginal sonohysterography, intro of catheter", "fee": 44.15, "group": "Procedures"},
+    "J008A": {"desc": "Hysterosalpingogram",                               "fee": 56.70, "group": "Procedures"},
+    "E861":  {"desc": "Paracervical block",                                "fee":  9.00, "group": "Procedures"},
+    "Z770":  {"desc": "Endometrial sampling",                              "fee": 38.85, "group": "Procedures"},
+    "Z582":  {"desc": "Hysteroscopy (diagnostic)",                         "fee": 111.50, "group": "Procedures"},
+    "Z583":  {"desc": "Hysteroscopy (with uterine biopsy)",                "fee": 133.70, "group": "Procedures"},
+    "Z587":  {"desc": "Hysteroscopy (with resection of polyps/fibroids)",  "fee": 206.35, "group": "Procedures"},
+    "Z585":  {"desc": "Hysteroscopy (with cannulization of tubes)",        "fee": 149.60, "group": "Procedures"},
+    "S756":  {"desc": "Missed abortion / evacuation of molar pregnancy",   "fee": 120.45, "group": "Procedures"},
 }
 
 # Group order for display
@@ -104,7 +104,8 @@ def init_db():
             imported_at   TEXT NOT NULL,
             source_file   TEXT,
             submitted     INTEGER DEFAULT 0,
-            submitted_at  TEXT
+            submitted_at  TEXT,
+            ivf_day       INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS encounters (
@@ -218,7 +219,7 @@ def get_reference_data():
     }
 
 @eel.expose
-def import_xls(file_path: str):
+def import_xls(file_path: str, _ivf_day: bool = False):
     """Parse XLS/XLSX daily billing export from a filesystem path."""
     try:
         ext    = Path(file_path).suffix.lower()
@@ -291,8 +292,11 @@ def import_xls(file_path: str):
             }
             encounters.append(enc)
 
-        # Run billing rules engine
-        encounters = assign_billing_codes(encounters, DB_PATH)
+        # Run billing rules engine (caller can pass ivf_day=True to use IVF Day rules)
+        if _ivf_day:
+            encounters = assign_billing_codes_ivf_day(encounters, DB_PATH)
+        else:
+            encounters = assign_billing_codes(encounters, DB_PATH)
 
         session_date = encounters[0]["encounter_date"] if encounters else ""
         log.info("Imported %d encounters from %s", len(encounters), file_path)
@@ -309,7 +313,7 @@ def import_xls(file_path: str):
         return {"ok": False, "error": str(e)}
 
 @eel.expose
-def import_xls_bytes(byte_array: list, filename: str):
+def import_xls_bytes(byte_array: list, filename: str, ivf_day: bool = False):
     """
     Receive raw file bytes from the browser (drag-and-drop or file picker),
     write to a temp file, parse it, then delete the temp file.
@@ -321,7 +325,7 @@ def import_xls_bytes(byte_array: list, filename: str):
         tmp_path = Path(tempfile.mktemp(suffix=ext))
         tmp_path.write_bytes(bytes(byte_array))
 
-        result = import_xls(str(tmp_path))
+        result = import_xls(str(tmp_path), _ivf_day=ivf_day)
 
         tmp_path.unlink(missing_ok=True)
 
@@ -336,14 +340,38 @@ def import_xls_bytes(byte_array: list, filename: str):
         return {"ok": False, "error": str(e)}
 
 @eel.expose
-def save_session(session_date: str, source_file: str, encounters: list):
+def rerun_billing_rules(encounters: list, ivf_day: bool = False):
+    """Re-run billing rules on already-parsed encounters (called when IVF Day toggle changes)."""
+    try:
+        from billing_rules import assign_billing_codes, assign_billing_codes_ivf_day
+        # Reset billing fields before re-running
+        for e in encounters:
+            e["billing_codes"]  = []
+            e["flag_level"]     = ""
+            e["flag_messages"]  = []
+            e["included"]       = True
+            e["md_copied"]      = False
+
+        if ivf_day:
+            result = assign_billing_codes_ivf_day(encounters, DB_PATH)
+        else:
+            result = assign_billing_codes(encounters, DB_PATH)
+
+        return {"ok": True, "encounters": result}
+    except Exception as e:
+        log.exception("rerun_billing_rules failed")
+        return {"ok": False, "error": str(e)}
+
+
+@eel.expose
+def save_session(session_date: str, source_file: str, encounters: list, ivf_day: bool = False):
     """Commit a reviewed session to the database (explicit user action only)."""
     try:
         con = db_con()
         cur = con.cursor()
         cur.execute(
-            "INSERT INTO sessions (session_date, imported_at, source_file) VALUES (?,?,?)",
-            (session_date, datetime.now().isoformat(), source_file)
+            "INSERT INTO sessions (session_date, imported_at, source_file, ivf_day) VALUES (?,?,?,?)",
+            (session_date, datetime.now().isoformat(), source_file, 1 if ivf_day else 0)
         )
         session_id = cur.lastrowid
 
@@ -413,7 +441,7 @@ def get_sessions():
     con  = db_con()
     rows = con.execute("""
         SELECT s.id, s.session_date, s.imported_at, s.source_file,
-               s.submitted, s.submitted_at,
+               s.submitted, s.submitted_at, s.ivf_day,
                COUNT(e.id) AS encounter_count
         FROM sessions s
         LEFT JOIN encounters e ON e.session_id = s.id

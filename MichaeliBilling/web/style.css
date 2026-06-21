@@ -739,3 +739,40 @@ body.light .date-input { color-scheme: light; }
   object-fit: contain;
   flex-shrink: 0;
 }
+
+/* ── IVF Day toggle button ─────────────────────────────────────────────────── */
+.ivf-day-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: var(--bg3);
+  border: 2px solid var(--border2);
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 80px;
+}
+.ivf-day-btn:hover { border-color: var(--accent); }
+.ivf-day-btn.on {
+  background: rgba(231,76,60,0.15);
+  border-color: var(--danger);
+}
+
+.ivf-day-icon { font-size: 16px; }
+.ivf-day-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-sub);
+  text-transform: uppercase;
+}
+.ivf-day-state {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-dim);
+}
+.ivf-day-btn.on .ivf-day-state { color: var(--danger); }
+.ivf-day-btn.on .ivf-day-label { color: var(--danger); }

@@ -6,6 +6,7 @@ let currentSession = {
   source_file:  "",
   encounters:   [],
   session_id:   null,
+  ivf_day:      false,
 };
 
 let editingIndex = null;
@@ -82,7 +83,7 @@ async function processFile(file) {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array  = Array.from(new Uint8Array(arrayBuffer));
-    const result      = await eel.import_xls_bytes(uint8Array, file.name)();
+    const result      = await eel.import_xls_bytes(uint8Array, file.name, currentSession.ivf_day)();
 
     if (!result.ok) { showStatus("❌ " + result.error, "err", true); return; }
 
@@ -90,6 +91,8 @@ async function processFile(file) {
     currentSession.source_file  = result.source_file;
     currentSession.encounters   = result.encounters;
     currentSession.session_id   = null;
+    currentSession.ivf_day      = false;
+    setIvfDayUI(false);
 
     showStatus(
       `✓ Loaded ${result.encounters.length} encounters for ${result.session_date} — review and edit before saving.`,
@@ -391,7 +394,8 @@ async function saveSession() {
   if (currentSession.session_id !== null) { toast("Session already saved to database.", "warn"); return; }
 
   const result = await eel.save_session(
-    currentSession.session_date, currentSession.source_file, currentSession.encounters
+    currentSession.session_date, currentSession.source_file,
+    currentSession.encounters, currentSession.ivf_day
   )();
 
   if (!result.ok) { toast("Save failed: " + result.error, "err"); return; }
@@ -408,6 +412,43 @@ async function exportReport(fmt) {
   )();
   if (!result.ok) toast("Export failed: " + result.error, "err");
   else            toast(`✓ Saved: ${result.path}`, "ok");
+}
+
+// ── IVF Day toggle ───────────────────────────────────────────────────────────
+function setIvfDayUI(on) {
+  const btn   = document.getElementById("ivfDayBtn");
+  const state = document.getElementById("ivfDayState");
+  if (!btn) return;
+  btn.classList.toggle("on", on);
+  state.textContent = on ? "ON" : "OFF";
+}
+
+async function toggleIvfDay() {
+  if (!currentSession.encounters.length) {
+    toast("Load a session first.", "warn");
+    return;
+  }
+
+  currentSession.ivf_day = !currentSession.ivf_day;
+  setIvfDayUI(currentSession.ivf_day);
+
+  toast("Re-running billing rules…", "ok");
+
+  const result = await eel.rerun_billing_rules(
+    currentSession.encounters, currentSession.ivf_day
+  )();
+
+  if (!result.ok) {
+    toast("Rules re-run failed: " + result.error, "err");
+    // Revert toggle
+    currentSession.ivf_day = !currentSession.ivf_day;
+    setIvfDayUI(currentSession.ivf_day);
+    return;
+  }
+
+  currentSession.encounters = result.encounters;
+  renderReviewTable();
+  toast(`IVF Day mode ${currentSession.ivf_day ? "ON" : "OFF"} — billing rules re-applied.`, "ok");
 }
 
 // ── Include toggle ───────────────────────────────────────────────────────────
@@ -465,10 +506,12 @@ async function loadHistory() {
       <td>${s.encounter_count}</td>
       <td style="font-size:11px;color:var(--text-sub)">${escHtml(s.source_file || "")}</td>
       <td style="font-size:11px;color:var(--text-dim)">${s.imported_at?.slice(0,16).replace("T"," ") || ""}</td>
-      <td>${s.submitted
-        ? `<span class="status-badge checked-out">Submitted ${s.submitted_at?.slice(0,10)}</span>`
-        : `<span class="status-badge confirmed">Pending</span>`
-      }</td>
+      <td>
+        ${s.ivf_day ? `<span class="source-badge csv_import" style="margin-right:4px">IVF Day</span>` : ""}
+        ${s.submitted
+          ? `<span class="status-badge checked-out">Submitted ${s.submitted_at?.slice(0,10)}</span>`
+          : `<span class="status-badge confirmed">Pending</span>`}
+      </td>
       <td style="display:flex;gap:6px">
         <button class="btn btn-outline btn-sm" onclick="loadSessionFromHistory(${s.id})">Load</button>
         ${!s.submitted
@@ -484,10 +527,16 @@ async function loadSessionFromHistory(sessionId) {
   const encs = await eel.get_session_encounters(sessionId)();
   if (!encs || encs.length === 0) { toast("No encounters found for session " + sessionId, "warn"); return; }
 
+  const sessions = await eel.get_sessions()();
+  const sess = sessions ? sessions.find(s => s.id === sessionId) : null;
+  const ivfDay = sess ? !!sess.ivf_day : false;
+
   currentSession.session_date = encs[0].encounter_date;
   currentSession.source_file  = "DB Session #" + sessionId;
   currentSession.encounters   = encs;
   currentSession.session_id   = sessionId;
+  currentSession.ivf_day      = ivfDay;
+  setIvfDayUI(ivfDay);
 
   renderReviewTable();
   showView("review");

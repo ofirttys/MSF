@@ -405,3 +405,97 @@ def _a203_or_fallback(enc, db_path: Path) -> str:
             "A203 already used this year for this patient — substituting K013.")
         return "K013"
     return "A203"
+
+
+# ══ IVF DAY RULES ENGINE ══════════════════════════════════════════════════════
+
+# Exact visit type → (dx_codes, billing_codes)
+_IVF_VISIT_RULES = {
+    "Operative Hyst":          (["628"], ["A204", "Z587", "E861"]),
+    "OR":                      (["634"], ["A204", "S756", "E861"]),
+    "SONO":                    (["628"], ["A204", "G399A"]),
+    "Diagnostic Hysteroscopy": (["628"], ["A204", "Z582"]),
+}
+
+_IVF_ENDO_BIOPSY = "Endo Biopsy"
+
+
+def assign_billing_codes_ivf_day(encounters: list, db_path: Path) -> list:
+    """
+    IVF Day billing rules. Applied instead of (not in addition to) standard rules.
+    Rule 1 (OHIP validation) still applies.
+    """
+    # Initialise flags and defaults
+    for enc in encounters:
+        enc["flag_level"]    = ""
+        enc["flag_messages"] = []
+        enc["billing_codes"] = []
+        enc["dx_codes"]      = []
+        enc["included"]      = True
+        enc["md_copied"]     = False
+
+    # Rule 1: OHIP validation (always applies)
+    for enc in encounters:
+        hc = clean(enc.get("health_card"))
+        if not is_valid_ohip(hc):
+            if not hc:
+                add_flag(enc, "red", "No health card (OHIP) on file.")
+            else:
+                add_flag(enc, "red",
+                    f"Health card '{hc}' is not valid (expected 10 digits + 2 letters). Please verify.")
+
+    # Build set of patient_ids that have an "Endo Biopsy" row in this session
+    endo_biopsy_patients = set()
+    for enc in encounters:
+        if enc.get("visit_type", "") == _IVF_ENDO_BIOPSY:
+            pid = enc.get("patient_id", "")
+            name = enc.get("patient_name", "")
+            if pid:
+                endo_biopsy_patients.add(("id", pid))
+            if name:
+                endo_biopsy_patients.add(("name", name))
+
+    def has_endo_biopsy(enc) -> bool:
+        pid  = enc.get("patient_id", "")
+        name = enc.get("patient_name", "")
+        return ("id", pid) in endo_biopsy_patients or ("name", name) in endo_biopsy_patients
+
+    # Apply IVF Day rules per encounter
+    for enc in encounters:
+        # Skip billing assignment for red-flagged (invalid OHIP) encounters
+        if enc.get("flag_level") == "red":
+            continue
+
+        vt = enc.get("visit_type", "")
+
+        if vt == _IVF_ENDO_BIOPSY:
+            # No billing — uncheck for manual review
+            enc["included"] = False
+            add_flag(enc, "orange",
+                "Endo Biopsy — no direct billing. Unchecked for manual review.")
+            continue
+
+        if vt not in _IVF_VISIT_RULES:
+            # Unknown visit type in IVF Day mode — uncheck for manual review
+            enc["included"] = False
+            add_flag(enc, "orange",
+                f"Visit type '{vt}' is not handled in IVF Day mode. Unchecked for manual review.")
+            continue
+
+        dx, codes = _IVF_VISIT_RULES[vt]
+        enc["dx_codes"]      = list(dx)
+        enc["billing_codes"] = list(codes)   # copy so we can modify
+
+        # SONO special: add Z770 if patient also has Endo Biopsy
+        if vt == "SONO" and has_endo_biopsy(enc):
+            enc["billing_codes"].append("Z770")
+            add_flag(enc, "yellow",
+                "Endo Biopsy found for this patient — Z770 added to SONO billing.")
+
+        # Diagnostic Hysteroscopy special: replace Z582 with Z583 if Endo Biopsy
+        if vt == "Diagnostic Hysteroscopy" and has_endo_biopsy(enc):
+            enc["billing_codes"] = [c if c != "Z582" else "Z583" for c in enc["billing_codes"]]
+            add_flag(enc, "yellow",
+                "Endo Biopsy found for this patient — Z582 replaced with Z583.")
+
+    return encounters
