@@ -269,11 +269,20 @@
 			</div>
             
 			<div class="tab-content" id="tab3">
-				<div class="chart-box full">
-					<div class="chart-header">
-						<div class="chart-title">Physicians Over Time - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">Monthly breakdown by requested physician</span></div>
+				<div style="display: flex; gap: 0; align-items: stretch;">
+					<div class="chart-box" style="flex: 1; min-width: 0;">
+						<div class="chart-header">
+							<div class="chart-title">First Available - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">Monthly referrals to First Available</span></div>
+						</div>
+						<div class="chart-body" id="chartPhysicianFirstAvailable"></div>
 					</div>
-					<div class="chart-body" id="chartPhysicianTrends"></div>
+					<div style="width: 1px; background: repeating-linear-gradient(to bottom, #bbb 0px, #bbb 6px, transparent 6px, transparent 12px); margin: 12px 0; flex-shrink: 0;"></div>
+					<div class="chart-box" style="flex: 1; min-width: 0;">
+						<div class="chart-header">
+							<div class="chart-title">Specific Physicians - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">Monthly breakdown by requested physician</span></div>
+						</div>
+						<div class="chart-body" id="chartPhysicianTrends"></div>
+					</div>
 				</div>
 			</div>
             
@@ -448,10 +457,10 @@ function renderMonthlyTrends(data) {
     }
     
     // Build chart data from Python's clean output
-    const chartData = [['Month', 'Total', {role: 'annotation'}, 'New', 'Returning']];
+    const chartData = [['Month', 'Total', {role: 'annotation'}, 'New', {role: 'annotation'}, 'Returning']];
     for (let i = 0; i < data.months.length; i++) {
         const total = data.new[i] + data.returning[i];
-        chartData.push([data.months[i], total, total.toString(), data.new[i], data.returning[i]]);
+        chartData.push([data.months[i], total, total.toString(), data.new[i], data.new[i].toString(), data.returning[i]]);
     }
     
     const drawChart = function() {
@@ -470,17 +479,9 @@ function renderMonthlyTrends(data) {
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
 				tooltip: { trigger: 'both', isHtml: false },
                 focusTarget: 'category',
-                annotations: {
-                    textStyle: {
-                        fontSize: 11,
-                        color: '#9b59b6',
-                        bold: true
-                    },
-                    alwaysOutside: true,
-                    stem: {
-                        color: 'transparent',
-                        length: 4
-                    }
+                series: {
+                    0: { annotations: { textStyle: { fontSize: 11, color: '#9b59b6', bold: true }, alwaysOutside: true, stem: { color: 'transparent', length: 4 } } },
+                    1: { annotations: { textStyle: { fontSize: 11, color: '#3498db', bold: true }, alwaysOutside: false, stem: { color: 'transparent', length: 4 } } }
                 }
             }
         );
@@ -542,50 +543,94 @@ function renderServiceTrends(data) {
 }
 
 function renderPhysicianTrends(data) {
-    const el = document.getElementById('chartPhysicianTrends');
+    const elFirst = document.getElementById('chartPhysicianFirstAvailable');
+    const elOthers = document.getElementById('chartPhysicianTrends');
+    
     if (!data.months || data.months.length === 0) {
-        el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
+        if (elFirst) elFirst.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
+        if (elOthers) elOthers.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
         return;
     }
-    
-    // FLIPPED: Physicians on X-axis, Months as grouped bars
-    const chartData = [['Physician', ...data.months]];
-    for (let physician of data.physicians) {
-        const row = [physician];
-        for (let month of data.months) {
-            row.push(data.data[month][physician] || 0);
-        }
-        chartData.push(row);
-    }
-    
-    const drawChart = function() {
-        const chart = new google.visualization.ColumnChart(el);
-        chart.draw(
-            google.visualization.arrayToDataTable(chartData),
-            {
-                title: '',
-                legend: { position: 'bottom' },
-                colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#27ae60', '#e67e22', '#95a5a6', '#34495e', '#16a085', '#2ecc71', '#d35400'],
-                height: 425,
-                backgroundColor: 'transparent',
-                chartArea: {left: 60, right: 20, top: 20, bottom: 100},
-                bar: { groupWidth: '90%' },
-                isStacked: false,
-                vAxis: { minValue: 0, viewWindow: { min: 0 } },
-                hAxis: { 
-                    textStyle: { fontSize: 10 } 
-                },
-				tooltip: { trigger: 'both', isHtml: false },
-                focusTarget: 'category'
+
+    const physicianColors = ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#27ae60', '#e67e22', '#95a5a6', '#34495e', '#16a085', '#2ecc71', '#d35400'];
+
+    // --- Chart 1: First Available only ---
+    const hasFirstAvailable = data.physicians.includes('First Available');
+    if (elFirst) {
+        if (!hasFirstAvailable) {
+            elFirst.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No "First Available" data</p>';
+        } else {
+            const faData = [['Month', 'First Available']];
+            for (let month of data.months) {
+                faData.push([month, data.data[month]['First Available'] || 0]);
             }
-        );
-    };
-    
-    if (typeof google.visualization === 'undefined' || !google.visualization.ColumnChart) {
-        google.charts.load('current', {'packages':['corechart']});
-        google.charts.setOnLoadCallback(drawChart);
-    } else {
-        drawChart();
+            const drawFA = function() {
+                const chart = new google.visualization.ColumnChart(elFirst);
+                chart.draw(
+                    google.visualization.arrayToDataTable(faData),
+                    {
+                        title: '',
+                        legend: { position: 'none' },
+                        colors: ['#9b59b6'],
+                        height: 425,
+                        backgroundColor: 'transparent',
+                        chartArea: {left: 55, right: 15, top: 20, bottom: 80},
+                        bar: { groupWidth: '60%' },
+                        isStacked: false,
+                        vAxis: { minValue: 0, viewWindow: { min: 0 } },
+                        hAxis: { slantedText: true, slantedTextAngle: 45, textStyle: { fontSize: 10 } },
+                        tooltip: { trigger: 'both', isHtml: false },
+                        focusTarget: 'category'
+                    }
+                );
+            };
+            if (typeof google.visualization === 'undefined' || !google.visualization.ColumnChart) {
+                google.charts.load('current', {'packages':['corechart']});
+                google.charts.setOnLoadCallback(drawFA);
+            } else { drawFA(); }
+        }
+    }
+
+    // --- Chart 2: Specific physicians (excluding First Available) ---
+    if (elOthers) {
+        const otherPhysicians = data.physicians.filter(p => p !== 'First Available');
+        if (otherPhysicians.length === 0) {
+            elOthers.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No specific physician data</p>';
+        } else {
+            // Physicians on X-axis, months as series
+            const othersData = [['Physician', ...data.months]];
+            for (let physician of otherPhysicians) {
+                const row = [physician];
+                for (let month of data.months) {
+                    row.push(data.data[month][physician] || 0);
+                }
+                othersData.push(row);
+            }
+            const drawOthers = function() {
+                const chart = new google.visualization.ColumnChart(elOthers);
+                chart.draw(
+                    google.visualization.arrayToDataTable(othersData),
+                    {
+                        title: '',
+                        legend: { position: 'bottom' },
+                        colors: physicianColors,
+                        height: 425,
+                        backgroundColor: 'transparent',
+                        chartArea: {left: 55, right: 15, top: 20, bottom: 100},
+                        bar: { groupWidth: '90%' },
+                        isStacked: false,
+                        vAxis: { minValue: 0, viewWindow: { min: 0 } },
+                        hAxis: { slantedText: false, textStyle: { fontSize: 10 } },
+                        tooltip: { trigger: 'both', isHtml: false },
+                        focusTarget: 'category'
+                    }
+                );
+            };
+            if (typeof google.visualization === 'undefined' || !google.visualization.ColumnChart) {
+                google.charts.load('current', {'packages':['corechart']});
+                google.charts.setOnLoadCallback(drawOthers);
+            } else { drawOthers(); }
+        }
     }
 }
 
@@ -596,13 +641,16 @@ function renderCompletionStatus(data) {
         return;
     }
     
-    // Build chart data
-    const chartData = [['Month', 'Complete', 'Pending', 'Cancelled', 'Deferred']];
+    // Build chart data with % annotations on Complete and Pending
+    const chartData = [['Month', 'Complete', {role:'annotation'}, 'Pending', {role:'annotation'}, 'Cancelled', 'Deferred']];
     for (let i = 0; i < data.months.length; i++) {
+        const total = data.data.Complete[i] + data.data.Pending[i] + data.data.Cancelled[i] + data.data.Deferred[i];
+        const pctComplete = total > 0 ? Math.round(data.data.Complete[i] / total * 100) + '%' : '';
+        const pctPending  = total > 0 ? Math.round(data.data.Pending[i]  / total * 100) + '%' : '';
         chartData.push([
             data.months[i],
-            data.data.Complete[i],
-            data.data.Pending[i],
+            data.data.Complete[i], pctComplete,
+            data.data.Pending[i],  pctPending,
             data.data.Cancelled[i],
             data.data.Deferred[i]
         ]);
@@ -624,7 +672,8 @@ function renderCompletionStatus(data) {
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
 				tooltip: { trigger: 'both', isHtml: false },
-				focusTarget: 'category'
+				focusTarget: 'category',
+                annotations: { alwaysOutside: false, textStyle: { fontSize: 10, bold: true, color: '#fff' }, stem: { color: 'transparent' } }
             }
         );
     });
@@ -637,12 +686,23 @@ function renderTimeToContact(data) {
         return;
     }
     
-    // Build chart data
-    const chartData = [['Month', ...data.bins]];
+    // Build chart data with % annotations on first two bins (green + light orange)
+    const annotatedBins = data.bins.slice(0, 2); // <= 3 days, 3 days - 1 week
+    const headerRow = ['Month'];
+    for (let b of data.bins) {
+        headerRow.push(b);
+        if (annotatedBins.includes(b)) headerRow.push({role: 'annotation'});
+    }
+    const chartData = [headerRow];
     for (let month of data.months) {
+        const rowVals = data.bins.map(b => data.data[month][b] || 0);
+        const total = rowVals.reduce((a, v) => a + v, 0);
         const row = [month];
-        for (let bin of data.bins) {
-            row.push(data.data[month][bin] || 0);
+        for (let j = 0; j < data.bins.length; j++) {
+            row.push(rowVals[j]);
+            if (annotatedBins.includes(data.bins[j])) {
+                row.push(total > 0 ? Math.round(rowVals[j] / total * 100) + '%' : '');
+            }
         }
         chartData.push(row);
     }
@@ -663,7 +723,8 @@ function renderTimeToContact(data) {
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
 				tooltip: { trigger: 'both', isHtml: false },
-				focusTarget: 'category'
+				focusTarget: 'category',
+                annotations: { alwaysOutside: false, textStyle: { fontSize: 10, bold: true, color: '#fff' }, stem: { color: 'transparent' } }
             }
         );
     });
@@ -676,12 +737,22 @@ function renderTimeToComplete(data) {
         return;
     }
     
-    // Build chart data
-    const chartData = [['Month', ...data.bins]];
+    // Build chart data with % annotation on the 'None' (grey) segment
+    const headerRow = ['Month'];
+    for (let b of data.bins) {
+        headerRow.push(b);
+        if (b === 'None') headerRow.push({role: 'annotation'});
+    }
+    const chartData = [headerRow];
     for (let month of data.months) {
+        const rowVals = data.bins.map(b => data.data[month][b] || 0);
+        const total = rowVals.reduce((a, v) => a + v, 0);
         const row = [month];
-        for (let bin of data.bins) {
-            row.push(data.data[month][bin] || 0);
+        for (let j = 0; j < data.bins.length; j++) {
+            row.push(rowVals[j]);
+            if (data.bins[j] === 'None') {
+                row.push(total > 0 ? Math.round(rowVals[j] / total * 100) + '%' : '');
+            }
         }
         chartData.push(row);
     }
@@ -702,7 +773,8 @@ function renderTimeToComplete(data) {
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
 				tooltip: { trigger: 'both', isHtml: false },
-				focusTarget: 'category'
+				focusTarget: 'category',
+                annotations: { alwaysOutside: false, textStyle: { fontSize: 10, bold: true, color: '#fff' }, stem: { color: 'transparent' } }
             }
         );
     });
