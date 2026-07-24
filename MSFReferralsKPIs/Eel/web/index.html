@@ -269,20 +269,11 @@
 			</div>
             
 			<div class="tab-content" id="tab3">
-				<div style="display: flex; gap: 0; align-items: stretch;">
-					<div class="chart-box" style="flex: 1; min-width: 0;">
-						<div class="chart-header">
-							<div class="chart-title">First Available - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">Monthly referrals to First Available</span></div>
-						</div>
-						<div class="chart-body" id="chartPhysicianFirstAvailable"></div>
+				<div class="chart-box full">
+					<div class="chart-header">
+						<div class="chart-title">Physicians Over Time - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">Monthly breakdown by requested physician (First Available on right axis)</span></div>
 					</div>
-					<div style="width: 1px; background: repeating-linear-gradient(to bottom, #bbb 0px, #bbb 6px, transparent 6px, transparent 12px); margin: 12px 0; flex-shrink: 0;"></div>
-					<div class="chart-box" style="flex: 1; min-width: 0;">
-						<div class="chart-header">
-							<div class="chart-title">Specific Physicians - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">Monthly breakdown by requested physician</span></div>
-						</div>
-						<div class="chart-body" id="chartPhysicianTrends"></div>
-					</div>
+					<div class="chart-body" id="chartPhysicianTrends"></div>
 				</div>
 			</div>
             
@@ -543,94 +534,90 @@ function renderServiceTrends(data) {
 }
 
 function renderPhysicianTrends(data) {
-    const elFirst = document.getElementById('chartPhysicianFirstAvailable');
-    const elOthers = document.getElementById('chartPhysicianTrends');
-    
+    const el = document.getElementById('chartPhysicianTrends');
     if (!data.months || data.months.length === 0) {
-        if (elFirst) elFirst.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
-        if (elOthers) elOthers.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
+        el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
         return;
     }
 
-    const physicianColors = ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#27ae60', '#e67e22', '#95a5a6', '#34495e', '#16a085', '#2ecc71', '#d35400'];
-
-    // --- Chart 1: First Available only ---
     const hasFirstAvailable = data.physicians.includes('First Available');
-    if (elFirst) {
-        if (!hasFirstAvailable) {
-            elFirst.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No "First Available" data</p>';
-        } else {
-            const faData = [['Month', 'First Available']];
-            for (let month of data.months) {
-                faData.push([month, data.data[month]['First Available'] || 0]);
-            }
-            const drawFA = function() {
-                const chart = new google.visualization.ColumnChart(elFirst);
-                chart.draw(
-                    google.visualization.arrayToDataTable(faData),
-                    {
-                        title: '',
-                        legend: { position: 'none' },
-                        colors: ['#9b59b6'],
-                        height: 425,
-                        backgroundColor: 'transparent',
-                        chartArea: {left: 55, right: 15, top: 20, bottom: 80},
-                        bar: { groupWidth: '60%' },
-                        isStacked: false,
-                        vAxis: { minValue: 0, viewWindow: { min: 0 } },
-                        hAxis: { slantedText: true, slantedTextAngle: 45, textStyle: { fontSize: 10 } },
-                        tooltip: { trigger: 'both', isHtml: false },
-                        focusTarget: 'category'
-                    }
-                );
-            };
-            if (typeof google.visualization === 'undefined' || !google.visualization.ColumnChart) {
-                google.charts.load('current', {'packages':['corechart']});
-                google.charts.setOnLoadCallback(drawFA);
-            } else { drawFA(); }
+    const otherPhysicians = data.physicians.filter(p => p !== 'First Available');
+
+    // Physicians on X-axis, months as series
+    // If First Available exists, add it as an extra series on axis 1 (right Y-axis)
+    const seriesHeaders = [...data.months];
+    if (hasFirstAvailable) seriesHeaders.push('First Available');
+
+    const chartData = [['Physician', ...data.months, ...(hasFirstAvailable ? ['First Available'] : [])]];
+    for (let physician of otherPhysicians) {
+        const row = [physician];
+        for (let month of data.months) {
+            row.push(data.data[month][physician] || 0);
         }
+        if (hasFirstAvailable) row.push(null); // no FA value for physician rows
+        chartData.push(row);
+    }
+    if (hasFirstAvailable) {
+        // First Available as a "phantom" physician row — all nulls except FA column
+        // Actually Google Charts column chart groups by X category, so we need a different approach:
+        // Add First Available as a series (month axis), but on a separate X group
+        // The cleanest dual-axis approach: put months on X, physicians as series, FA as extra series on right axis
     }
 
-    // --- Chart 2: Specific physicians (excluding First Available) ---
-    if (elOthers) {
-        const otherPhysicians = data.physicians.filter(p => p !== 'First Available');
-        if (otherPhysicians.length === 0) {
-            elOthers.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No specific physician data</p>';
-        } else {
-            // Physicians on X-axis, months as series
-            const othersData = [['Physician', ...data.months]];
-            for (let physician of otherPhysicians) {
-                const row = [physician];
-                for (let month of data.months) {
-                    row.push(data.data[month][physician] || 0);
-                }
-                othersData.push(row);
-            }
-            const drawOthers = function() {
-                const chart = new google.visualization.ColumnChart(elOthers);
-                chart.draw(
-                    google.visualization.arrayToDataTable(othersData),
-                    {
-                        title: '',
-                        legend: { position: 'bottom' },
-                        colors: physicianColors,
-                        height: 425,
-                        backgroundColor: 'transparent',
-                        chartArea: {left: 55, right: 15, top: 20, bottom: 100},
-                        bar: { groupWidth: '90%' },
-                        isStacked: false,
-                        vAxis: { minValue: 0, viewWindow: { min: 0 } },
-                        hAxis: { slantedText: false, textStyle: { fontSize: 10 } },
-                        tooltip: { trigger: 'both', isHtml: false },
-                        focusTarget: 'category'
-                    }
-                );
-            };
-            if (typeof google.visualization === 'undefined' || !google.visualization.ColumnChart) {
-                google.charts.load('current', {'packages':['corechart']});
-                google.charts.setOnLoadCallback(drawOthers);
-            } else { drawOthers(); }
+    // BETTER: swap axes — months on X, physicians as series (including FA on right axis)
+    const physicians = otherPhysicians;
+    const faIndex = hasFirstAvailable ? physicians.length : -1; // FA will be last series
+
+    const header = ['Month', ...physicians, ...(hasFirstAvailable ? ['First Available'] : [])];
+    const rows = [header];
+    for (let month of data.months) {
+        const row = [month];
+        for (let p of physicians) {
+            row.push(data.data[month][p] || 0);
         }
+        if (hasFirstAvailable) row.push(data.data[month]['First Available'] || 0);
+        rows.push(row);
+    }
+
+    const physicianColors = ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#27ae60', '#e67e22', '#34495e', '#16a085', '#2ecc71', '#d35400'];
+
+    // Build series config: all physicians on axis 0, FA on axis 1
+    const seriesConfig = {};
+    physicians.forEach(function(p, i) { seriesConfig[i] = { targetAxisIndex: 0 }; });
+    if (hasFirstAvailable) {
+        seriesConfig[physicians.length] = { targetAxisIndex: 1, color: '#95a5a6', type: 'bars' };
+    }
+
+    const drawChart = function() {
+        const chart = new google.visualization.ColumnChart(el);
+        chart.draw(
+            google.visualization.arrayToDataTable(rows),
+            {
+                title: '',
+                legend: { position: 'bottom' },
+                colors: [...physicianColors.slice(0, physicians.length), '#aaaaaa'],
+                height: 425,
+                backgroundColor: 'transparent',
+                chartArea: { left: 60, right: 60, top: 20, bottom: 100 },
+                bar: { groupWidth: '90%' },
+                isStacked: false,
+                series: seriesConfig,
+                vAxes: {
+                    0: { title: '', minValue: 0, viewWindow: { min: 0 }, textStyle: { fontSize: 10 } },
+                    1: { title: 'First Available', minValue: 0, viewWindow: { min: 0 }, textStyle: { fontSize: 10, color: '#aaaaaa' } }
+                },
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
+                tooltip: { trigger: 'both', isHtml: false },
+                focusTarget: 'category'
+            }
+        );
+    };
+
+    if (typeof google.visualization === 'undefined' || !google.visualization.ColumnChart) {
+        google.charts.load('current', {'packages':['corechart']});
+        google.charts.setOnLoadCallback(drawChart);
+    } else {
+        drawChart();
     }
 }
 
@@ -641,41 +628,82 @@ function renderCompletionStatus(data) {
         return;
     }
     
-    // Build chart data with % annotations on Complete and Pending
-    const chartData = [['Month', 'Complete', {role:'annotation'}, 'Pending', {role:'annotation'}, 'Cancelled', 'Deferred']];
+    // Build chart data — no annotation columns; we'll overlay labels manually after render
+    const chartData = [['Month', 'Complete', 'Pending', 'Cancelled', 'Deferred']];
+    const statusTotals = [];
     for (let i = 0; i < data.months.length; i++) {
-        const total = data.data.Complete[i] + data.data.Pending[i] + data.data.Cancelled[i] + data.data.Deferred[i];
-        const pctComplete = total > 0 ? Math.round(data.data.Complete[i] / total * 100) + '%' : '';
-        const pctPending  = total > 0 ? Math.round(data.data.Pending[i]  / total * 100) + '%' : '';
-        chartData.push([
-            data.months[i],
-            data.data.Complete[i], pctComplete,
-            data.data.Pending[i],  pctPending,
-            data.data.Cancelled[i],
-            data.data.Deferred[i]
-        ]);
+        const c = data.data.Complete[i], p = data.data.Pending[i], ca = data.data.Cancelled[i], d = data.data.Deferred[i];
+        const total = c + p + ca + d;
+        statusTotals.push({ complete: c, pending: p, total: total });
+        chartData.push([data.months[i], c, p, ca, d]);
     }
-    
+
     google.charts.load('current', {'packages':['corechart']});
     google.charts.setOnLoadCallback(function() {
         const chart = new google.visualization.ColumnChart(el);
-        chart.draw(
-            google.visualization.arrayToDataTable(chartData),
-            {
-                title: '',
-                legend: { position: 'bottom' },
-                colors: ['#27ae60', '#f39c12', '#e74c3c', '#95a5a6'],
-                height: 425,
-                backgroundColor: 'transparent',
-                chartArea: {left: 60, right: 20, top: 20, bottom: 60},
-                isStacked: true,
-                vAxis: { minValue: 0, viewWindow: { min: 0 } },
-                hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
-				tooltip: { trigger: 'both', isHtml: false },
-				focusTarget: 'category',
-                annotations: { alwaysOutside: false, textStyle: { fontSize: 10, bold: true, color: '#fff' }, stem: { color: 'transparent' } }
+        const options = {
+            title: '',
+            legend: { position: 'bottom' },
+            colors: ['#27ae60', '#f39c12', '#e74c3c', '#95a5a6'],
+            height: 425,
+            backgroundColor: 'transparent',
+            chartArea: {left: 60, right: 20, top: 20, bottom: 60},
+            isStacked: true,
+            vAxis: { minValue: 0, viewWindow: { min: 0 } },
+            hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
+            tooltip: { trigger: 'both', isHtml: false },
+            focusTarget: 'category'
+        };
+        const dataTable = google.visualization.arrayToDataTable(chartData);
+        chart.draw(dataTable, options);
+
+        // Post-render: overlay centered % labels using chart layout
+        google.visualization.events.addListener(chart, 'ready', function() {
+            const layout = chart.getChartLayoutInterface();
+            if (el.style.position !== 'relative') el.style.position = 'relative';
+            // Remove any previous overlays
+            var old = el.querySelectorAll('.pct-label-overlay');
+            old.forEach(function(o) { o.parentNode.removeChild(o); });
+
+            // getXLocation(i) returns center of bar group i, getYLocation(v) returns px from top of chart SVG
+            // The SVG sits inside el starting at offset 0,0 so coordinates map directly
+            for (let i = 0; i < statusTotals.length; i++) {
+                var t = statusTotals[i];
+                if (t.total === 0) continue;
+
+                var xCenter = layout.getXLocation(i + 0.5); // +0.5 to hit center of grouped bar
+
+                // Complete segment
+                var yBottom = layout.getYLocation(0);
+                var yTop    = layout.getYLocation(t.complete);
+                var segH = yBottom - yTop;
+                if (segH > 18 && t.complete > 0) {
+                    var lbl = document.createElement('div');
+                    lbl.className = 'pct-label-overlay';
+                    lbl.innerText = Math.round(t.complete / t.total * 100) + '%';
+                    lbl.style.cssText = 'position:absolute;font-size:11px;font-weight:bold;color:#fff;pointer-events:none;transform:translate(-50%,-50%);text-shadow:0 1px 2px rgba(0,0,0,0.4);';
+                    lbl.style.left = xCenter + 'px';
+                    lbl.style.top  = (yTop + segH / 2) + 'px';
+                    el.appendChild(lbl);
+                }
+
+                // Pending segment
+                if (t.pending > 0) {
+                    var yPBot = layout.getYLocation(t.complete);
+                    var yPTop = layout.getYLocation(t.complete + t.pending);
+                    var pSegH = yPBot - yPTop;
+                    if (pSegH > 18) {
+                        var pLbl = document.createElement('div');
+                        pLbl.className = 'pct-label-overlay';
+                        pLbl.innerText = Math.round(t.pending / t.total * 100) + '%';
+                        pLbl.style.cssText = 'position:absolute;font-size:11px;font-weight:bold;color:#fff;pointer-events:none;transform:translate(-50%,-50%);text-shadow:0 1px 2px rgba(0,0,0,0.4);';
+                        pLbl.style.left = xCenter + 'px';
+                        pLbl.style.top  = (yPTop + pSegH / 2) + 'px';
+                        el.appendChild(pLbl);
+                    }
+                }
             }
-        );
+        });
     });
 }
 
