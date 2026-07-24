@@ -271,7 +271,7 @@
 			<div class="tab-content" id="tab3">
 				<div class="chart-box full">
 					<div class="chart-header">
-						<div class="chart-title">Physicians Over Time - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">Monthly breakdown by requested physician (First Available on right axis)</span></div>
+						<div class="chart-title">Physicians Over Time - <span style="font-size: 11px; color: #95a5a6; font-weight: 400;">Monthly breakdown by requested physician</span></div>
 					</div>
 					<div class="chart-body" id="chartPhysicianTrends"></div>
 				</div>
@@ -448,10 +448,10 @@ function renderMonthlyTrends(data) {
     }
     
     // Build chart data from Python's clean output
-    const chartData = [['Month', 'Total', {role: 'annotation'}, 'New', {role: 'annotation'}, 'Returning']];
+    const chartData = [['Month', 'Total', {role: 'annotation'}, 'New', 'Returning']];
     for (let i = 0; i < data.months.length; i++) {
         const total = data.new[i] + data.returning[i];
-        chartData.push([data.months[i], total, total.toString(), data.new[i], data.new[i].toString(), data.returning[i]]);
+        chartData.push([data.months[i], total, total.toString(), data.new[i], data.returning[i]]);
     }
     
     const drawChart = function() {
@@ -470,9 +470,17 @@ function renderMonthlyTrends(data) {
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
 				tooltip: { trigger: 'both', isHtml: false },
                 focusTarget: 'category',
-                series: {
-                    0: { annotations: { textStyle: { fontSize: 11, color: '#9b59b6', bold: true }, alwaysOutside: true, stem: { color: 'transparent', length: 4 } } },
-                    1: { annotations: { textStyle: { fontSize: 11, color: '#3498db', bold: true }, alwaysOutside: false, stem: { color: 'transparent', length: 4 } } }
+                annotations: {
+                    textStyle: {
+                        fontSize: 11,
+                        color: '#9b59b6',
+                        bold: true
+                    },
+                    alwaysOutside: true,
+                    stem: {
+                        color: 'transparent',
+                        length: 4
+                    }
                 }
             }
         );
@@ -539,80 +547,40 @@ function renderPhysicianTrends(data) {
         el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No data</p>';
         return;
     }
-
-    const hasFirstAvailable = data.physicians.includes('First Available');
-    const otherPhysicians = data.physicians.filter(p => p !== 'First Available');
-
-    // Physicians on X-axis, months as series
-    // If First Available exists, add it as an extra series on axis 1 (right Y-axis)
-    const seriesHeaders = [...data.months];
-    if (hasFirstAvailable) seriesHeaders.push('First Available');
-
-    const chartData = [['Physician', ...data.months, ...(hasFirstAvailable ? ['First Available'] : [])]];
-    for (let physician of otherPhysicians) {
+    
+    // FLIPPED: Physicians on X-axis, Months as grouped bars
+    const chartData = [['Physician', ...data.months]];
+    for (let physician of data.physicians) {
         const row = [physician];
         for (let month of data.months) {
             row.push(data.data[month][physician] || 0);
         }
-        if (hasFirstAvailable) row.push(null); // no FA value for physician rows
         chartData.push(row);
     }
-    if (hasFirstAvailable) {
-        // First Available as a "phantom" physician row — all nulls except FA column
-        // Actually Google Charts column chart groups by X category, so we need a different approach:
-        // Add First Available as a series (month axis), but on a separate X group
-        // The cleanest dual-axis approach: put months on X, physicians as series, FA as extra series on right axis
-    }
-
-    // BETTER: swap axes — months on X, physicians as series (including FA on right axis)
-    const physicians = otherPhysicians;
-    const faIndex = hasFirstAvailable ? physicians.length : -1; // FA will be last series
-
-    const header = ['Month', ...physicians, ...(hasFirstAvailable ? ['First Available'] : [])];
-    const rows = [header];
-    for (let month of data.months) {
-        const row = [month];
-        for (let p of physicians) {
-            row.push(data.data[month][p] || 0);
-        }
-        if (hasFirstAvailable) row.push(data.data[month]['First Available'] || 0);
-        rows.push(row);
-    }
-
-    const physicianColors = ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#27ae60', '#e67e22', '#34495e', '#16a085', '#2ecc71', '#d35400'];
-
-    // Build series config: all physicians on axis 0, FA on axis 1
-    const seriesConfig = {};
-    physicians.forEach(function(p, i) { seriesConfig[i] = { targetAxisIndex: 0 }; });
-    if (hasFirstAvailable) {
-        seriesConfig[physicians.length] = { targetAxisIndex: 1, color: '#95a5a6', type: 'bars' };
-    }
-
+    
     const drawChart = function() {
         const chart = new google.visualization.ColumnChart(el);
         chart.draw(
-            google.visualization.arrayToDataTable(rows),
+            google.visualization.arrayToDataTable(chartData),
             {
                 title: '',
                 legend: { position: 'bottom' },
-                colors: [...physicianColors.slice(0, physicians.length), '#aaaaaa'],
+                colors: ['#9b59b6', '#3498db', '#1abc9c', '#f39c12', '#e74c3c', '#27ae60', '#e67e22', '#95a5a6', '#34495e', '#16a085', '#2ecc71', '#d35400'],
                 height: 425,
                 backgroundColor: 'transparent',
-                chartArea: { left: 60, right: 60, top: 20, bottom: 100 },
+                chartArea: {left: 60, right: 20, top: 20, bottom: 100},
                 bar: { groupWidth: '90%' },
                 isStacked: false,
-                series: seriesConfig,
-                vAxes: {
-                    0: { title: '', minValue: 0, viewWindow: { min: 0 }, textStyle: { fontSize: 10 } },
-                    1: { title: 'First Available', minValue: 0, viewWindow: { min: 0 }, textStyle: { fontSize: 10, color: '#aaaaaa' } }
+                vAxis: { minValue: 0, viewWindow: { min: 0 } },
+                hAxis: { 
+                    textStyle: { fontSize: 10 } 
                 },
-                hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
-                tooltip: { trigger: 'both', isHtml: false },
+				tooltip: { trigger: 'both', isHtml: false },
                 focusTarget: 'category'
             }
         );
     };
-
+    
     if (typeof google.visualization === 'undefined' || !google.visualization.ColumnChart) {
         google.charts.load('current', {'packages':['corechart']});
         google.charts.setOnLoadCallback(drawChart);
@@ -628,82 +596,37 @@ function renderCompletionStatus(data) {
         return;
     }
     
-    // Build chart data — no annotation columns; we'll overlay labels manually after render
+    // Build chart data
     const chartData = [['Month', 'Complete', 'Pending', 'Cancelled', 'Deferred']];
-    const statusTotals = [];
     for (let i = 0; i < data.months.length; i++) {
-        const c = data.data.Complete[i], p = data.data.Pending[i], ca = data.data.Cancelled[i], d = data.data.Deferred[i];
-        const total = c + p + ca + d;
-        statusTotals.push({ complete: c, pending: p, total: total });
-        chartData.push([data.months[i], c, p, ca, d]);
+        chartData.push([
+            data.months[i],
+            data.data.Complete[i],
+            data.data.Pending[i],
+            data.data.Cancelled[i],
+            data.data.Deferred[i]
+        ]);
     }
-
+    
     google.charts.load('current', {'packages':['corechart']});
     google.charts.setOnLoadCallback(function() {
         const chart = new google.visualization.ColumnChart(el);
-        const options = {
-            title: '',
-            legend: { position: 'bottom' },
-            colors: ['#27ae60', '#f39c12', '#e74c3c', '#95a5a6'],
-            height: 425,
-            backgroundColor: 'transparent',
-            chartArea: {left: 60, right: 20, top: 20, bottom: 60},
-            isStacked: true,
-            vAxis: { minValue: 0, viewWindow: { min: 0 } },
-            hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
-            tooltip: { trigger: 'both', isHtml: false },
-            focusTarget: 'category'
-        };
-        const dataTable = google.visualization.arrayToDataTable(chartData);
-        chart.draw(dataTable, options);
-
-        // Post-render: overlay centered % labels using chart layout
-        google.visualization.events.addListener(chart, 'ready', function() {
-            const layout = chart.getChartLayoutInterface();
-            if (el.style.position !== 'relative') el.style.position = 'relative';
-            // Remove any previous overlays
-            var old = el.querySelectorAll('.pct-label-overlay');
-            old.forEach(function(o) { o.parentNode.removeChild(o); });
-
-            // getXLocation(i) returns center of bar group i, getYLocation(v) returns px from top of chart SVG
-            // The SVG sits inside el starting at offset 0,0 so coordinates map directly
-            for (let i = 0; i < statusTotals.length; i++) {
-                var t = statusTotals[i];
-                if (t.total === 0) continue;
-
-                var xCenter = layout.getXLocation(i + 0.5); // +0.5 to hit center of grouped bar
-
-                // Complete segment
-                var yBottom = layout.getYLocation(0);
-                var yTop    = layout.getYLocation(t.complete);
-                var segH = yBottom - yTop;
-                if (segH > 18 && t.complete > 0) {
-                    var lbl = document.createElement('div');
-                    lbl.className = 'pct-label-overlay';
-                    lbl.innerText = Math.round(t.complete / t.total * 100) + '%';
-                    lbl.style.cssText = 'position:absolute;font-size:11px;font-weight:bold;color:#fff;pointer-events:none;transform:translate(-50%,-50%);text-shadow:0 1px 2px rgba(0,0,0,0.4);';
-                    lbl.style.left = xCenter + 'px';
-                    lbl.style.top  = (yTop + segH / 2) + 'px';
-                    el.appendChild(lbl);
-                }
-
-                // Pending segment
-                if (t.pending > 0) {
-                    var yPBot = layout.getYLocation(t.complete);
-                    var yPTop = layout.getYLocation(t.complete + t.pending);
-                    var pSegH = yPBot - yPTop;
-                    if (pSegH > 18) {
-                        var pLbl = document.createElement('div');
-                        pLbl.className = 'pct-label-overlay';
-                        pLbl.innerText = Math.round(t.pending / t.total * 100) + '%';
-                        pLbl.style.cssText = 'position:absolute;font-size:11px;font-weight:bold;color:#fff;pointer-events:none;transform:translate(-50%,-50%);text-shadow:0 1px 2px rgba(0,0,0,0.4);';
-                        pLbl.style.left = xCenter + 'px';
-                        pLbl.style.top  = (yPTop + pSegH / 2) + 'px';
-                        el.appendChild(pLbl);
-                    }
-                }
+        chart.draw(
+            google.visualization.arrayToDataTable(chartData),
+            {
+                title: '',
+                legend: { position: 'bottom' },
+                colors: ['#27ae60', '#f39c12', '#e74c3c', '#95a5a6'],
+                height: 425,
+                backgroundColor: 'transparent',
+                chartArea: {left: 60, right: 20, top: 20, bottom: 60},
+                isStacked: true,
+                vAxis: { minValue: 0, viewWindow: { min: 0 } },
+                hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
+				tooltip: { trigger: 'both', isHtml: false },
+				focusTarget: 'category'
             }
-        });
+        );
     });
 }
 
@@ -714,23 +637,12 @@ function renderTimeToContact(data) {
         return;
     }
     
-    // Build chart data with % annotations on first two bins (green + light orange)
-    const annotatedBins = data.bins.slice(0, 2); // <= 3 days, 3 days - 1 week
-    const headerRow = ['Month'];
-    for (let b of data.bins) {
-        headerRow.push(b);
-        if (annotatedBins.includes(b)) headerRow.push({role: 'annotation'});
-    }
-    const chartData = [headerRow];
+    // Build chart data
+    const chartData = [['Month', ...data.bins]];
     for (let month of data.months) {
-        const rowVals = data.bins.map(b => data.data[month][b] || 0);
-        const total = rowVals.reduce((a, v) => a + v, 0);
         const row = [month];
-        for (let j = 0; j < data.bins.length; j++) {
-            row.push(rowVals[j]);
-            if (annotatedBins.includes(data.bins[j])) {
-                row.push(total > 0 ? Math.round(rowVals[j] / total * 100) + '%' : '');
-            }
+        for (let bin of data.bins) {
+            row.push(data.data[month][bin] || 0);
         }
         chartData.push(row);
     }
@@ -751,8 +663,7 @@ function renderTimeToContact(data) {
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
 				tooltip: { trigger: 'both', isHtml: false },
-				focusTarget: 'category',
-                annotations: { alwaysOutside: false, textStyle: { fontSize: 10, bold: true, color: '#fff' }, stem: { color: 'transparent' } }
+				focusTarget: 'category'
             }
         );
     });
@@ -765,22 +676,12 @@ function renderTimeToComplete(data) {
         return;
     }
     
-    // Build chart data with % annotation on the 'None' (grey) segment
-    const headerRow = ['Month'];
-    for (let b of data.bins) {
-        headerRow.push(b);
-        if (b === 'None') headerRow.push({role: 'annotation'});
-    }
-    const chartData = [headerRow];
+    // Build chart data
+    const chartData = [['Month', ...data.bins]];
     for (let month of data.months) {
-        const rowVals = data.bins.map(b => data.data[month][b] || 0);
-        const total = rowVals.reduce((a, v) => a + v, 0);
         const row = [month];
-        for (let j = 0; j < data.bins.length; j++) {
-            row.push(rowVals[j]);
-            if (data.bins[j] === 'None') {
-                row.push(total > 0 ? Math.round(rowVals[j] / total * 100) + '%' : '');
-            }
+        for (let bin of data.bins) {
+            row.push(data.data[month][bin] || 0);
         }
         chartData.push(row);
     }
@@ -801,8 +702,7 @@ function renderTimeToComplete(data) {
                 vAxis: { minValue: 0, viewWindow: { min: 0 } },
                 hAxis: { slantedText: false, textStyle: { fontSize: 11 } },
 				tooltip: { trigger: 'both', isHtml: false },
-				focusTarget: 'category',
-                annotations: { alwaysOutside: false, textStyle: { fontSize: 10, bold: true, color: '#fff' }, stem: { color: 'transparent' } }
+				focusTarget: 'category'
             }
         );
     });
