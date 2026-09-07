@@ -295,6 +295,9 @@ function openEdit(index) {
   document.getElementById("modalNotes").value = e.notes || "";
   updateModalFee();
 
+  // Open history panel
+  openHistoryPanel(e);
+
   // Flag banner at top of modal
   const existingBanner = document.getElementById("modalFlagBanner");
   if (existingBanner) existingBanner.remove();
@@ -378,6 +381,9 @@ function applyEdit() {
     });
   }
 
+  // Refresh current session row in history panel
+  refreshHistoryCurrentRow();
+
   closeModal();
   toast("Encounter updated.", "ok");
 }
@@ -385,6 +391,8 @@ function applyEdit() {
 function closeModal(evt) {
   if (evt && evt.target !== document.getElementById("editModal")) return;
   document.getElementById("editModal").classList.remove("open");
+  document.getElementById("historyPanel").classList.remove("open");
+  document.getElementById("editModal").classList.remove("with-panel");
   editingIndex = null;
 }
 
@@ -707,3 +715,140 @@ window.showView = function(name) {
     searchRecords(1);
   }
 };
+
+// ── History Panel ─────────────────────────────────────────────────────────────
+let _historyData = null;   // last fetched history result
+let _historyEnc  = null;   // encounter the panel was opened for
+
+async function openHistoryPanel(enc) {
+  _historyEnc = enc;
+  const panel = document.getElementById("historyPanel");
+  const modal = document.getElementById("editModal");
+
+  panel.classList.add("open");
+  modal.classList.add("with-panel");
+
+  // Update column headers
+  document.getElementById("historyColPatient").textContent =
+    enc.patient_name.split(" ")[0] || "Patient";
+  document.getElementById("historyColPartner").textContent =
+    enc.partner_id ? "Partner" : "—";
+  document.getElementById("historyPanelTitle").textContent = "Past Encounters";
+  document.getElementById("historyPanelSub").textContent   = enc.patient_name;
+
+  // Clear and show loading state
+  document.getElementById("historyPanelTbody").innerHTML =
+    `<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px">Loading…</td></tr>`;
+  document.getElementById("historyPanelWarning").classList.add("hidden");
+
+  // Find partner name from current session
+  const partnerEnc = enc.partner_id
+    ? currentSession.encounters.find(e => e.patient_id === enc.partner_id)
+    : null;
+  const partnerName = partnerEnc ? partnerEnc.patient_name : "";
+
+  // Fetch merged history from DB
+  const result = await eel.get_patient_history_merged(
+    enc.patient_id   || "",
+    enc.patient_name || "",
+    enc.partner_id   || "",
+    partnerName
+  )();
+
+  _historyData = result;
+
+  if (!result.ok) {
+    document.getElementById("historyPanelTbody").innerHTML =
+      `<tr><td colspan="3" style="color:var(--danger);padding:12px">${escHtml(result.error)}</td></tr>`;
+    return;
+  }
+
+  // Show name-match warning for POI patients
+  const warn = document.getElementById("historyPanelWarning");
+  const warnings = [];
+  if (result.name_warning)
+    warnings.push(`⚠ ${enc.patient_name}: name-only match — verify this is the same patient.`);
+  if (result.partner_name_warning)
+    warnings.push(`⚠ ${partnerName}: name-only match — verify this is the same patient.`);
+  if (warnings.length) {
+    warn.textContent = warnings.join(" ");
+    warn.classList.remove("hidden");
+  }
+
+  renderHistoryPanel(enc);
+}
+
+function renderHistoryPanel(enc) {
+  if (!_historyData) return;
+
+  const tbody = document.getElementById("historyPanelTbody");
+  tbody.innerHTML = "";
+
+  // Current session row (always first, highlighted)
+  const curRow = document.createElement("tr");
+  curRow.classList.add("current-session");
+  curRow.id = "history-current-row";
+  const curCodes  = enc.billing_codes || [];
+  const partnerEnc = enc.partner_id
+    ? currentSession.encounters.find(e => e.patient_id === enc.partner_id)
+    : null;
+  const parCodes  = partnerEnc ? (partnerEnc.billing_codes || []) : null;
+
+  curRow.innerHTML = `
+    <td class="history-date">${escHtml(enc.encounter_date)}<br>
+      <span style="font-size:9px;color:var(--accent2)">Current</span></td>
+    <td class="history-codes">${renderHistoryCodes(curCodes)}</td>
+    <td class="history-codes">${parCodes !== null ? renderHistoryCodes(parCodes) : '<span class="history-none">—</span>'}</td>
+  `;
+  tbody.appendChild(curRow);
+
+  // DB history rows
+  if (!_historyData.rows || _historyData.rows.length === 0) {
+    const emptyRow = document.createElement("tr");
+    emptyRow.innerHTML = `<td colspan="3" style="text-align:center;color:var(--text-dim);padding:12px">No past records found.</td>`;
+    tbody.appendChild(emptyRow);
+    return;
+  }
+
+  _historyData.rows.forEach(row => {
+    // Skip if same date as current session (already shown above)
+    if (row.date === enc.encounter_date) return;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="history-date">${escHtml(row.date)}</td>
+      <td class="history-codes">${renderHistoryCodes(row.patient_codes)}</td>
+      <td class="history-codes">${row.partner_codes && row.partner_codes.length > 0
+        ? renderHistoryCodes(row.partner_codes)
+        : '<span class="history-none">—</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderHistoryCodes(codes) {
+  if (!codes || codes.length === 0)
+    return '<span class="history-none">—</span>';
+  return codes.map(c => `<span class="chip">${escHtml(c)}</span>`).join("");
+}
+
+function refreshHistoryCurrentRow() {
+  if (editingIndex === null || !_historyEnc) return;
+  const enc = currentSession.encounters[editingIndex];
+  _historyEnc = enc;
+
+  const curRow = document.getElementById("history-current-row");
+  if (!curRow) return;
+
+  const partnerEnc = enc.partner_id
+    ? currentSession.encounters.find(e => e.patient_id === enc.partner_id)
+    : null;
+  const parCodes = partnerEnc ? (partnerEnc.billing_codes || []) : null;
+
+  curRow.innerHTML = `
+    <td class="history-date">${escHtml(enc.encounter_date)}<br>
+      <span style="font-size:9px;color:var(--accent2)">Current</span></td>
+    <td class="history-codes">${renderHistoryCodes(enc.billing_codes || [])}</td>
+    <td class="history-codes">${parCodes !== null ? renderHistoryCodes(parCodes) : '<span class="history-none">—</span>'}</td>
+  `;
+}

@@ -906,3 +906,139 @@ if __name__ == "__main__":
             print(f"Chrome not available: {e2}")
             print("Falling back to default browser...")
             eel.start("index.html", size=(1440, 900), port=8765, mode=None, block=True)
+
+
+@eel.expose
+def get_patient_history_merged(patient_id: str, patient_name: str,
+                                partner_id: str, partner_name: str):
+    """
+    Return merged billing history for a patient + partner from both
+    encounters and patient_records tables, deduplicated by date+name.
+    """
+    try:
+        con = db_con()
+
+        def _enc_rows(pid, pname):
+            """Fetch from encounters by patient_id or name fallback."""
+            if pid:
+                rows = con.execute("""
+                    SELECT e.encounter_date as record_date, e.patient_name,
+                           e.patient_id, e.billing_codes, e.dx_codes,
+                           s.session_date, 'encounters' as src
+                    FROM encounters e
+                    JOIN sessions s ON s.id = e.session_id
+                    WHERE e.patient_id = ?
+                    ORDER BY e.encounter_date DESC
+                """, (pid,)).fetchall()
+                return [dict(r) for r in rows]
+            else:
+                rows = con.execute("""
+                    SELECT e.encounter_date as record_date, e.patient_name,
+                           e.patient_id, e.billing_codes, e.dx_codes,
+                           s.session_date, 'encounters' as src
+                    FROM encounters e
+                    JOIN sessions s ON s.id = e.session_id
+                    WHERE e.patient_name = ?
+                    ORDER BY e.encounter_date DESC
+                """, (pname,)).fetchall()
+                return [dict(r) for r in rows]
+
+        def _pr_rows(pid, pname):
+            """Fetch from patient_records by patient_id or name fallback."""
+            if pid:
+                rows = con.execute("""
+                    SELECT record_date, patient_name, patient_id,
+                           billing_codes, dx_codes, '' as session_date,
+                           'patient_records' as src
+                    FROM patient_records
+                    WHERE patient_id = ?
+                    ORDER BY record_date DESC
+                """, (pid,)).fetchall()
+            else:
+                rows = con.execute("""
+                    SELECT record_date, patient_name, patient_id,
+                           billing_codes, dx_codes, '' as session_date,
+                           'patient_records' as src
+                    FROM patient_records
+                    WHERE patient_name = ?
+                    ORDER BY record_date DESC
+                """, (pname,)).fetchall()
+            return [dict(r) for r in rows]
+
+        def _merge(enc_rows, pr_rows):
+            """Merge encounters + patient_records, prefer encounters on same date+name."""
+            seen = set()
+            merged = []
+            for r in enc_rows:
+                key = (r["record_date"], r["patient_name"])
+                seen.add(key)
+                r["billing_codes"] = json.loads(r["billing_codes"] or "[]")
+                r["dx_codes"]      = json.loads(r["dx_codes"]      or "[]")
+                merged.append(r)
+            for r in pr_rows:
+                key = (r["record_date"], r["patient_name"])
+                if key not in seen:
+                    r["billing_codes"] = json.loads(r["billing_codes"] or "[]")
+                    r["dx_codes"]      = json.loads(r["dx_codes"]      or "[]")
+                    merged.append(r)
+            return sorted(merged, key=lambda x: x["record_date"], reverse=True)
+
+        # Check for POI name ambiguity (no patient_id but name exists in DB)
+        name_warning = False
+        if not patient_id and patient_name:
+            count = con.execute(
+                "SELECT COUNT(DISTINCT patient_id) FROM encounters WHERE patient_name=? AND patient_id != ''",
+                (patient_name,)
+            ).fetchone()[0]
+            if count > 0:
+                name_warning = True
+
+        partner_name_warning = False
+        if not partner_id and partner_name:
+            count = con.execute(
+                "SELECT COUNT(DISTINCT patient_id) FROM encounters WHERE patient_name=? AND patient_id != ''",
+                (partner_name,)
+            ).fetchone()[0]
+            if count > 0:
+                partner_name_warning = True
+
+        # Fetch patient history
+        pat_enc = _enc_rows(patient_id, patient_name)
+        pat_pr  = _pr_rows(patient_id, patient_name)
+        pat_rows = _merge(pat_enc, pat_pr)
+
+        # Fetch partner history
+        par_enc = _enc_rows(partner_id, partner_name) if (partner_id or partner_name) else []
+        par_pr  = _pr_rows(partner_id, partner_name)  if (partner_id or partner_name) else []
+        par_rows = _merge(par_enc, par_pr)
+
+        # Build combined table: one row per date, patient codes + partner codes side by side
+        # Key by record_date
+        by_date = {}
+        for r in pat_rows:
+            d = r["record_date"]
+            if d not in by_date:
+                by_date[d] = {"date": d, "patient_codes": [], "partner_codes": []}
+            by_date[d]["patient_codes"] = r["billing_codes"]
+
+        for r in par_rows:
+            d = r["record_date"]
+            if d not in by_date:
+                by_date[d] = {"date": d, "patient_codes": [], "partner_codes": []}
+            by_date[d]["partner_codes"] = r["billing_codes"]
+
+        rows = sorted(by_date.values(), key=lambda x: x["date"], reverse=True)
+
+        con.close()
+        return {
+            "ok":                   True,
+            "rows":                 rows,
+            "patient_name":         patient_name,
+            "partner_name":         partner_name,
+            "name_warning":         name_warning,
+            "partner_name_warning": partner_name_warning,
+        }
+
+    except Exception as e:
+        log.exception("get_patient_history_merged failed")
+        return {"ok": False, "error": str(e), "rows": []}
