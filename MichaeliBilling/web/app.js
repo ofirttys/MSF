@@ -725,11 +725,11 @@ async function openHistoryPanel(enc) {
   // Open overlay
   document.getElementById("historyModalOverlay").classList.add("open");
 
-  // Find partner from current session
-  const partnerEnc = enc.partner_id
-    ? currentSession.encounters.find(e => e.patient_id === enc.partner_id)
+  // Find partner from current session — capture BEFORE any await calls
+  const _capturedPartnerEnc = enc.partner_id
+    ? currentSession.encounters.find(e => String(e.patient_id) === String(enc.partner_id))
     : null;
-  const partnerName = partnerEnc ? partnerEnc.patient_name : "";
+  const partnerName = _capturedPartnerEnc ? _capturedPartnerEnc.patient_name : "";
 
   // Update headers
   document.getElementById("historyPanelTitle").textContent = "Past Encounters";
@@ -773,7 +773,7 @@ async function openHistoryPanel(enc) {
       warn.classList.remove("hidden");
     }
 
-    renderHistoryPanel(enc, partnerEnc);
+    renderHistoryPanel(enc, _capturedPartnerEnc);
 
   } catch(err) {
     document.getElementById("historyPanelTbody").innerHTML =
@@ -784,46 +784,40 @@ async function openHistoryPanel(enc) {
 function renderHistoryPanel(enc, partnerEnc) {
   if (!_historyData) return;
 
-  const tbody = document.getElementById("historyPanelTbody");
-  tbody.innerHTML = "";
+  // Always re-lookup partner from current session using string comparison
+  if (!partnerEnc && enc.partner_id) {
+    partnerEnc = currentSession.encounters.find(
+      e => String(e.patient_id) === String(enc.partner_id)
+    ) || null;
+  }
 
-  // Current session row (always first, highlighted)
-  const curRow = document.createElement("tr");
-  curRow.classList.add("current-session");
-  curRow.id = "history-current-row";
   const curCodes = enc.billing_codes || [];
   const parCodes = partnerEnc ? (partnerEnc.billing_codes || []) : null;
 
-  curRow.innerHTML = `
-    <td class="history-date">${escHtml(enc.encounter_date)}<br>
-      <span style="font-size:9px;color:var(--accent2)">Current</span></td>
+  // Build entire tbody as one HTML string — mixing createElement and innerHTML
+  // on a table causes column layout bugs in some browsers
+  let html = `<tr class="current-session" id="history-current-row">
+    <td class="history-date">${escHtml(enc.encounter_date)}<br><span style="font-size:9px;color:var(--accent2)">Current</span></td>
     <td class="history-codes">${renderHistoryCodes(curCodes)}</td>
     <td class="history-codes">${parCodes !== null ? renderHistoryCodes(parCodes) : '<span class="history-none">—</span>'}</td>
-  `;
-  tbody.appendChild(curRow);
+  </tr>`;
 
-  // DB history rows
   if (!_historyData.rows || _historyData.rows.length === 0) {
-    const emptyRow = document.createElement("tr");
-    emptyRow.innerHTML = `<td colspan="3" style="text-align:center;color:var(--text-dim);padding:12px">No past records found.</td>`;
-    tbody.appendChild(emptyRow);
-    return;
+    html += `<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:12px">No past records found.</td></tr>`;
+  } else {
+    _historyData.rows.forEach(row => {
+      if (row.date === enc.encounter_date) return;
+      html += `<tr>
+        <td class="history-date">${escHtml(row.date)}</td>
+        <td class="history-codes">${renderHistoryCodes(row.patient_codes)}</td>
+        <td class="history-codes">${row.partner_codes && row.partner_codes.length > 0
+          ? renderHistoryCodes(row.partner_codes)
+          : '<span class="history-none">—</span>'}</td>
+      </tr>`;
+    });
   }
 
-  _historyData.rows.forEach(row => {
-    // Skip if same date as current session (already shown above)
-    if (row.date === enc.encounter_date) return;
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="history-date">${escHtml(row.date)}</td>
-      <td class="history-codes">${renderHistoryCodes(row.patient_codes)}</td>
-      <td class="history-codes">${row.partner_codes && row.partner_codes.length > 0
-        ? renderHistoryCodes(row.partner_codes)
-        : '<span class="history-none">—</span>'}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+  document.getElementById("historyPanelTbody").innerHTML = html;
 }
 
 function renderHistoryCodes(codes) {
@@ -837,23 +831,15 @@ function refreshHistoryCurrentRow() {
   const enc = currentSession.encounters[editingIndex];
   _historyEnc = enc;
 
-  const curRow = document.getElementById("history-current-row");
-  if (!curRow) return;
-
   const partnerEnc = enc.partner_id
-    ? currentSession.encounters.find(e => e.patient_id === enc.partner_id)
+    ? currentSession.encounters.find(e => String(e.patient_id) === String(enc.partner_id))
     : null;
-  const parCodes = partnerEnc ? (partnerEnc.billing_codes || []) : null;
-  // Update partner column header in case it wasn't set
+
   if (partnerEnc) {
     document.getElementById("historyColPartner").textContent =
       partnerEnc.patient_name.split(",")[0] || "Partner";
   }
 
-  curRow.innerHTML = `
-    <td class="history-date">${escHtml(enc.encounter_date)}<br>
-      <span style="font-size:9px;color:var(--accent2)">Current</span></td>
-    <td class="history-codes">${renderHistoryCodes(enc.billing_codes || [])}</td>
-    <td class="history-codes">${parCodes !== null ? renderHistoryCodes(parCodes) : '<span class="history-none">—</span>'}</td>
-  `;
+  // Re-render whole panel so table column layout stays consistent
+  renderHistoryPanel(enc, partnerEnc);
 }

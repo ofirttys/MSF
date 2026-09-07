@@ -889,24 +889,6 @@ def get_patient_history(patient_id: str = "", patient_name: str = ""):
         return {"ok": False, "error": str(e), "records": []}
 
 # ── Launch ────────────────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    init_db()
-    eel.init(str(WEB_DIR))
-
-    print("Starting MichaeliBilling...")
-    try:
-        print("Trying Microsoft Edge...")
-        eel.start("index.html", size=(1440, 900), port=8765, mode="edge", block=True)
-    except (OSError, Exception) as e:
-        print(f"Edge not available: {e}")
-        try:
-            print("Trying Chrome...")
-            eel.start("index.html", size=(1440, 900), port=8765, mode="chrome", block=True)
-        except (OSError, Exception) as e2:
-            print(f"Chrome not available: {e2}")
-            print("Falling back to default browser...")
-            eel.start("index.html", size=(1440, 900), port=8765, mode=None, block=True)
-
 
 @eel.expose
 def get_patient_history_merged(patient_id: str, patient_name: str,
@@ -919,7 +901,7 @@ def get_patient_history_merged(patient_id: str, patient_name: str,
         con = db_con()
 
         def _enc_rows(pid, pname):
-            """Fetch from encounters by patient_id or name fallback."""
+            """Fetch encounters for one specific person only (by ID, or by exact name)."""
             if pid:
                 rows = con.execute("""
                     SELECT e.encounter_date as record_date, e.patient_name,
@@ -930,7 +912,6 @@ def get_patient_history_merged(patient_id: str, patient_name: str,
                     WHERE e.patient_id = ?
                     ORDER BY e.encounter_date DESC
                 """, (pid,)).fetchall()
-                return [dict(r) for r in rows]
             else:
                 rows = con.execute("""
                     SELECT e.encounter_date as record_date, e.patient_name,
@@ -941,10 +922,10 @@ def get_patient_history_merged(patient_id: str, patient_name: str,
                     WHERE e.patient_name = ?
                     ORDER BY e.encounter_date DESC
                 """, (pname,)).fetchall()
-                return [dict(r) for r in rows]
+            return [dict(r) for r in rows]
 
         def _pr_rows(pid, pname):
-            """Fetch from patient_records by patient_id or name fallback."""
+            """Fetch patient_records for one specific person only (by ID, or by exact name)."""
             if pid:
                 rows = con.execute("""
                     SELECT record_date, patient_name, patient_id,
@@ -1012,20 +993,24 @@ def get_patient_history_merged(patient_id: str, patient_name: str,
         par_pr  = _pr_rows(partner_id, partner_name)  if (partner_id or partner_name) else []
         par_rows = _merge(par_enc, par_pr)
 
-        # Build combined table: one row per date, patient codes + partner codes side by side
-        # Key by record_date
+        # Build combined table: one row per date, patient codes + partner codes side by side.
+        # pat_rows and par_rows are fetched independently by their own patient_id/name,
+        # so they are guaranteed to belong to the correct person.
         by_date = {}
+
         for r in pat_rows:
             d = r["record_date"]
             if d not in by_date:
                 by_date[d] = {"date": d, "patient_codes": [], "partner_codes": []}
-            by_date[d]["patient_codes"] = r["billing_codes"]
+            if not by_date[d]["patient_codes"]:
+                by_date[d]["patient_codes"] = r["billing_codes"]
 
         for r in par_rows:
             d = r["record_date"]
             if d not in by_date:
                 by_date[d] = {"date": d, "patient_codes": [], "partner_codes": []}
-            by_date[d]["partner_codes"] = r["billing_codes"]
+            if not by_date[d]["partner_codes"]:
+                by_date[d]["partner_codes"] = r["billing_codes"]
 
         rows = sorted(by_date.values(), key=lambda x: x["date"], reverse=True)
 
@@ -1042,3 +1027,22 @@ def get_patient_history_merged(patient_id: str, patient_name: str,
     except Exception as e:
         log.exception("get_patient_history_merged failed")
         return {"ok": False, "error": str(e), "rows": []}
+
+
+if __name__ == "__main__":
+    init_db()
+    eel.init(str(WEB_DIR))
+
+    print("Starting MichaeliBilling...")
+    try:
+        print("Trying Microsoft Edge...")
+        eel.start("index.html", size=(1440, 900), port=8765, mode="edge", block=True)
+    except (OSError, Exception) as e:
+        print(f"Edge not available: {e}")
+        try:
+            print("Trying Chrome...")
+            eel.start("index.html", size=(1440, 900), port=8765, mode="chrome", block=True)
+        except (OSError, Exception) as e2:
+            print(f"Chrome not available: {e2}")
+            print("Falling back to default browser...")
+            eel.start("index.html", size=(1440, 900), port=8765, mode=None, block=True)

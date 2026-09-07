@@ -783,10 +783,11 @@ body.light .date-input { color-scheme: light; }
   display: none;
   position: fixed;
   inset: 0;
-  z-index: 99;   /* behind editModal (z-index:100) */
+  z-index: 102;              /* above edit modal overlay (100) and modal (101) */
+  background: transparent;
   align-items: center;
   justify-content: center;
-  pointer-events: none;  /* clicks pass through to edit modal */
+  pointer-events: none;      /* clicks pass through to edit modal */
 }
 #historyModalOverlay.open { display: flex; }
 
@@ -795,11 +796,10 @@ body.light .date-input { color-scheme: light; }
   position: fixed;
   top: 50%;
   transform: translateY(-50%);
-  left: calc(50% + 360px);   /* right of edit modal (edit modal width ~700px / 2 = 350px + gap) */
+  left: calc(50% + 360px);
   width: 420px;
-  max-width: calc(100vw - 760px);
   max-height: 88vh;
-  pointer-events: all;
+  pointer-events: all;       /* history modal itself is clickable */
   background: var(--bg2);
   border: 1px solid var(--border2);
   border-radius: 10px;
@@ -864,10 +864,16 @@ body.light .date-input { color-scheme: light; }
   white-space: nowrap;
 }
 .history-codes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
+  display: table-cell;
 }
+
+.history-codes .chip {
+  display: inline-block;
+  margin: 1px 2px 1px 0;
+}
+
+.history-table td { min-width: 60px; }
+.history-table td:first-child { min-width: 80px; white-space: nowrap; }
 .history-none {
   color: var(--text-dim);
   font-style: italic;
