@@ -777,49 +777,45 @@ body.light .date-input { color-scheme: light; }
 .ivf-day-btn.on .ivf-day-state { color: var(--danger); }
 .ivf-day-btn.on .ivf-day-label { color: var(--danger); }
 
-/* ── History Panel (past encounters) ──────────────────────────────────────── */
-.history-panel {
+/* ── History Modal (past encounters) ───────────────────────────────────────── */
+/* The history modal overlay sits behind the edit modal overlay */
+#historyModalOverlay {
   display: none;
   position: fixed;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  width: 380px;
+  inset: 0;
+  z-index: 99;   /* behind editModal (z-index:100) */
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;  /* clicks pass through to edit modal */
+}
+#historyModalOverlay.open { display: flex; }
+
+/* Position history modal to the right of the edit modal */
+.history-modal {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  left: calc(50% + 360px);   /* right of edit modal (edit modal width ~700px / 2 = 350px + gap) */
+  width: 420px;
+  max-width: calc(100vw - 760px);
+  max-height: 88vh;
+  pointer-events: all;
   background: var(--bg2);
-  border-left: 1px solid var(--border2);
-  flex-direction: column;
-  z-index: 101;
-  box-shadow: -4px 0 24px rgba(0,0,0,0.3);
-}
-.history-panel.open { display: flex; }
-
-/* Push edit modal to the left when history panel is open */
-.modal-overlay.with-panel .modal {
-  margin-right: 390px;
-  transition: margin-right 0.2s;
-}
-
-.history-panel-header {
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.4);
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 18px 16px 12px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
+  flex-direction: column;
 }
-.history-panel-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-}
+
 .history-panel-sub {
   font-size: 11px;
   color: var(--text-sub);
   margin-top: 2px;
+  font-weight: 400;
 }
 
 .history-panel-warning {
-  margin: 8px 12px 0;
   padding: 8px 12px;
   background: rgba(245,166,35,0.12);
   border: 1px solid var(--warning);
@@ -829,28 +825,22 @@ body.light .date-input { color-scheme: light; }
   line-height: 1.5;
 }
 
-.history-panel-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 0;
-}
-
 .history-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 12px;
 }
 .history-table thead th {
   position: sticky;
   top: 0;
   background: var(--bg2);
-  color: var(--text-dim);
+  color: var(--text-sub);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--border2);
   text-align: left;
   z-index: 2;
 }
@@ -864,7 +854,7 @@ body.light .date-input { color-scheme: light; }
   border-left: 3px solid var(--accent);
 }
 .history-table tbody td {
-  padding: 7px 12px;
+  padding: 7px 10px;
   vertical-align: top;
 }
 .history-date {
@@ -881,4 +871,5 @@ body.light .date-input { color-scheme: light; }
 .history-none {
   color: var(--text-dim);
   font-style: italic;
+  font-size: 11px;
 }

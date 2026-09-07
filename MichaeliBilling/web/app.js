@@ -391,8 +391,7 @@ function applyEdit() {
 function closeModal(evt) {
   if (evt && evt.target !== document.getElementById("editModal")) return;
   document.getElementById("editModal").classList.remove("open");
-  document.getElementById("historyPanel").classList.remove("open");
-  document.getElementById("editModal").classList.remove("with-panel");
+  document.getElementById("historyModalOverlay").classList.remove("open");
   editingIndex = null;
 }
 
@@ -722,63 +721,67 @@ let _historyEnc  = null;   // encounter the panel was opened for
 
 async function openHistoryPanel(enc) {
   _historyEnc = enc;
-  const panel = document.getElementById("historyPanel");
-  const modal = document.getElementById("editModal");
 
-  panel.classList.add("open");
-  modal.classList.add("with-panel");
+  // Open overlay
+  document.getElementById("historyModalOverlay").classList.add("open");
 
-  // Update column headers
-  document.getElementById("historyColPatient").textContent =
-    enc.patient_name.split(" ")[0] || "Patient";
-  document.getElementById("historyColPartner").textContent =
-    enc.partner_id ? "Partner" : "—";
-  document.getElementById("historyPanelTitle").textContent = "Past Encounters";
-  document.getElementById("historyPanelSub").textContent   = enc.patient_name;
-
-  // Clear and show loading state
-  document.getElementById("historyPanelTbody").innerHTML =
-    `<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px">Loading…</td></tr>`;
-  document.getElementById("historyPanelWarning").classList.add("hidden");
-
-  // Find partner name from current session
+  // Find partner from current session
   const partnerEnc = enc.partner_id
     ? currentSession.encounters.find(e => e.patient_id === enc.partner_id)
     : null;
   const partnerName = partnerEnc ? partnerEnc.patient_name : "";
 
-  // Fetch merged history from DB
-  const result = await eel.get_patient_history_merged(
-    enc.patient_id   || "",
-    enc.patient_name || "",
-    enc.partner_id   || "",
-    partnerName
-  )();
+  // Update headers
+  document.getElementById("historyPanelTitle").textContent = "Past Encounters";
+  document.getElementById("historyPanelSub").textContent   = enc.patient_name;
+  document.getElementById("historyColPatient").textContent = enc.patient_name.split(",")[0] || "Patient";
+  document.getElementById("historyColPartner").textContent = partnerName
+    ? (partnerName.split(",")[0] || "Partner")
+    : "—";
 
-  _historyData = result;
+  // Loading state
+  document.getElementById("historyPanelTbody").innerHTML =
+    `<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px">Loading…</td></tr>`;
+  document.getElementById("historyPanelWarning").classList.add("hidden");
 
-  if (!result.ok) {
+  try {
+    // Fetch merged history
+    const result = await eel.get_patient_history_merged(
+      enc.patient_id   || "",
+      enc.patient_name || "",
+      enc.partner_id   || "",
+      partnerName
+    )();
+
+    _historyData = result;
+
+    if (!result.ok) {
+      document.getElementById("historyPanelTbody").innerHTML =
+        `<tr><td colspan="3" style="color:var(--danger);padding:12px">${escHtml(result.error)}</td></tr>`;
+      return;
+    }
+
+    // POI name-match warnings
+    const warn     = document.getElementById("historyPanelWarning");
+    const warnings = [];
+    if (result.name_warning)
+      warnings.push(`⚠ ${enc.patient_name}: name-only match — verify this is the same patient.`);
+    if (result.partner_name_warning)
+      warnings.push(`⚠ ${partnerName}: name-only match — verify this is the same patient.`);
+    if (warnings.length) {
+      warn.textContent = warnings.join(" ");
+      warn.classList.remove("hidden");
+    }
+
+    renderHistoryPanel(enc, partnerEnc);
+
+  } catch(err) {
     document.getElementById("historyPanelTbody").innerHTML =
-      `<tr><td colspan="3" style="color:var(--danger);padding:12px">${escHtml(result.error)}</td></tr>`;
-    return;
+      `<tr><td colspan="3" style="color:var(--danger);padding:12px">Error: ${escHtml(String(err))}</td></tr>`;
   }
-
-  // Show name-match warning for POI patients
-  const warn = document.getElementById("historyPanelWarning");
-  const warnings = [];
-  if (result.name_warning)
-    warnings.push(`⚠ ${enc.patient_name}: name-only match — verify this is the same patient.`);
-  if (result.partner_name_warning)
-    warnings.push(`⚠ ${partnerName}: name-only match — verify this is the same patient.`);
-  if (warnings.length) {
-    warn.textContent = warnings.join(" ");
-    warn.classList.remove("hidden");
-  }
-
-  renderHistoryPanel(enc);
 }
 
-function renderHistoryPanel(enc) {
+function renderHistoryPanel(enc, partnerEnc) {
   if (!_historyData) return;
 
   const tbody = document.getElementById("historyPanelTbody");
@@ -788,11 +791,8 @@ function renderHistoryPanel(enc) {
   const curRow = document.createElement("tr");
   curRow.classList.add("current-session");
   curRow.id = "history-current-row";
-  const curCodes  = enc.billing_codes || [];
-  const partnerEnc = enc.partner_id
-    ? currentSession.encounters.find(e => e.patient_id === enc.partner_id)
-    : null;
-  const parCodes  = partnerEnc ? (partnerEnc.billing_codes || []) : null;
+  const curCodes = enc.billing_codes || [];
+  const parCodes = partnerEnc ? (partnerEnc.billing_codes || []) : null;
 
   curRow.innerHTML = `
     <td class="history-date">${escHtml(enc.encounter_date)}<br>
@@ -844,6 +844,11 @@ function refreshHistoryCurrentRow() {
     ? currentSession.encounters.find(e => e.patient_id === enc.partner_id)
     : null;
   const parCodes = partnerEnc ? (partnerEnc.billing_codes || []) : null;
+  // Update partner column header in case it wasn't set
+  if (partnerEnc) {
+    document.getElementById("historyColPartner").textContent =
+      partnerEnc.patient_name.split(",")[0] || "Partner";
+  }
 
   curRow.innerHTML = `
     <td class="history-date">${escHtml(enc.encounter_date)}<br>
